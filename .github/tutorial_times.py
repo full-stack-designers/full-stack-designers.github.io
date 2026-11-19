@@ -13,6 +13,8 @@ def git(*a): return subprocess.run(('git',) + a, check=True, capture_output=True
 def main():
     before, after = sys.argv[1], sys.argv[2]
     if not re.fullmatch(r'[0-9a-f]{40}', before) or set(before) == {'0'}: before = after + '~1'
+    if subprocess.run(('git', 'rev-parse', '-q', '--verify', before + '^{commit}'), capture_output=True).returncode:
+        print('first push, nothing to compare with'); return
     def times(rev):
         try: return json.loads(git('show', f'{rev}:tutorials/updated.json'))
         except Exception: return {}
