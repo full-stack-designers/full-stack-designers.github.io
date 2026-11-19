@@ -1,0 +1,22 @@
+{
+  "_readme": [
+    "Settings for the Full Stack Designers site. The copy of this file in the root of the full-stack-designers.github.io repo wins: edit it there, and the next build uses it.",
+    "link_to_portfolio: true or false. When true, the footer of every page links to Clint's portfolio. The address of the portfolio is not stored in this public file; the build fills it in.",
+    "reading_aid: the sentence highlight that follows the scroll and the mouse. The settings mean the same as in the portfolio's work-config.json:",
+    "  enabled: true or false.",
+    "  scroll_per_line: for a short text, how many pixels of scrolling each line of a sentence is worth before the highlight moves on. Smaller is faster.",
+    "  reading_point: for a long text, where on the screen the highlighted sentence sits. 0 is the top, 1 is the bottom.",
+    "  catch_up_ms: after a fast scroll, the longest time in milliseconds the highlight spends on each sentence it missed.",
+    "  hover: true or false. With a mouse, resting the pointer on a sentence highlights it.",
+    "  hover_delay_ms: how long the pointer has to rest on a sentence before it is highlighted."
+  ],
+  "link_to_portfolio": false,
+  "reading_aid": {
+    "enabled": true,
+    "scroll_per_line": 10,
+    "reading_point": 0.45,
+    "catch_up_ms": 1000,
+    "hover": true,
+    "hover_delay_ms": 1000
+  }
+}

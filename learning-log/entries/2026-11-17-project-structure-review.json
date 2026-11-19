@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-17",
+  "did": "Fixed what the review found, on a branch, through pull request #6. Moved the flight feature's types file into cockpit/src/features/flight, since I had created it at the repository root. Repaired the imports that broke when App.tsx moved into src/app. Removed four empty files that had been committed into cockpit by accident. The cockpit builds and passes the linter again.",
+  "evidence": [
+    {
+      "label": "Pull request #6",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/pull/6"
+    },
+    {
+      "label": "Fix structure commit",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/befda39cdde309dae2075c0ea94de03aaad66169"
+    }
+  ],
+  "fixes": [],
+  "id": "2026-11-17-project-structure-review",
+  "learned": "Moving a file breaks every import that points at it, and every relative import inside it. The types file landed at the root because that is where my terminal was. My five lesson commits had gone straight to main, so this fix went through a branch and a pull request.",
+  "title": "Project structure: review and fixes",
+  "tutorial": "project-structure"
+}

@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NGINX from Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: lesson on the left; on the right a live schematic of the Kestrel's compute bay (the balancer's orders, the path each command takes to a core, the energy it cost) above a terminal that changes it. One dark terminal world; on phones the map-and-terminal bench sits inside the lesson, under the steps. */
+:root{
+  --bg:#0a0e13; --surface:#10161c; --sunk:#172029; --ink:#d6dfe6; --muted:#8696a3; --line:#222e38;
+  --accent:#4aa3ff; --accent-ink:#04121f; --accent-soft:#12283f;
+  --good:#3ddc97; --good-soft:#0f2e22; --warn:#f2b84b; --warn-soft:#33270d; --bad:#ff7b72; --bad-soft:#3b1716;
+  --term:#05080b; --term-ink:#cfdae2; --term-dim:#7d8d99; --term-line:#1a242d;
+  --display:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+a{color:var(--accent)}
+code,pre{font-family:var(--mono);font-size:.9em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 16px 12px;position:sticky;top:0;z-index:5}
+.top-in{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.brand{font:700 1.25rem/1.2 var(--display);letter-spacing:-.01em;margin:0}
+.brand span{color:var(--accent)}
+#progress-text{font-size:.85rem;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.bar{flex-basis:100%;height:4px;background:var(--sunk);border-radius:2px;overflow:hidden;margin-top:6px}
+#progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s}
+.shell{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr)}
+#nav{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;scrollbar-width:thin}
+.nav-item{display:flex;align-items:center;gap:8px;flex:none;padding:6px 12px 6px 6px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);text-decoration:none;font-size:.9rem;white-space:nowrap}
+.nav-item .num{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--sunk);font:500 .8rem var(--mono)}
+.nav-item.done .num{background:var(--good-soft);color:var(--good)}
+.nav-item.active{border-color:var(--accent);background:var(--accent-soft)}
+.nav-item.active .num{background:var(--accent);color:var(--accent-ink)}
+main{padding:8px 16px 64px;min-width:0}
+article{max-width:760px}
+.eyebrow{font:500 .8rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+h1{font:700 clamp(1.9rem,6vw,2.7rem)/1.1 var(--display);letter-spacing:-.02em;margin:0 0 16px;text-wrap:balance}
+h2{font:600 1.35rem/1.25 var(--display);margin:40px 0 8px;text-wrap:balance}
+h3{font:600 1rem/1.3 var(--body);margin:20px 0 6px}
+h4{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+p{margin:0 0 12px}
+.prose ul,.prose ol{padding-left:22px;margin:0 0 12px}
+.prose li{margin-bottom:6px}
+.prose code,.task code,.explain code,.saw code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+dl.terms{margin:16px 0;display:grid;gap:10px}
+dl.terms dt{font-weight:600}
+dl.terms dd{margin:0;padding-left:14px;border-left:3px solid var(--accent-soft);color:var(--ink)}
+pre.file{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px 14px;overflow-x:auto;margin:0 0 12px}
+.widget{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.caption{font-size:.92rem;color:var(--muted);margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:.85rem;color:var(--muted)}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:4px;padding:9px 14px;font-weight:600;text-decoration:none;align-self:flex-start}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.mini{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:4px 10px;font-size:.85rem}
+.mini.dark{background:transparent;border-color:var(--term-line);color:var(--term-ink)}
+.segs{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;align-self:flex-start}
+.seg{background:var(--surface);border:0;padding:8px 14px;font-weight:500}
+.seg+.seg{border-left:1px solid var(--line)}
+.seg[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.pill{display:inline-block;font:500 .72rem var(--mono);padding:2px 8px;border-radius:3px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.re{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.empty{color:var(--muted);font-size:.9rem;margin:0}
+/* stack diagram */
+.stack{display:flex;flex-direction:column;gap:6px}
+.stack-row{display:flex;gap:6px}
+.blk{flex:1;text-align:center;padding:10px 6px;border-radius:4px;font-size:.88rem;font-weight:500;border:1px solid var(--line);background:var(--sunk)}
+.blk.app{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.blk.lib{background:var(--accent-soft)}
+.blk.os{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.blk.eng{background:var(--good-soft);color:var(--good);border-color:transparent}
+/* layers */
+.layers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:end}
+.col-h{font:500 .75rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.layer{border:1px solid var(--line);background:var(--sunk);border-radius:4px;padding:8px 10px;margin-bottom:4px;display:flex;flex-direction:column}
+.layer span{font:400 .75rem var(--mono);color:var(--muted)}
+.layer.rw{background:var(--good-soft);border-color:transparent}
+.cons{display:flex;flex-wrap:wrap;gap:10px}
+.con{flex:1 1 130px;border:1px dashed var(--line);border-radius:4px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.uses{font-size:.75rem;color:var(--muted);text-align:center}
+/* annotated code */
+.scroll-x{overflow-x:auto;border-radius:4px;background:var(--term)}
+.code-lines{display:inline-flex;flex-direction:column;min-width:100%;padding:10px 0}
+.cl{font:400 .84rem/1.5 var(--mono);white-space:pre;text-align:left;background:none;border:0;border-left:3px solid transparent;color:var(--term-ink);padding:3px 14px 3px 11px}
+.cl.plain{color:var(--term-dim)}
+button.cl:hover{background:var(--term-line)}
+.cl[aria-pressed="true"]{background:var(--term-line);border-left-color:var(--accent)}
+.explain{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.explain code{display:inline-block;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
+.explain p{margin:0}
+.cache{border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:12px}
+.cache h3,.cache p{margin:0}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.steps li{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:4px;padding:6px 10px}
+.steps code{overflow-wrap:anywhere;font-size:.82rem}
+/* ports */
+.port-form{display:flex;align-items:flex-end;gap:8px}
+.port-form label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:4px}
+.port-form input,#cheat-filter{font:500 16px var(--mono);padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);width:118px}
+.colon{font:600 1.4rem var(--mono);padding-bottom:6px}
+.cmdline{background:var(--term);color:var(--term-ink);padding:10px 12px;border-radius:4px;overflow-x:auto;white-space:nowrap;display:block}
+.path{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hop{flex:1 1 130px;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:.82rem;color:var(--muted);background:var(--sunk)}
+.hop b{color:var(--ink);font-family:var(--mono);font-weight:500}
+.arrow{font-size:1.2rem;color:var(--good)}
+.arrow.broken{color:var(--bad)}
+.verdict{margin:0;padding:10px 12px;border-radius:4px;font-size:.95rem}
+.verdict.good,.fb.good{background:var(--good-soft);color:var(--good)}
+.verdict.bad,.fb.bad{background:var(--bad-soft);color:var(--bad)}
+/* tasks */
+.tasks{list-style:none;margin:16px 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.task{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--surface)}
+.task.todo{opacity:.6;background:transparent}
+.task.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.task-h{display:flex;gap:10px;align-items:flex-start}
+.mark{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sunk);font:500 .78rem var(--mono);margin-top:1px}
+.task.done .mark{background:var(--good-soft);color:var(--good)}
+.task.now .mark{background:var(--accent);color:var(--accent-ink)}
+.what{font-weight:600}
+.ran{display:block;margin:8px 0 6px 34px;overflow-wrap:anywhere}
+.saw{margin:0 0 0 34px;font-size:.92rem;color:var(--muted)}
+.cmd{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;margin:10px 0;background:var(--term);color:var(--term-ink);border:0;border-radius:4px;padding:10px 12px}
+.task .cmd code{background:none;padding:0;overflow-wrap:anywhere;font-size:.9rem}
+.tap{font:500 .72rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+dl.parts{margin:0;display:grid;gap:6px}
+dl.parts dt code{font-weight:500}
+dl.parts dd{margin:0 0 4px;font-size:.92rem;color:var(--muted)}
+.banner{background:var(--good-soft);color:var(--good);border-radius:4px;padding:10px 12px;margin-bottom:12px;font-size:.95rem}
+.banner .mini{color:var(--ink);margin-top:6px}
+/* terminal */
+.term{background:var(--term);border-radius:4px;overflow:hidden;border:1px solid var(--term-line)}
+.term-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--term-line);font:500 .75rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+.term-out{height:260px;overflow:auto;padding:10px 12px;font:400 .8rem/1.5 var(--mono);color:var(--term-ink)}
+.tl{white-space:pre;min-height:1.2em}
+.tl.in{color:#fff;font-weight:500;margin-top:6px}
+.tl.err{color:#ffb4a8}
+.tl.note{color:var(--term-dim);white-space:pre-wrap}
+.term-in{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--term-line)}
+.prompt{font:500 1rem var(--mono);color:#7fd1a6}
+.term-in input{flex:1;min-width:0;background:transparent;border:0;color:#fff;font:400 16px var(--mono);padding:6px 0}
+.term-in input::placeholder{color:var(--term-dim)}
+.term-in input:focus{outline:none}
+.term-in:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
+.run{background:#7fd1a6;color:#06231a;border:0;border-radius:4px;padding:8px 16px;font-weight:600}
+.world-wrap{margin-top:14px}
+.world{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.wg{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.wg ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wg li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:.9rem}
+.wg b{font-family:var(--mono);font-weight:500;overflow-wrap:anywhere}
+.sub{flex-basis:100%;font:400 .75rem var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.pill.off{background:var(--sunk)}
+/* quiz */
+.q{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:12px}
+.qt{font-weight:600}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fb{margin:10px 0 0;border-radius:4px;font-size:.93rem}
+.fb.good,.fb.bad{padding:9px 12px}
+.reading{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.reading li{display:flex;flex-direction:column}
+.reading a{font-weight:600}
+.reading span{font-size:.92rem;color:var(--muted)}
+.pager{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+.cheats h3{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
+dl.cheat{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+dl.cheat dt code{font-weight:500;overflow-wrap:anywhere}
+dl.cheat dd{margin:0 0 8px;font-size:.9rem;color:var(--muted)}
+#cheat-filter{width:100%;font-family:var(--body)}
+@media (min-width:640px){dl.cheat{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:6px 16px}dl.cheat dd{margin:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* terminal / dashboard chrome */
+header.top{background:var(--surface);padding:10px 16px 0}
+.top-in{align-items:center;gap:6px 12px}
+.dots{display:inline-flex;gap:6px}
+.dots i{width:11px;height:11px;border-radius:50%;background:var(--bad)}
+.dots i:nth-child(2){background:var(--warn)}
+.dots i:nth-child(3){background:var(--good)}
+.brand{font:500 .95rem/1.2 var(--mono);letter-spacing:0;color:var(--ink)}
+.brand span{color:var(--good)}
+.cur{display:inline-block;width:.55em;height:1.05em;background:var(--good);vertical-align:-.15em;margin-left:3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#progress-text{font:400 .78rem var(--mono)}
+.bar{height:2px;border-radius:0;margin-top:10px;background:var(--line)}
+#progress-bar{background:var(--good)}
+.nav-item{font:400 .82rem var(--mono);padding:5px 10px 5px 5px}
+.nav-item .num{border-radius:3px;width:28px;height:24px;font-size:.75rem}
+.nav-item.active{background:var(--accent-soft)}
+.eyebrow{color:var(--good);text-transform:none;letter-spacing:0}
+.eyebrow::before{content:"$ ";color:var(--muted)}
+h1{font:700 clamp(1.5rem,5.4vw,2.1rem)/1.2 var(--mono);letter-spacing:-.01em}
+h1::before{content:"> ";color:var(--accent)}
+h2{font:700 1.08rem/1.3 var(--mono);padding-top:20px;border-top:1px solid var(--line)}
+h2::before{content:"## ";color:var(--muted);font-weight:400}
+.cache h3,.world-wrap h3,.cheats h3{font-family:var(--mono)}
+.btn,.mini,.seg,.what,.qt,.col-h,dl.terms dt{font-family:var(--mono)}
+.btn,.what,.qt,dl.terms dt{font-size:.92rem}
+.btn{font-weight:500}
+.btn::before{content:"[ "}.btn::after{content:" ]"}
+.mini{background:var(--sunk)}
+.seg{font-size:.85rem}
+dl.terms dt::before{content:"\25B8  ";color:var(--good)}
+dl.terms dd{border-left-color:var(--line)}
+.prose code,.task code,.explain code,.saw code{color:#9fd0ff}
+.task .cmd code{color:var(--good)}
+.cmd{border:1px solid var(--term-line)}
+.cmd code::before{content:attr(data-p) " ";color:var(--term-dim)}
+.ran::before{content:attr(data-p) " ";color:var(--muted)}
+.widget,.q,.wg,.task{background:var(--surface)}
+.task.now{box-shadow:none;border-color:var(--accent);background:var(--accent-soft)}
+.mark{border-radius:3px}
+.term,.scroll-x{border:1px solid var(--line)}
+.term-bar{background:var(--surface);color:var(--muted)}
+.term-bar>span:first-child::before{content:"\25CF \25CF \25CF  ";color:var(--line);letter-spacing:1px}
+.prompt{color:var(--good)}
+.run{background:var(--good);color:#04121f;font-family:var(--mono)}
+.wg{padding:0;overflow:hidden}
+.wg h4{padding:8px 12px;margin:0;border-bottom:1px solid var(--line);background:var(--sunk)}
+.wg ul{gap:0}
+.wg li{padding:8px 12px;border-bottom:1px solid var(--line)}
+.wg li:last-child{border-bottom:0}
+.wg .empty{padding:8px 12px;font-family:var(--mono);font-size:.8rem}
+.pill.ok::before,.pill.bad::before,.pill.off::before{content:"\25CF  "}
+.opt{background:var(--sunk)}
+.opt::before{content:"( )  ";font-family:var(--mono);color:var(--muted)}
+.opt.right::before{content:"(\2713)  ";color:var(--good)}
+.opt.wrong::before{content:"(\00D7)  ";color:var(--bad)}
+.reading a{font-family:var(--mono);font-size:.9rem;font-weight:500}
+.blk.app{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.cur{animation:none}}
+
+/* split layout: lesson | bench (map above terminal) */
+html,body{height:100%}
+.app{display:flex;flex-direction:column;min-height:100%}
+header.top{position:static;padding:10px 16px 0}
+#nav{padding:10px 0 10px;flex:1 1 100%;order:3}
+.bar{order:4;margin-top:0}
+.work{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+main.lesson{padding:8px 16px 56px;min-width:0}
+article{max-width:70ch;margin:0 auto}
+.bench{display:none}
+.bench-in{display:flex;flex-direction:column;gap:12px;min-width:0}
+.slot{margin-top:16px}
+.map{border:1px solid var(--line);border-radius:4px;background:var(--surface);overflow:auto}
+.map-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);font:400 .75rem var(--mono);color:var(--muted)}
+.map-head b{font:700 .78rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.zones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.zone{display:flex;flex-direction:column;gap:8px;padding:10px 12px 8px;border-top:3px solid var(--muted);border-right:1px solid var(--line);min-width:0;transition:background-color .7s}
+.zone.wide{grid-column:span 2}
+.zone.flash{background:var(--accent-soft);transition:none}
+.z-tables{border-top-color:var(--good)}.z-session{border-top-color:var(--accent)}.z-databases{border-top-color:var(--warn)}.z-roles{border-top-color:#b392f0}
+.zone h3{font:700 .82rem var(--mono);letter-spacing:.06em;text-transform:uppercase;margin:0}
+.zsub{font-size:.75rem;color:var(--muted);margin-top:-6px}
+.zlist{display:flex;flex-direction:column;gap:8px;flex:1}
+.z-tables .zlist{flex-direction:row;flex-wrap:wrap;align-items:flex-start}
+.zone .exit{font:500 .72rem var(--mono);color:var(--muted);border-top:1px dashed var(--line);padding-top:6px}
+.zone .exit::before{content:"$ ";color:var(--good)}
+.card{flex:1 1 132px;border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;padding:8px 10px;background:var(--sunk);display:flex;flex-direction:column;gap:5px;min-width:0}
+.card.up{border-left-color:var(--good)}
+.card-h{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.card b,.rowi b{font:500 .85rem var(--mono);overflow-wrap:anywhere}
+.rowi{display:flex;flex-direction:column}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:500 .68rem/1.3 var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);overflow-wrap:anywhere}
+.chip.port{border-color:var(--accent);color:var(--accent)}
+.chip.vol{border-color:var(--warn);color:var(--warn)}
+.chip.net{border-color:#b392f0;color:#b392f0}
+.stepbar{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.sb-h{font:700 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.sb-w{font:500 .9rem var(--mono)}
+.stepbar .cmd{margin:6px 0 0}
+.stepbar .cmd code{color:var(--good);overflow-wrap:anywhere;font-size:.88rem}
+.term{display:flex;flex-direction:column}
+.tl.ok{color:var(--good);white-space:pre-wrap;margin:4px 0}
+.term-in input{font-size:16px}
+@media (min-width:720px){
+  .zones{grid-template-columns:minmax(0,2.7fr) minmax(0,1.15fr) minmax(0,1fr) minmax(0,1.05fr)}
+  .zone.wide{grid-column:auto}
+  .zone:last-child{border-right:0}
+}
+@media (min-width:1040px){
+  .app{height:100%}
+  .work{grid-template-columns:minmax(0,5fr) minmax(0,7fr);min-height:0}
+  main.lesson{overflow:auto;border-right:1px solid var(--line);padding:8px 28px 72px}
+  .bench{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:16px}
+  .bench-in{flex:1;min-height:0}
+  .map{flex:0 1 auto;max-height:56%}
+  .term{flex:1 1 0;min-height:210px}
+  .term-out{height:auto;flex:1 1 0;min-height:0}
+  .stepbar,.slot-sec,.slot{display:none}
+  #nav{flex:1 1 420px;order:0;padding:0 0 10px}
+  #progress-text{order:2}
+}
+.term-in.busy .run{opacity:.45}
+.term-in.busy .prompt{color:var(--term-dim)}
+/* layers on the map */
+.lstack{display:flex;flex-direction:column-reverse;gap:2px;margin:4px 0 3px;max-width:150px}
+.lb{display:block;height:5px;border-radius:1px;background:var(--line);transition:background-color .25s}
+.lb.on{background:var(--accent)}
+.rowi.pulling b{color:var(--muted)}
+.cstack{display:flex;flex-direction:column;gap:3px}
+.cl-rw,.cl-ro{border:1px solid var(--line);border-radius:3px;padding:4px 7px;font:400 .7rem/1.35 var(--mono);color:var(--muted);display:flex;flex-direction:column;overflow-wrap:anywhere}
+.cl-rw{border-color:var(--good);background:var(--good-soft)}
+.cl-rw span{color:var(--good);font-weight:500}
+.cl-rw em{font-style:normal;color:var(--ink)}
+.cl-ro .lstack{max-width:none;margin:1px 0 4px}
+.cl-ro .lb{height:3px}
+.task.todo{opacity:.72}
+.task.todo .ran{margin-bottom:0}
+button.ran{display:block;text-align:left;background:none;border:0;padding:0;max-width:calc(100% - 34px)}
+button.ran code{display:inline-block;border:1px solid transparent}
+button.ran:hover code,button.ran:focus-visible code{border-color:var(--accent);color:var(--good)}
+.task.skip{background:transparent;border-style:dashed}
+.task.skip .what{color:var(--muted)}
+/* guided cache experiment */
+.rules{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.coach{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.coach b{font:700 .95rem var(--mono)}
+.files{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.steps li{flex-direction:column;align-items:stretch;gap:3px;border-left:3px solid var(--line)}
+.steps li.hit{border-left-color:var(--good)}
+.steps li.redo{border-left-color:var(--warn);background:var(--warn-soft)}
+.st-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.steps .why{font-size:.82rem;color:var(--muted)}
+.steps li.redo .why{color:var(--ink)}
+.btn.next,.seg.next,.cmd.next{outline:2px solid var(--good);outline-offset:3px;animation:nudge 1.4s ease-in-out infinite}
+.seg.next{outline-offset:-2px}
+@keyframes nudge{50%{outline-color:transparent}}
+.btn:disabled,.seg:disabled{opacity:.5;cursor:default}
+.result{margin:0;padding:10px 12px;border-radius:4px;background:var(--sunk);font-size:.95rem;min-height:1.2em}
+.result:empty{display:none}
+.result.fast{background:var(--good-soft)}
+.result.slow{background:var(--warn-soft)}
+.score{display:flex;flex-direction:column;gap:6px}
+.score:empty{display:none}
+.score h4{margin:0}
+.sc-row{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:4px;padding:6px 10px;font-size:.9rem}
+.sc-row b{font-family:var(--mono)}
+.sc-row b.ok{color:var(--good)}.sc-row b.re{color:var(--warn)}
+.score p{margin:0;font-size:.92rem}
+.cache>.mini{align-self:flex-start}
+.cache .cmd{margin:0}
+.cache .cmd code{color:var(--good)}
+@media (prefers-reduced-motion:reduce){.btn.next,.seg.next,.cmd.next{animation:none}}
+/* postgres map */
+.z-tables .card{flex:1 1 240px;border-left-color:var(--good)}
+.card.locked{border-left-color:var(--bad)}
+.card.draft{border-left-color:var(--warn)}
+.gwrap{overflow-x:auto}
+.tgrid{border-collapse:collapse;font:400 .7rem/1.45 var(--mono);min-width:100%}
+.tgrid th{text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);padding:1px 10px 2px 0;white-space:nowrap}
+.tgrid td{padding:1px 10px 1px 0;white-space:nowrap;max-width:15ch;overflow:hidden;text-overflow:ellipsis}
+.tgrid td.nul{color:var(--muted)}
+.tgrid th i{font-style:normal;font-size:.62rem;margin-left:4px;color:var(--warn)}
+.tgrid th i.fk{color:var(--accent)}
+.tgrid tr.more td{color:var(--muted);max-width:none}
+.kv{display:flex;flex-direction:column;gap:2px}
+.kv>span:first-child{font:500 .64rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kv b{font:500 .85rem var(--mono);overflow-wrap:anywhere}
+.kv .row{gap:4px 6px}
+.chip.ix{border-color:var(--good);color:var(--good)}
+.tl.wait{color:var(--term-dim)}
+.prompt{white-space:nowrap;font-size:.9rem}
+/* widgets */
+.coach ol{margin:4px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.nest{display:flex;flex-direction:column;gap:6px}
+.nbox{border:1px solid var(--line);border-radius:4px;padding:6px;display:flex;flex-direction:column;gap:6px;background:var(--bg);min-width:0}
+.nbox.on{border-color:var(--accent);background:var(--accent-soft)}
+.nhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;align-items:baseline;background:none;border:0;padding:2px 4px;text-align:left;font:500 .85rem var(--mono);width:100%}
+.nhead span{font:400 .72rem var(--mono);color:var(--muted)}
+.nrow{display:flex;gap:6px;flex-wrap:wrap}
+.nrow>.nbox{flex:1 1 150px}
+.wire{font:400 .75rem var(--mono);color:var(--muted);text-align:center}
+.duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.sess{border:1px solid var(--line);border-radius:4px;padding:10px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.sess.changed{border-color:var(--warn)}
+.sess .big{font:700 1.3rem var(--mono)}
+.dots12{display:grid;grid-template-columns:repeat(12,1fr);gap:3px}
+.dots12 i{height:10px;border-radius:2px;background:var(--good)}
+.dots12 i.gone{background:var(--line)}
+.tlog{font:400 .8rem/1.5 var(--mono);background:var(--term);border:1px solid var(--line);border-radius:4px;padding:8px 10px;white-space:pre-wrap;margin:0;color:var(--term-ink)}
+.jcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.jt{border-collapse:collapse;font:400 .78rem/1.4 var(--mono);width:100%}
+.jt th{text-align:left;color:var(--muted);font-weight:500;border-bottom:1px solid var(--line);padding:2px 10px 3px 8px}
+.jt td{padding:3px 10px 3px 8px;border-bottom:1px solid var(--line)}
+.jt tr.keep td:first-child{box-shadow:inset 3px 0 0 var(--good)}
+.jt tr.out td{color:var(--muted);text-decoration:line-through}
+.jt td.nul{color:var(--warn)}
+.meter{display:flex;flex-direction:column;gap:4px}
+.meter .track{height:12px;border-radius:2px;background:var(--sunk);overflow:hidden}
+.meter .fill{height:100%;background:var(--warn);width:0;transition:width .3s}
+.meter .fill.ix{background:var(--good)}
+.meter b{font:500 .9rem var(--mono)}
+.meter.pick b::after{content:"  \2190  Postgres picks this";color:var(--good);font-weight:400;font-size:.78rem}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.slab{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted)}
+.slab b{font:500 1rem var(--mono);color:var(--ink)}
+.cs{display:flex;flex-wrap:wrap;background:var(--term);border:1px solid var(--line);border-radius:4px;padding:10px 12px;font:400 .92rem var(--mono)}
+.cs button{background:none;border:0;border-bottom:2px solid var(--term-line);padding:4px 0;margin:0 1px;color:var(--term-ink);font:inherit}
+.cs button[aria-pressed="true"]{border-bottom-color:var(--accent);color:var(--good)}
+table.types{border-collapse:collapse;width:100%;font-size:.92rem;margin:0 0 12px}
+table.types th{text-align:left;font:500 .72rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);padding:4px 10px 4px 0}
+table.types td{border-bottom:1px solid var(--line);padding:6px 10px 6px 0;vertical-align:top}
+@media (min-width:640px){table.types td:first-child{white-space:nowrap}}
+.rowi .sub{flex-basis:auto}
+button.ran{display:flex;gap:6px;align-items:baseline}
+button.ran code{min-width:0}
+.rowi .chips{margin-top:3px}
+.tscroll{overflow-x:auto}
+
+
+/* ---- FastAPI guide additions ---- */
+:root{--accent:#2fd4b5;--accent-ink:#031a16;--accent-soft:#0d2b27}
+.tl{white-space:pre-wrap;overflow-wrap:anywhere}
+.tl.prog{display:flex;gap:10px;align-items:center;color:var(--term-dim)}
+.prog .track{flex:0 0 150px;height:8px;background:var(--term-line);border-radius:2px;overflow:hidden}
+.prog .fill{height:100%;width:0;background:var(--good);transition:width .1s linear}
+.map-head .pill{font-size:.7rem}
+.fz{display:grid;grid-template-columns:minmax(0,1fr)}
+.fz .zone{border-right:0;border-bottom:1px solid var(--line)}
+.z-code{border-top-color:var(--accent)}.z-routes{border-top-color:var(--good)}.z-exchange{border-top-color:var(--warn)}.z-server{border-top-color:#b392f0}.z-data{border-top-color:var(--muted)}
+.fz .zlist{flex-direction:column;flex-wrap:nowrap}
+.ftabs{display:flex;flex-wrap:wrap;gap:4px}
+.ftab{font:500 .68rem var(--mono);padding:2px 7px;border-radius:3px;border:1px solid var(--line);background:var(--sunk);color:var(--muted)}
+.ftab[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.ftab.chg::after{content:" \25CF";color:var(--good)}
+.pycode{background:var(--term);border:1px solid var(--line);border-radius:4px;max-height:250px;overflow:auto;padding:6px 0;font:400 .7rem/1.5 var(--mono);color:var(--term-ink)}
+.pl{display:block;white-space:pre;padding-right:10px;border-left:3px solid transparent;min-width:max-content}
+.pl.new{background:var(--good-soft);border-left-color:var(--good)}
+.pl i{font-style:normal;display:inline-block;width:2.6em;text-align:right;padding-right:.8em;color:var(--term-dim);user-select:none}
+.pl .k{color:#ff9eb0}.pl .s{color:#e6c07b}.pl .c{color:var(--term-dim)}.pl .d{color:var(--accent)}.pl .n{color:#9fd0ff}
+.rt{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:4px 6px;border-radius:3px;border:1px solid transparent}
+.rt.hit{border-color:var(--accent);background:var(--accent-soft)}
+.meth{font:700 .64rem var(--mono);padding:1px 5px;border-radius:3px;min-width:4.2em;text-align:center}
+.m-GET{background:#12283f;color:#6db8ff}.m-POST{background:var(--good-soft);color:var(--good)}.m-PUT,.m-PATCH{background:var(--warn-soft);color:var(--warn)}.m-DELETE{background:var(--bad-soft);color:var(--bad)}
+.rt b{font:500 .8rem var(--mono);overflow-wrap:anywhere}
+.rt .sub{flex-basis:auto}
+.xreq{font:500 .82rem var(--mono);overflow-wrap:anywhere}
+.xsteps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.xsteps li{display:flex;gap:6px;font-size:.78rem;line-height:1.35;overflow-wrap:anywhere}
+.xsteps li::before{content:"\2713";color:var(--good);font-family:var(--mono);flex:none}
+.xsteps li.no::before{content:"\2717";color:var(--bad)}
+.xsteps li.skip::before{content:"\2013";color:var(--muted)}
+.xsteps li.skip{color:var(--muted)}
+.rbody{margin:0;background:var(--term);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font:400 .7rem/1.45 var(--mono);max-height:180px;overflow:auto;white-space:pre;color:var(--term-ink)}
+.slog{font:400 .66rem/1.45 var(--mono);color:var(--term-dim);white-space:pre;overflow-x:auto;background:var(--term);border:1px solid var(--line);border-radius:4px;padding:6px 8px}
+.slog .w{color:var(--warn)}.slog .e{color:var(--bad)}.slog .r{color:var(--term-ink)}
+.zone .kv .row{gap:4px 6px}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+@media (min-width:720px){
+  .fz{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+  .fz .z-code{grid-row:span 2;border-right:1px solid var(--line)}
+  .fz .z-server{border-right:1px solid var(--line);border-bottom:0}
+  .fz .z-data{border-bottom:0}
+}
+@media (min-width:1040px){.map{max-height:60%}}
+/* widgets */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:6px}
+.fstep{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--sunk);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:4px;padding:7px 9px}
+.fstep .fnum{font:500 .68rem var(--mono);color:var(--muted)}
+.fstep .ft{font:500 .82rem var(--mono)}
+.fstep .fs{font-size:.74rem;color:var(--muted);overflow-wrap:anywhere}
+.fstep.past{border-left-color:var(--good)}
+.fstep[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.cs button{overflow-wrap:anywhere;text-align:left}
+.lanes{display:flex;flex-direction:column;gap:6px}
+.lane{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:8px;align-items:center;font:400 .78rem var(--mono);color:var(--muted)}
+.lane .track{position:relative;height:16px;background:var(--sunk);border-radius:2px}
+.lane .fill{position:absolute;top:0;bottom:0;background:var(--accent);border-radius:2px;transition:left .3s,width .3s}
+.lane .fill.wait{background:var(--line)}
+.axis{display:grid;grid-template-columns:5.5em minmax(0,1fr);gap:8px;font:400 .68rem var(--mono);color:var(--muted)}
+.axis div{display:flex;justify-content:space-between}
+.prose h3{font-family:var(--mono)}
+.prose pre.file{font-size:.82rem}
+
+.fz .zlist{min-width:0}
+.pycode,.rbody,.slog{min-width:0}
+
+
+/* ---- Playwright + pytest guide additions ---- */
+:root{--accent:#f778ba;--accent-ink:#2a0719;--accent-soft:#38152b}
+.prose code,.task code,.explain code,.saw code{color:#ffb3d6}
+.pz{display:grid;grid-template-columns:minmax(0,1fr)}
+.pz .zone{border-right:0;border-bottom:1px solid var(--line);min-width:0}
+.pz .zlist{flex-direction:column;flex-wrap:nowrap;min-width:0}
+.z-code{border-top-color:var(--accent)}.z-run{border-top-color:var(--good)}.z-browser{border-top-color:var(--warn)}.z-steps{border-top-color:#b392f0}.z-proj{border-top-color:var(--muted)}
+.pz .z-proj{border-bottom:0}
+.z-proj .zlist{flex-direction:row;flex-wrap:wrap;gap:8px 22px}
+.z-proj .kv .empty{font:400 .75rem var(--mono)}
+.pycode{max-height:300px}
+.pcol{display:flex;flex-direction:column;min-width:0}
+.pcol .zone{flex:none}
+.pcol .zone:last-child{flex:1}
+.runlist{display:flex;flex-direction:column;gap:2px;max-height:160px;overflow:auto;border:1px solid var(--line);border-radius:4px;padding:3px;background:var(--bg)}
+.pcol .z-steps{border-top:1px solid var(--line);border-top-color:#b392f0}
+.ptabs{display:flex;border-bottom:1px solid var(--line);background:var(--sunk)}
+.ptab{display:flex;align-items:center;gap:6px;background:none;border:0;border-bottom:2px solid transparent;padding:7px 12px;font:700 .72rem var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);min-width:0;text-align:left}
+.ptab[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent);background:var(--surface)}
+.pdot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--good)}.pdot.bad{background:var(--bad)}
+.pcol:first-child .zone{border-top:0}
+.pz .z-proj{border-top:1px solid var(--line)}
+@media (min-width:720px){
+  .pz{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr)}
+  .pcol:first-child{border-right:1px solid var(--line)}
+  .pz .z-proj{grid-column:1/-1}
+}
+@media (min-width:1040px){.map{max-height:63%}}
+.tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;text-align:left;background:none;border:1px solid transparent;border-radius:3px;padding:3px 6px;width:100%}
+.tr:hover{border-color:var(--line)}
+.tr.hit{border-color:var(--accent);background:var(--accent-soft)}
+.tr b{font:500 .78rem var(--mono);overflow-wrap:anywhere;min-width:0}
+.tr .sub{flex-basis:auto}
+.tm{font:700 .72rem var(--mono);width:1.5em;text-align:center;border-radius:3px;flex:none}
+.tm.passed{background:var(--good-soft);color:var(--good)}.tm.failed,.tm.error{background:var(--bad-soft);color:var(--bad)}.tm.running{background:var(--warn-soft);color:var(--warn)}.tm.queued{color:var(--muted)}
+.xsteps li>span,.xsteps .stepbtn>span{display:flex;flex-direction:column;min-width:0}
+.xsteps code{font:400 .72rem/1.4 var(--mono);overflow-wrap:anywhere;color:var(--ink)}
+.xsteps li.fx code{color:var(--muted)}
+.xsteps li.no code{color:var(--bad)}
+.xsteps li.on{background:var(--accent-soft);box-shadow:-6px 0 0 var(--accent-soft),6px 0 0 var(--accent-soft)}
+.xsteps .sub{flex-basis:auto}
+.stepbtn{background:none;border:0;padding:0;text-align:left;color:inherit;min-width:0;flex:1}
+.xsteps.pickable li{border-bottom:1px dashed var(--line);padding:2px 0}
+.xsteps.pickable .stepbtn:hover code{color:var(--accent)}
+.stepbtn[aria-pressed="true"] code{color:var(--accent)}
+/* the mini browser */
+.bw{border:1px solid var(--line);border-radius:5px;overflow:hidden;min-width:0;flex:none}
+.bw-bar{display:flex;flex-direction:column;gap:3px;background:var(--sunk);padding:5px 8px 6px}
+.bw-tab{font:400 .64rem var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bw-tab::before{content:"\25CF \25CF \25CF   ";color:var(--line);letter-spacing:1px}
+.bw-url{background:var(--term);border-radius:10px;padding:2px 10px;font:400 .7rem var(--mono);color:var(--term-ink);overflow-wrap:anywhere}
+.bw-page{background:#f6f1e7;color:#1d2329;font:400 .74rem/1.4 var(--body);padding:8px 10px;max-height:250px;overflow:auto}
+.bw-blank{color:#9aa1a8;font-family:var(--mono);padding:16px 0;text-align:center}
+.pg-nav{display:flex;flex-wrap:wrap;gap:4px 14px;border-bottom:1px solid #d9d2c3;padding-bottom:5px;margin-bottom:6px}
+.pg-a{color:#0b5cad;text-decoration:underline}
+.pg-h1{font:700 1.02rem/1.25 var(--body);margin:2px 0 6px}.pg-h2{font:600 .84rem var(--body);margin:8px 0 4px}.pg-h3{font:600 .76rem var(--body);flex:1;min-width:0}
+.pg-label{display:flex;flex-direction:column;gap:2px;margin:4px 0;font-size:.68rem;color:#59626b}
+.pg-input{display:block;border:1px solid #b9b2a3;border-radius:3px;background:#fff;padding:3px 6px;min-height:1.9em;color:#1d2329;font-size:.74rem;max-width:230px}
+.pg-input.ph{color:#9aa1a8}
+.pg-button{display:inline-block;background:#1f6f54;color:#fff;border-radius:3px;padding:2px 8px;font-size:.68rem;font-weight:600;white-space:nowrap;margin:2px 0}
+.pg-ul{display:flex;flex-direction:column;gap:4px}
+.pg-li{display:flex;align-items:center;gap:8px;border:1px solid #d9d2c3;border-radius:4px;padding:3px 8px;background:#fffdf8}
+.bw-page .price{font:400 .7rem var(--mono)}
+.pg-p{margin:4px 0}
+.pg-p.note{background:#dff3e6;color:#17523b;padding:3px 8px;border-radius:3px}
+.pg-p.err{background:#fde3df;color:#8f1d12;padding:3px 8px;border-radius:3px}
+.pg-p.sum{display:flex;justify-content:space-between;max-width:230px;margin:2px 0}
+.pg-table{border-collapse:collapse;margin:4px 0 8px;font-size:.72rem}
+.pg-th,.pg-td{border-bottom:1px solid #d9d2c3;padding:2px 16px 2px 0;text-align:left}
+.pg-th{font-weight:600;color:#59626b}
+.bw-page .hl{outline:2px solid #d81b7f;outline-offset:1px;box-shadow:0 0 0 4px rgba(216,27,127,.22)}
+/* widgets */
+.lpick{display:inline-flex;flex-direction:column;min-width:100%;padding:8px 0}
+.wcards{display:flex;flex-direction:column;gap:10px}
+.wcard{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
+.wcard>code{overflow-wrap:anywhere;font-size:.8rem;color:var(--good)}
+.wcard .caption{font-size:.88rem}
+.wtrack{position:relative;height:18px;background:var(--sunk);border-radius:2px;margin:0 6px}
+.wtrack i{position:absolute}
+.wtrack .upd{top:-2px;bottom:-2px;width:2px;background:var(--good)}
+.wtrack .chk{top:5px;width:8px;height:8px;border-radius:50%;margin-left:-4px}
+.chk.n{background:var(--bad)}.chk.y{background:var(--good);box-shadow:0 0 0 2px var(--sunk)}
+.notes table.types code{white-space:nowrap}
+.widget .bw-page{max-height:none}
+.verdict.warn{background:var(--warn-soft);color:var(--warn)}
+
+/* ---- CI guide additions ---- */
+:root{--accent:#a78bfa;--accent-ink:#150a33;--accent-soft:#251d44}
+.prose code,.task code,.explain code,.saw code{color:#cfc0ff}
+.z-git{border-top-color:var(--accent)}
+.pz .z-run{border-bottom:0}
+.xsteps li.going::before{content:"\25B8";color:var(--warn)}
+.xsteps li.wait::before{content:"\00B7";color:var(--muted)}
+.xsteps li.going code{color:var(--warn)}
+.xsteps li.wait code,.xsteps li.skip code{color:var(--muted)}
+.xsteps{margin:0 0 4px 22px}
+.tm.passed,.tm.failed,.tm.running,.tm.queued{line-height:1.5}
+.rbody{white-space:pre-wrap;overflow-wrap:anywhere;max-height:210px}
+.runlist{max-height:96px}
+.crow{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:3px 0;border-bottom:1px dashed var(--line);font:400 .76rem/1.4 var(--mono)}
+.crow:last-child{border-bottom:0}
+.crow .sha{color:var(--warn)}
+.crow .cmsg{flex:1 1 12ch;min-width:0;overflow-wrap:anywhere;color:var(--ink)}
+.crow .sub{flex-basis:auto}
+.chip.bad{border-color:var(--bad);color:var(--bad)}
+.pdot.warn{background:var(--warn)}
+.z-git .kv{gap:4px}
+.z-git .zlist{gap:10px}
+.lane .track{height:18px}
+.lanes .lane span{overflow-wrap:anywhere}
+.widget .segs{flex-wrap:wrap}
+.pl .d{color:var(--accent)}
+.prose ol{padding-left:22px;margin:0 0 12px}
+.z-steps .tr b{font-size:.8rem}
+
+.jobs{display:flex;flex-wrap:wrap;gap:4px}
+.jtab{display:flex;align-items:center;gap:6px;font:500 .74rem var(--mono);padding:3px 9px 3px 4px;border-radius:3px;border:1px solid var(--line);background:var(--sunk);color:var(--ink)}
+.jtab[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.strip{border-top:1px solid var(--line)}
+.strip .zone{border-top:0;border-right:0;padding:8px 12px;gap:6px}
+.strip .zsub{display:none}
+.strip h3{font-size:.7rem;color:var(--muted)}
+.strip .zlist{flex-direction:row;flex-wrap:wrap;gap:6px 18px}
+.strip .kv .empty{font:400 .75rem var(--mono)}
+@media (min-width:1040px){
+  .map{display:flex;flex-direction:column;overflow:hidden;max-height:66%}
+  .map>.pz{flex:1 1 auto;min-height:0;overflow:auto}
+  .map>.strip{flex:none;max-height:36%;overflow:auto}
+}
+/* ---- NGINX guide additions ---- */
+:root{--accent:#22d3ee;--accent-ink:#031a1f;--accent-soft:#0c2b33}
+.prose code,.task code,.explain code,.saw code{color:#a5ecf7}
+.pl .d{color:var(--accent)}.pl .k{color:#ffb86b}
+.z-path{border-top-color:var(--good)}.z-reactor{border-top-color:var(--warn)}
+.pz .z-path{border-bottom:0}
+.pycode{max-height:330px}
+.gate{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px}
+.arrowr{align-self:center;color:var(--muted);font:500 1rem var(--mono)}
+.node{flex:1 1 120px;border:1px solid var(--line);border-radius:4px;background:var(--sunk);padding:6px 8px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.node b{font:500 .8rem var(--mono)}
+.node.on{border-color:var(--accent)}
+.node.off{opacity:.55;border-style:dashed}
+.node.bad{animation:refuse .5s}
+@keyframes refuse{20%,60%{border-color:var(--bad);background:var(--bad-soft)}}
+.lanes2{display:flex;flex-direction:column;gap:5px}
+.ln{display:grid;grid-template-columns:minmax(26px,.32fr) minmax(0,2.4fr);align-items:center}
+.ltrack{position:relative;height:2px;background:var(--accent)}
+.ln.unwired .ltrack{background:repeating-linear-gradient(90deg,var(--line) 0 4px,transparent 4px 8px)}
+.pkt{position:absolute;top:-4px;left:0;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);opacity:0;animation:fly .55s ease-in forwards}
+.pkt.hit{background:var(--good);box-shadow:0 0 6px var(--good)}
+.pkt.limit{background:var(--bad);box-shadow:0 0 6px var(--bad)}
+@keyframes fly{0%{left:0;opacity:1}90%{opacity:1}100%{left:calc(100% - 10px);opacity:0}}
+.ccard{border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;background:var(--sunk);padding:5px 8px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.ccard b{font:500 .82rem var(--mono)}
+.ccard.up{border-left-color:var(--good)}
+.ccard.down{border-left-color:var(--bad);opacity:.7}
+.ccard.over{border-left-color:var(--bad)}
+.ccard.spec{border-left-color:var(--accent);border-style:dashed;border-left-style:solid}
+.ccard.glow{animation:glow .9s ease-out}
+@keyframes glow{0%{box-shadow:0 0 0 0 var(--accent)}35%{box-shadow:0 0 0 3px var(--accent);background:var(--accent-soft)}100%{box-shadow:0 0 0 0 transparent}}
+.ccard .sub,.node .sub{flex-basis:auto}
+.lbar{height:6px;border-radius:2px;background:var(--line);overflow:hidden}
+.lbar i{display:block;height:100%;background:var(--good);transition:width .4s}
+.lbar.over i{background:var(--bad)}
+.strip .z-reactor .zlist{align-items:flex-end}
+.kv.grow{flex:1 1 220px}
+.gauge{position:relative;flex:1 1 120px;min-width:100px;height:12px;border-radius:2px;background:var(--sunk);overflow:hidden}
+.gauge i{display:block;height:100%;background:var(--good);transition:width .5s}
+.gauge.over i{background:var(--bad)}
+.gauge em{position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--warn)}
+.kv b.hot{color:var(--bad)}
+.kv .row{flex-wrap:nowrap}
+.pill.re{white-space:nowrap}
+@media (min-width:1040px){.map{max-height:68%}}
+@media (prefers-reduced-motion:reduce){.pkt{animation:none}.ccard.glow,.node.bad{animation:none}}
+
+/* the Kestrel load map */
+.duo2{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;align-items:start}
+@media (min-width:720px){.duo2{grid-template-columns:minmax(170px,.82fr) minmax(0,1.18fr)}.kfig{position:sticky;top:0}}
+.kfig{border:1px solid var(--line);border-radius:4px;padding:2px;min-width:0;background:linear-gradient(var(--term-line) 1px,transparent 1px) 0 0/100% 20px,linear-gradient(90deg,var(--term-line) 1px,transparent 1px) 0 0/20px 100%,var(--term)}
+.kfig svg{display:block;width:100%;height:auto;max-height:340px;margin:0 auto;overflow:visible}
+.kes .pl{fill:var(--lf,#121a22);stroke:var(--ls,#52697b);stroke-width:1.4;stroke-linejoin:round;transition:fill .6s,stroke .6s}
+.kes .ln{fill:none;stroke:#3d5263;stroke-width:1}
+.kes .nd.dark .pl{stroke-dasharray:4 3}
+.kes .nd.skip .pl{stroke:var(--warn);stroke-dasharray:7 3}
+.kes .nd.hot .pl{animation:hot .5s ease-in-out 4 alternate}
+@keyframes hot{to{fill:rgba(255,123,114,.85)}}
+.kes .nd.aux{opacity:.28;transition:opacity .6s}
+.kes .nd.aux.used{opacity:1}
+.kes .nd.head .pl{stroke:var(--accent)}
+.kes .reactor .ring{fill:none;stroke:var(--good);stroke-width:2.2}
+.kes .reactor .glow{fill:var(--good);transition:fill-opacity .6s}
+.kes .reactor .pip{fill:var(--term);stroke:var(--good);stroke-width:1.4}
+.kes .reactor.idle .ring,.kes .reactor.idle .pip{stroke:#52697b}
+.kes .reactor.over .ring,.kes .reactor.over .pip{stroke:var(--bad)}
+.kes .reactor.over .glow{fill:var(--bad);animation:melt .45s ease-in-out infinite alternate}
+@keyframes melt{to{fill-opacity:.25}}
+.kes .cd{fill:none;stroke:var(--accent);stroke-width:1.5;stroke-dasharray:3 4;opacity:.85}
+.kes .cd.bk{stroke:var(--warn)}
+.kes .cd.dead{stroke:var(--bad);opacity:.55}
+.kes .cd.skip{stroke:var(--warn);opacity:.55}
+.kes .cd.mem{stroke:var(--good)}
+.kes.refit .cd{stroke-dasharray:320;animation:cdraw .9s ease-out}
+@keyframes cdraw{from{stroke-dashoffset:320}to{stroke-dashoffset:0}}
+.kes .scan{fill:var(--accent);opacity:0}
+.kes.refit .scan{animation:sweep 1s ease-out}
+@keyframes sweep{from{transform:translateY(0);opacity:.9}to{transform:translateY(370px);opacity:0}}
+.kes .mk circle,.kes .mk rect{fill:var(--term);stroke:#7d8d99;stroke-width:1.4}
+.kes .mk text{font:700 11px var(--mono);fill:var(--ink);text-anchor:middle}
+.kes .mk.on circle,.kes .mk.on rect{stroke:var(--good)}
+.kes .mk.bal.on circle,.kes .mk.pilot circle{stroke:var(--accent)}
+.kes .mk.off{opacity:.5}
+.kes .mk.down circle,.kes .mk.hot circle{stroke:var(--bad)}
+.kes .mk.down text{fill:var(--bad)}
+.kes .mk.hit circle,.kes .mk.hit rect{animation:mkhit .9s ease-out}
+@keyframes mkhit{30%{fill:var(--accent);stroke-width:4}}
+.kes .mk.err circle{animation:mkerr .6s}
+@keyframes mkerr{30%,70%{fill:var(--bad)}}
+.kes .gatebar{stroke:var(--bad);stroke-width:3;stroke-linecap:round;opacity:.55}
+.kes .gatebar.shut{animation:shut .8s}
+@keyframes shut{30%{opacity:1;stroke-width:6}}
+.kes .pk{fill:var(--accent);opacity:0;offset-rotate:0deg;animation:pkrun .8s linear forwards;filter:drop-shadow(0 0 3px var(--accent))}
+.kes .pk.hit{fill:var(--good);filter:drop-shadow(0 0 3px var(--good))}
+.kes .pk.limit{fill:var(--bad);filter:drop-shadow(0 0 3px var(--bad));animation-duration:.5s}
+@keyframes pkrun{0%{offset-distance:0%;opacity:1}90%{opacity:1}100%{offset-distance:100%;opacity:0}}
+.bdg{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 3px;border-radius:50%;border:1.5px solid var(--muted);font:700 .68rem var(--mono);color:var(--ink);background:var(--term)}
+.bdg.on{border-color:var(--good)}.bdg.down,.bdg.over{border-color:var(--bad)}.bdg.lim{border-color:var(--bad);color:var(--bad);border-radius:4px}
+.ccard.gatec{border-left-color:var(--accent)}
+.gatec .bdg{border-color:var(--accent)}
+.gatec .arrowr{font-size:.8rem}
+@media (prefers-reduced-motion:reduce){.kes .pk,.kes .nd.hot .pl,.kes .reactor.over .glow,.kes.refit .cd,.kes.refit .scan,.kes .mk.hit circle,.kes .mk.hit rect,.kes .mk.err circle,.kes .gatebar.shut{animation:none}}
+@media (min-width:720px){.pz{grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr)}.duo2{grid-template-columns:minmax(200px,1fr) minmax(0,1.05fr)}}
+.kfig svg{max-height:none}
+
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="app">
+<header class="top"><div class="top-in">
+  <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+  <p class="brand"><span>~/</span>nginx-from-zero<b class="cur" aria-hidden="true"></b></p>
+  <nav id="nav" aria-label="Lessons"></nav>
+  <span id="progress-text"></span>
+  <div class="bar" aria-hidden="true"><div id="progress-bar"></div></div>
+</div></header>
+<div class="work">
+  <main id="main" class="lesson" tabindex="-1"></main>
+  <aside id="bench" class="bench" aria-label="Sandbox"></aside>
+</div>
+</div>
+<script>
+/* ---------- The Kestrel's compute bay: every config file is data, so what you read and what the sandbox runs cannot drift apart ---------- */
+const NGV='nginx/1.28.0',CONF='/etc/nginx/conf.d/kestrel.conf',BUDGET_KW=25;
+const CORES={
+  'core-1':{port:8001,app:'targeting',node:'torso',cap:6,ms:50,kj:2},
+  'core-2':{port:8002,app:'targeting',node:'arms',cap:3,ms:50,kj:3},
+  'core-3':{port:8003,app:'targeting',node:'legs',cap:3,ms:50,kj:3},
+  'reserve':{port:8004,app:'targeting',node:'backpack',cap:2,ms:90,kj:6,battery:true},
+  'sensors':{port:8011,app:'sensors',node:'cockpit',cap:4,ms:30,kj:1},
+  'thrusters':{port:8021,app:'thrusters',node:'legs',cap:4,ms:30,kj:1}};
+const ORDER=Object.keys(CORES);
+const S=(name,o)=>Object.assign({name},o||{});
+const POOL=o=>[S('core-1',o),S('core-2',o),S('core-3',o)];
+const FT={mf:1,ft:5};
+const W2=o=>[S('core-1',Object.assign({weight:2},o)),S('core-2',o),S('core-3',o)];
+const FULLPOOL=W2(FT).concat([S('reserve',{backup:true})]);
+const TLOC=o=>Object.assign({path:'/targeting',up:'targeting'},o||{});
+const CFG={
+ '02-proxy.conf':{about:'every /targeting command goes to one core',locs:[{path:'/targeting',direct:'core-1',hdr:true}]},
+ '02-typo.conf':{about:'the same orders, with one character missing',broken:true,locs:[{path:'/targeting',direct:'core-1',hdr:true}]},
+ '03-pool.conf':{about:'three cores share the work, taking turns',log:true,srvHdr:true,ups:{targeting:{servers:POOL()}},locs:[TLOC()]},
+ '04-weights.conf':{about:'the big core gets a double share',log:true,srvHdr:true,ups:{targeting:{servers:W2()}},locs:[TLOC()]},
+ '04-least.conf':{about:'each command goes to the least busy core, for its size',log:true,srvHdr:true,ups:{targeting:{method:'least_conn',servers:W2()}},locs:[TLOC()]},
+ '05-reserve.conf':{about:'skip dark cores quickly, and keep one in reserve',log:true,srvHdr:true,ups:{targeting:{method:'least_conn',servers:FULLPOOL}},locs:[TLOC()]},
+ '06-budget.conf':{about:'no more than 10 solves a second',log:true,srvHdr:true,limit:{rate:10,burst:10},ups:{targeting:{method:'least_conn',servers:FULLPOOL}},locs:[TLOC({limit:true})]},
+ '07-cache.conf':{about:'remember each answer for 60 seconds',log:true,srvHdr:true,limit:{rate:10,burst:10},cache:{valid:60},ups:{targeting:{method:'least_conn',servers:FULLPOOL}},locs:[TLOC({limit:true,cache:true})]},
+ '08-routes.conf':{about:'one gate for every subsystem',log:true,srvHdr:true,limit:{rate:10,burst:10},cache:{valid:60},ups:{targeting:{method:'least_conn',servers:FULLPOOL}},locs:[TLOC({limit:true,cache:true}),{path:'/sensors',direct:'sensors'},{path:'/thrusters',direct:'thrusters'}]}
+};
+function confText(name,c){
+  const L=['# '+name+': '+c.about,''];
+  if(c.log)L.push("log_format kestrel '$remote_addr \"$request\" $status to=$upstream_addr '","                   'cache=$upstream_cache_status time=$request_time';",'');
+  if(c.limit)L.push('limit_req_zone $binary_remote_addr zone=energy:10m rate='+c.limit.rate+'r/s;','');
+  if(c.cache)L.push('proxy_cache_path /var/cache/nginx keys_zone=solves:10m;','');
+  for(const u in (c.ups||{})){const U=c.ups[u];L.push('upstream '+u+' {');if(U.method)L.push('    '+U.method+';');
+    U.servers.forEach(s=>{const B=CORES[s.name];let l='    server 127.0.0.1:'+B.port;if(s.weight)l+=' weight='+s.weight;if(s.mf)l+=' max_fails='+s.mf+' fail_timeout='+s.ft+'s';if(s.backup)l+=' backup';L.push(l+';  # '+s.name+(s.backup?', on battery':', '+B.node));});
+    L.push('}','');}
+  L.push('server {','    listen 80;');
+  if(c.log)L.push('    access_log /var/log/nginx/access.log kestrel;');
+  if(c.srvHdr)L.push('    proxy_set_header Host $host;','    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;');
+  c.locs.forEach((l,i)=>{L.push('','    location '+l.path+' {');
+    if(l.limit)L.push('        limit_req zone=energy burst='+c.limit.burst+' nodelay;','        limit_req_status 429;');
+    if(l.cache)L.push('        proxy_cache solves;','        proxy_cache_valid 200 '+c.cache.valid+'s;','        add_header X-Cache-Status $upstream_cache_status;');
+    L.push('        proxy_pass http://'+(l.up||'127.0.0.1:'+CORES[l.direct].port)+(c.broken&&!i?'':';'));
+    if(l.hdr)L.push('        proxy_set_header Host $host;','        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;');
+    L.push('    }');});
+  L.push('}');return L.join('\n')+'\n';
+}
+const STEP={},CFG_BY_SRC=new Map();
+for(const k in CFG){CFG[k].name=k;STEP[k]=confText(k,CFG[k]);CFG_BY_SRC.set(STEP[k],CFG[k]);}
+const COMPOSE=`# The Kestrel's compute bay. Each service is one container.
+services:
+${ORDER.map(n=>`  ${n}:
+    image: hangar/${CORES[n].app}:1.0
+    ports:
+      - "127.0.0.1:${CORES[n].port}:8000"`).join('\n')}
+`;
+const MAINCONF=`user  nginx;
+worker_processes  auto;
+error_log  /var/log/nginx/error.log notice;
+pid        /run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    access_log    /var/log/nginx/access.log;
+    sendfile      on;
+    keepalive_timeout  65;
+
+    include /etc/nginx/conf.d/*.conf;
+}
+`;
+const keyOf=(o,v)=>Object.keys(o).find(k=>o[k]===v)||null;
+
+/* ---------- The sandbox: a shell, nginx, and six containers ---------- */
+function createSim(upto){
+  const HOME='~/kestrel/';
+  const w={files:{},skew:0,cols:72,nginx:{running:false,cfg:null,name:null,text:null},be:{},access:[],errors:[],rr:{},fails:{},lim:{excess:0,last:0},cache:{},last:null,total:0,stamp:0,solve:1040,conn:0,booting:false};
+  ORDER.forEach(n=>w.be[n]={up:true,served:0,energy:0,peak:0,slow:1});
+  for(const k in STEP)w.files[HOME+'steps/'+k]=STEP[k];
+  w.files[HOME+'compose.yml']=COMPOSE;w.files['/etc/nginx/nginx.conf']=MAINCONF;
+  const clock=()=>Date.now()+w.skew;
+  const WAIT=ms=>'\u0002'+Math.max(1,Math.round(ms));
+  const E=(out,meta)=>({ok:false,out:Array.isArray(out)?out.join('\n'):out,meta:meta||{}}),OK=(out,meta)=>({ok:true,out:Array.isArray(out)?out.join('\n'):(out||''),meta:meta||{}});
+  const p2=n=>String(n).padStart(2,'0');
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],DAY=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const hms=d=>p2(d.getUTCHours())+':'+p2(d.getUTCMinutes())+':'+p2(d.getUTCSeconds());
+  const errStamp=t=>{const d=new Date(t);return d.getUTCFullYear()+'/'+p2(d.getUTCMonth()+1)+'/'+p2(d.getUTCDate())+' '+hms(d);};
+  const accStamp=t=>{const d=new Date(t);return p2(d.getUTCDate())+'/'+MON[d.getUTCMonth()]+'/'+d.getUTCFullYear()+':'+hms(d)+' +0000';};
+  const httpDate=t=>{const d=new Date(t);return DAY[d.getUTCDay()]+', '+p2(d.getUTCDate())+' '+MON[d.getUTCMonth()]+' '+d.getUTCFullYear()+' '+hms(d)+' GMT';};
+  const err=(t,msg)=>w.errors.push(errStamp(t)+' [error] 31#31: *'+w.conn+' '+msg);
+  const REASON={200:'OK',404:'Not Found',429:'Too Many Requests',502:'Bad Gateway'};
+  const page=s=>({status:s,html:true,ms:1,kj:0,body:'<html>\n<head><title>'+s+' '+REASON[s]+'</title></head>\n<body>\n<center><h1>'+s+' '+REASON[s]+'</h1></center>\n<hr><center>'+NGV+'</center>\n</body>\n</html>'});
+  let batch=null;
+  function record(r){const b=batch;b.n++;if(r.kind==='ok'||r.kind==='direct'){b.by[r.core]=(b.by[r.core]||0)+1;}else if(r.kind==='hit')b.hit++;else if(r.kind==='limit')b.rej++;else b.bad++;b.kj+=r.kj||0;b.hops.push({kind:r.kind,core:r.core||null});}
+
+  /* ----- a compute core answering one command ----- */
+  function serve(name,q,infl,kind){
+    const B=CORES[name],b=w.be[name],n=(infl?infl(name):0)+1;b.served++;b.energy+=B.kj;w.total+=B.kj;if(n>b.peak)b.peak=n;
+    const o={subsystem:B.app,core:name,node:B.node,solve:++w.solve};if(q.sector)o.sector=q.sector;o.energy_kj=B.kj;o.status=n>B.cap?'overheating':'nominal';
+    return {status:200,body:JSON.stringify(o),core:name,kj:B.kj,ms:B.ms*b.slow*Math.max(1,n/B.cap),kind:kind||'ok'};
+  }
+  /* ----- nginx choosing a core from an upstream group ----- */
+  function pass(U,uname,U2,t,infl,tried,reqline){
+    const st=w.rr[uname]=w.rr[uname]||{};
+    const live=s=>!((w.fails[s.name]||0)>t)&&!tried.includes(s.name);
+    for(const tier of [U.servers.filter(s=>!s.backup),U.servers.filter(s=>s.backup)]){
+      for(;;){
+        const c=tier.filter(live);if(!c.length)break;
+        let pool=c;
+        if(U.method==='least_conn'){const v=s=>(infl?infl(s.name):0)/(s.weight||1),m=Math.min(...c.map(v));pool=c.filter(s=>v(s)===m);}
+        let tot=0,best=null;pool.forEach(s=>{const wt=s.weight||1;st[s.name]=(st[s.name]||0)+wt;tot+=wt;if(!best||st[s.name]>st[best.name])best=s;});st[best.name]-=tot;
+        tried.push(best.name);
+        if(w.be[best.name].up)return serve(best.name,U2.q,infl);
+        err(t,'connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: , request: "'+reqline+'", upstream: "http://127.0.0.1:'+CORES[best.name].port+U2.path+'", host: "localhost"');
+        w.fails[best.name]=t+(best.ft||10)*1000;
+      }
+    }
+    if(!tried.length){err(t,'no live upstreams while connecting to upstream, client: 127.0.0.1, server: , request: "'+reqline+'", upstream: "http://'+uname+U2.path+'", host: "localhost"');U.servers.forEach(s=>delete w.fails[s.name]);}
+    return Object.assign(page(502),{kind:'bad'});
+  }
+  function viaNginx(U,t,infl,ua,proto){
+    const cfg=w.nginx.cfg,reqline='GET '+U.path+(U.qs?'?'+U.qs:'')+' '+proto,tried=[];let res=null,cst='-';w.conn++;
+    const loc=cfg?cfg.locs.filter(l=>U.path===l.path||U.path.startsWith(l.path+'/')).sort((a,b)=>b.path.length-a.path.length)[0]:null;
+    if(!loc){
+      if(!cfg&&U.path==='/')res={status:200,html:true,ms:1,kj:0,kind:'bad',body:'<!DOCTYPE html>\n<html>\n<head>\n<title>Welcome to nginx!</title>\n</head>\n<body>\n<h1>Welcome to nginx!</h1>\n<p>If you see this page, the nginx web server is successfully installed and\nworking. Further configuration is required.</p>\n</body>\n</html>'};
+      else res=Object.assign(page(404),{kind:'bad'});
+    }else{
+      if(loc.limit){const L=w.lim,ex=Math.max(0,L.excess-cfg.limit.rate*(t-L.last)/1000)+1;
+        if(ex>cfg.limit.burst){err(t,'limiting requests, excess: '+(ex-1).toFixed(3)+' by zone "energy", client: 127.0.0.1, server: , request: "'+reqline+'", host: "localhost"');res=Object.assign(page(429),{kind:'limit'});}
+        else{L.excess=ex;L.last=t;}}
+      const key=U.path+'?'+U.qs;
+      if(!res&&loc.cache){const e=w.cache[key];if(e&&t-e.at<cfg.cache.valid*1000){cst='HIT';res={status:200,body:e.body,kind:'hit',ms:1,kj:0};}else cst=e?'EXPIRED':'MISS';}
+      if(!res){
+        if(loc.up)res=pass(cfg.ups[loc.up],loc.up,U,t,infl,tried,reqline);
+        else{tried.push(loc.direct);if(w.be[loc.direct].up)res=serve(loc.direct,U.q,infl);
+          else{err(t,'connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: , request: "'+reqline+'", upstream: "http://127.0.0.1:'+CORES[loc.direct].port+U.path+'", host: "localhost"');res=Object.assign(page(502),{kind:'bad'});}}
+        if(loc.cache&&res.status===200)w.cache[key]={body:res.body,at:t};
+      }
+      if(loc.cache&&res.kind!=='limit')res.xcache=cst;
+    }
+    res.via='nginx';
+    const to=tried.length?tried.map(n=>'127.0.0.1:'+CORES[n].port).join(', '):'-';
+    w.access.push(cfg&&cfg.log?'127.0.0.1 "'+reqline+'" '+res.status+' to='+to+' cache='+(res.xcache||'-')+' time='+(res.ms/1000).toFixed(3)
+      :'127.0.0.1 - - ['+accStamp(t)+'] "'+reqline+'" '+res.status+' '+res.body.length+' "-" "'+ua+'"');
+    return res;
+  }
+  function parseUrl(u){
+    const m=/^(?:(https?):\/\/)?([^\/:?]+)(?::(\d+))?(\/[^?]*)?(?:\?(.*))?$/.exec(u||'');if(!m)return null;
+    const q={};(m[5]||'').split('&').forEach(kv=>{const i=kv.indexOf('=');if(i>0)q[kv.slice(0,i)]=kv.slice(i+1);});
+    return {scheme:m[1]||null,host:m[2],port:+(m[3]||80),path:m[4]||'/',qs:m[5]||'',q};
+  }
+  /* returns a response, or null when nothing is listening on that port */
+  function request(U,t,infl,ua,proto){
+    if(U.port===80)return w.nginx.running?viaNginx(U,t,infl,ua,proto):null;
+    const name=ORDER.find(n=>CORES[n].port===U.port);if(!name||!w.be[name].up)return null;
+    if(U.path!=='/'+CORES[name].app)return {status:404,body:'{"detail":"Not Found"}',ms:2,kj:0,kind:'bad',via:'direct'};
+    return Object.assign(serve(name,U.q,infl,'direct'),{via:'direct'});
+  }
+
+  /* ----- curl ----- */
+  function curl(a){
+    let flags='',url=null;
+    for(let i=0;i<a.length;i++){const x=a[i];if(/^-[a-zA-Z]+$/.test(x)){if(/[oHwXd]/.test(x)){return E('sandbox: this curl understands -s (quiet), -i (show the response headers) and -I (headers only).');}flags+=x.slice(1);}else if(x.startsWith('--'))return E('curl: option '+x+': is unknown\ncurl: try \'curl --help\' for more information');else url=x;}
+    if(!url)return E("curl: (2) no URL specified\ncurl: try 'curl --help' for more information");
+    const U=parseUrl(url);if(!U)return E('curl: (3) URL rejected: Malformed input to a URL function');
+    if(U.scheme==='https')return E('curl: (7) Failed to connect to '+U.host+' port 443 after 0 ms: Could not connect to server\n\nsandbox: nothing here speaks HTTPS. Lesson 8\'s notes cover TLS.',{cmd:'curl'});
+    if(U.host!=='localhost'&&U.host!=='127.0.0.1')return E('curl: (6) Could not resolve host: '+U.host,{cmd:'curl'});
+    const t=clock(),r=request(U,t,null,'curl/8.14.1','HTTP/1.1');
+    if(!r)return E('curl: (7) Failed to connect to '+U.host+' port '+U.port+' after 0 ms: Could not connect to server',{cmd:'curl',refused:true,port:U.port});
+    record(r);
+    const out=[],hd=/[iI]/.test(flags);
+    if(hd){out.push('HTTP/1.1 '+r.status+' '+REASON[r.status]);
+      if(r.via==='nginx')out.push('Server: '+NGV,'Date: '+httpDate(t),'Content-Type: '+(r.html?'text/html':'application/json'),'Content-Length: '+r.body.length,'Connection: keep-alive');
+      else out.push('date: '+httpDate(t),'server: uvicorn','content-length: '+r.body.length,'content-type: application/json');
+      if(r.xcache&&r.status===200)out.push('X-Cache-Status: '+r.xcache);
+      out.push('');}
+    if(!/I/.test(flags))out.push(r.body);
+    return OK(out,{cmd:'curl',status:r.status,core:r.core||null,xcache:r.xcache||null,via:r.via,headers:hd,kind:r.kind,path:U.path});
+  }
+  /* ----- ab: many commands at once ----- */
+  function ab(a){
+    let n=1,c=1,url=null;
+    for(let i=0;i<a.length;i++){if(a[i]==='-n')n=+a[++i];else if(a[i]==='-c')c=+a[++i];else if(a[i].startsWith('-'))return E('ab: invalid option '+a[i]+'\nsandbox: this ab understands -n REQUESTS -c CONCURRENCY URL');else url=a[i];}
+    if(!url)return E('ab: wrong number of arguments\nUsage: ab [options] [http[s]://]hostname[:port]/path');
+    if(!(n>=1&&n<=2000))return E('sandbox: -n must be between 1 and 2000');
+    if(!(c>=1))return E('ab: Invalid Concurrency [Range 0..20000]');
+    if(c>n)return E('ab: Cannot use concurrency level greater than total number of requests');
+    const U=parseUrl(url);
+    if(!U||!U.scheme||url.indexOf('/',8)<0)return E('ab: invalid URL\nUsage: ab [options] [http[s]://]hostname[:port]/path\n\nsandbox: ab wants the full form, starting with http:// and with a path, for example http://localhost/targeting');
+    if(U.host!=='localhost'&&U.host!=='127.0.0.1')return E('ab: Could not resolve host: '+U.host);
+    const t0=clock(),free=Array(c).fill(t0);let active=[],end=t0,non2=0,len=0;
+    for(let k=0;k<n;k++){
+      let wi=0;for(let j=1;j<c;j++)if(free[j]<free[wi])wi=j;
+      const t=free[wi];active=active.filter(x=>x.end>t);
+      const r=request(U,t,name=>active.filter(x=>x.core===name).length,'ApacheBench/2.3','HTTP/1.0');
+      if(!r)return E(['This is ApacheBench, Version 2.3 <$Revision: 1923142 $>','','Benchmarking '+U.host+' (be patient)...apr_socket_connect(): Connection refused (111)'],{cmd:'ab',refused:true});
+      if(r.core)active.push({core:r.core,end:t+r.ms});
+      free[wi]=t+r.ms;end=Math.max(end,t+r.ms);if(r.status>=300)non2++;else len=r.body.length;record(r);
+    }
+    const secs=(end-t0)/1000;w.skew+=end-t0;batch.secs=secs;
+    const over=ORDER.filter(x=>w.be[x].peak>CORES[x].cap);batch.over=over;
+    const pad=(k,v)=>(k+':').padEnd(24)+v;
+    const out=['This is ApacheBench, Version 2.3 <$Revision: 1923142 $>','','Benchmarking '+U.host+' (be patient)',WAIT(w.booting?1:Math.min(2400,Math.max(500,secs*1000))),'.....done','','',
+      pad('Server Software',U.port===80?NGV:'uvicorn'),pad('Server Hostname',U.host),pad('Server Port',U.port),'',pad('Document Path',U.path+(U.qs?'?'+U.qs:'')),pad('Document Length',len+' bytes'),'',
+      pad('Concurrency Level',c),pad('Time taken for tests',secs.toFixed(3)+' seconds'),pad('Complete requests',n),pad('Failed requests',0)];
+    if(non2)out.push(pad('Non-2xx responses',non2));
+    out.push(pad('Requests per second',(n/secs).toFixed(2)+' [#/sec] (mean)'),pad('Time per request',(secs*1000*c/n).toFixed(3)+' [ms] (mean)'),'');
+    const by=ORDER.filter(k=>batch.by[k]).map(k=>k+' '+batch.by[k]);
+    out.push('sandbox: who answered: '+(by.length?by.join(' · '):'no core')+(batch.hit?' · memory (cache) '+batch.hit:'')+(batch.rej?' · refused at the gate '+batch.rej:'')+(batch.bad?' · errors '+batch.bad:''));
+    out.push('sandbox: energy spent: '+batch.kj+' kJ, or '+Math.round(batch.kj/Math.max(1,secs))+' kW averaged over a second (the reactor budgets '+BUDGET_KW+' kW for compute)');
+    if(over.length)out.push('sandbox: over capacity: '+over.map(x=>x+' (peak '+w.be[x].peak+' at once, built for '+CORES[x].cap+')').join(', '));
+    return OK(out.join('\n'),{cmd:'ab',n,by:Object.assign({},batch.by),rej:batch.rej,hit:batch.hit,bad:batch.bad,kj:batch.kj,over,direct:U.port!==80});
+  }
+
+  /* ----- nginx itself ----- */
+  const diskCfg=()=>{const s=w.files[CONF];return s===undefined?{none:true}:CFG_BY_SRC.get(s);};
+  function testConf(){
+    const c=diskCfg();
+    if(c&&c.broken){const ln=w.files[CONF].split('\n').findIndex(l=>/proxy_pass/.test(l))+2;return {ok:false,out:['nginx: [emerg] invalid number of arguments in "proxy_pass" directive in '+CONF+':'+ln,'nginx: configuration file /etc/nginx/nginx.conf test failed']};}
+    return {ok:true,out:['nginx: the configuration file /etc/nginx/nginx.conf syntax is ok','nginx: configuration file /etc/nginx/nginx.conf test is successful']};
+  }
+  function load(){const c=diskCfg();w.nginx.cfg=c.none?null:c;w.nginx.name=c.none?null:c.name;w.nginx.text=c.none?null:w.files[CONF];w.rr={};w.fails={};w.stamp++;}
+  function nginx(a,su){
+    if(a[0]==='-v')return OK('nginx version: '+NGV,{cmd:'nginx -v'});
+    if(!su)return E(['nginx: [alert] could not open error log file: open() "/var/log/nginx/error.log" failed (13: Permission denied)','','sandbox: nginx listens on port 80 and writes to /var/log, which only root may do. Put sudo in front.'],{cmd:'nginx'});
+    if(a[0]==='-t'){const r=testConf();return {ok:r.ok,out:r.out.join('\n'),meta:{cmd:'nginx -t',bad:!r.ok}};}
+    if(!a.length){
+      if(w.nginx.running)return E(['nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use)','','sandbox: nginx is already running. To make it read a changed file: sudo nginx -s reload'],{cmd:'start'});
+      const r=testConf();if(!r.ok)return E(r.out[0],{cmd:'start'});
+      w.nginx.running=true;load();return OK('',{cmd:'start'});}
+    if(a[0]==='-s'){
+      if(!w.nginx.running)return E('nginx: [error] invalid PID number "" in "/run/nginx.pid"\n\nsandbox: nginx is not running, so there is nothing to signal. Start it with: sudo nginx',{cmd:'signal'});
+      if(a[1]==='reload'){const r=testConf();if(!r.ok)return E([r.out[0],'','sandbox: the reload was refused, so nginx keeps running on the orders it already had.'],{cmd:'reload',bad:true});load();return OK('',{cmd:'reload',cfg:w.nginx.name});}
+      if(a[1]==='stop'||a[1]==='quit'){w.nginx.running=false;w.stamp++;return OK('',{cmd:'stop'});}
+      return E('nginx: invalid option: "-s '+(a[1]||'')+'"');}
+    return E('sandbox: this nginx understands: nginx (start), nginx -t, nginx -s reload, nginx -s stop and nginx -v.');
+  }
+  function compose(a){
+    const verb=a[0],names=a.slice(1).filter(x=>!x.startsWith('-'));
+    if(verb==='ps'){const rows=[['NAME','IMAGE','SERVICE','STATUS','PORTS']];ORDER.forEach(n=>{if(w.be[n].up||a.includes('-a'))rows.push(['kestrel-'+n+'-1','hangar/'+CORES[n].app+':1.0',n,w.be[n].up?'Up 2 hours':'Exited (0)',w.be[n].up?'127.0.0.1:'+CORES[n].port+'->8000/tcp':'']);});
+      const wd=rows[0].map((_,i)=>Math.max(...rows.map(r=>r[i].length))+3);return OK(rows.map(r=>r.map((x,i)=>x.padEnd(wd[i])).join('').trimEnd()),{cmd:'ps'});}
+    if(verb==='stop'||verb==='start'||verb==='restart'){
+      const list=names.length?names:ORDER.slice();const bad=list.find(n=>!CORES[n]);if(bad)return E('no such service: '+bad);
+      const out=[];const up=verb!=='stop',word=verb==='stop'?['Stopping','Stopped']:verb==='start'?['Starting','Started']:['Restarting','Started'];
+      list.forEach(n=>{out.push(' Container kestrel-'+n+'-1  '+word[0],WAIT(w.booting?1:verb==='stop'?450:650),' Container kestrel-'+n+'-1  '+word[1]);w.be[n].up=up;});
+      if(up)w.skew+=5200;w.stamp++;
+      return OK(out,{cmd:verb,names:list});}
+    if(verb==='up'||verb==='down')return E('sandbox: the compute bay is already up, and the sandbox will not tear it down. Use docker compose stop NAME and docker compose start NAME to take single cores dark and bring them back.');
+    if(verb==='logs')return E('sandbox: no container logs here. The balancer\'s own logs are in /var/log/nginx/access.log and /var/log/nginx/error.log.');
+    return E('sandbox: this docker compose understands ps, stop NAME..., start NAME... and restart NAME...');
+  }
+
+  /* ----- files ----- */
+  const rp=p=>p.startsWith('/')?p:p.startsWith('~/')?p:HOME+p.replace(/^\.\//,'');
+  const logOf=p=>p==='/var/log/nginx/access.log'?w.access:p==='/var/log/nginx/error.log'?w.errors:null;
+  const read=p=>{const L=logOf(p);return L?(L.length?L.join('\n')+'\n':''):w.files[p];};
+  const isDir=p=>{p=p.replace(/\/$/,'');return Object.keys(w.files).concat(['/var/log/nginx/access.log','/var/log/nginx/error.log']).some(k=>k.startsWith(p+'/'));};
+  const HELP=['The sandbox understands:','  curl [-s] [-i] [-I] URL            one command to a core or to the balancer','  for i in 1 2 3; do curl ...; done   the same command several times','  ab -n 60 -c 12 http://URL           many commands at once (ApacheBench)','  sudo cp steps/FILE '+CONF,'  sudo nginx -t                       check the orders on disk','  sudo nginx                          start the balancer','  sudo nginx -s reload                make it read the orders again','  docker compose ps | stop NAME | start NAME','  docker update --cpus 0.5 CONTAINER  throttle a core (2 restores it)','  cat FILE, ls [DIR], tail [-n N] FILE, sleep N, clear','  A && B                              run B only if A succeeded','Logs: /var/log/nginx/access.log and /var/log/nginx/error.log','Step files: ls steps'].join('\n');
+  function tok(line){const out=[];let m;const re=/"([^"]*)"|'([^']*)'|(\S+)/g;while((m=re.exec(line)))out.push(m[1]!==undefined?m[1]:m[2]!==undefined?m[2]:m[3]);return out;}
+  function one(line){
+    let a=tok(line),su=false;if(a[0]==='sudo'){su=true;a=a.slice(1);}
+    const c=a[0];a=a.slice(1);
+    switch(c){
+      case undefined:return OK('');
+      case 'help':return OK(HELP,{cmd:'help'});
+      case 'clear':return {ok:true,out:'',clear:true,meta:{cmd:'clear'}};
+      case 'pwd':return OK('/home/pilot/kestrel',{cmd:'pwd'});
+      case 'whoami':return OK(su?'root':'pilot');
+      case 'echo':return OK(a.join(' '),{cmd:'echo'});
+      case 'sleep':{const n=+a[0];if(!(n>=0))return E("sleep: invalid time interval '"+(a[0]||'')+"'");w.skew+=n*1000;return OK(w.booting?'':WAIT(Math.min(1500,n*1000))+'\nsandbox: skipped ahead '+n+' second'+(n===1?'':'s')+' instead of making you wait.',{cmd:'sleep',n});}
+      case 'ls':{const t=a.filter(x=>!x.startsWith('-'))[0]||'.';const p=rp(t).replace(/\/\.?$/,'');if(read(p)!==undefined)return OK(t,{cmd:'ls'});if(!isDir(p))return E("ls: cannot access '"+t+"': No such file or directory");
+        const s=new Set();Object.keys(w.files).concat(['/var/log/nginx/access.log','/var/log/nginx/error.log']).forEach(k=>{if(k.startsWith(p+'/'))s.add(k.slice(p.length+1).split('/')[0]);});return OK([...s].sort().join('  '),{cmd:'ls',path:p});}
+      case 'cat':case 'tail':case 'head':case 'less':{
+        let n=10;const fs=[];for(let i=0;i<a.length;i++){if(a[i]==='-n')n=+a[++i];else if(/^-\d+$/.test(a[i]))n=+a[i].slice(1);else if(/^-n\d+$/.test(a[i]))n=+a[i].slice(2);else if(!a[i].startsWith('-'))fs.push(a[i]);}
+        if(!fs.length)return E(c+': missing file operand');const p=rp(fs[0]),s=read(p);
+        if(s===undefined)return E(c+': '+(isDir(p)?fs[0]+': Is a directory':(c==='tail'||c==='head'?"cannot open '"+fs[0]+"' for reading":fs[0])+': No such file or directory'));
+        let L=s.replace(/\n$/,'').split('\n');if(s==='')L=[];if(c==='tail')L=L.slice(-n);if(c==='head')L=L.slice(0,n);
+        return OK(L.length?L:(logOf(p)?'sandbox: the log is empty so far.':''),{cmd:c==='less'?'cat':c,path:p,lines:L.length});}
+      case 'cp':{const fs=a.filter(x=>!x.startsWith('-'));if(fs.length<2)return E("cp: missing destination file operand after '"+(fs[0]||'')+"'");
+        const from=rp(fs[0]);let to=rp(fs[1]);if(w.files[from]===undefined)return E("cp: cannot stat '"+fs[0]+"': No such file or directory");
+        if(isDir(to)||/\/$/.test(fs[1]))to=to.replace(/\/$/,'')+'/'+from.split('/').pop();
+        if(to.startsWith('/')&&!su)return E(["cp: cannot create regular file '"+to+"': Permission denied",'','sandbox: /etc belongs to root. Put sudo in front.'],{cmd:'cp',denied:true});
+        if(to.startsWith('/')&&to!==CONF)return E('sandbox: the only system file you can replace here is '+CONF);
+        w.files[to]=w.files[from];w.stamp++;return OK('',{cmd:'cp',to,name:from.split('/').pop()});}
+      case 'rm':{const p=rp(a.filter(x=>!x.startsWith('-'))[0]||'');if(p!==CONF)return E('sandbox: the only file you can remove here is '+CONF);if(!su)return E("rm: cannot remove '"+CONF+"': Permission denied");delete w.files[CONF];w.stamp++;return OK('',{cmd:'rm'});}
+      case 'curl':return curl(a);
+      case 'ab':return ab(a);
+      case 'nginx':return nginx(a,su);
+      case 'systemctl':{const m={start:[],reload:['-s','reload'],stop:['-s','stop']}[a[0]];if(!m||a[1]!=='nginx')return E('sandbox: this systemctl understands start, reload and stop, followed by nginx.');return nginx(m,su);}
+      case 'docker':if(a[0]==='update'){const m=/^--cpus(?:=(.+))?$/.exec(a[1]||''),v=m?+(m[1]||a[2]):NaN,cn=a[m&&m[1]?2:3]||'',n=(/^kestrel-(.+)-1$/.exec(cn)||[])[1]||cn;
+        if(!(v>0))return E('sandbox: this docker update understands: docker update --cpus NUMBER CONTAINER');if(!CORES[n])return E('Error response from daemon: No such container: '+cn);
+        w.be[n].slow=v>=1?1:Math.min(6,1.5/v);w.stamp++;return OK(cn,{cmd:'update',name:n,cpus:v});}
+        if(a[0]==='compose')return compose(a.slice(1));if(a[0]==='ps')return compose(['ps']);return E('sandbox: use docker compose here: docker compose ps, docker compose stop NAME, docker compose start NAME.');
+      case 'nano':case 'vim':case 'vi':case 'code':return E('sandbox: there is no editor here. Each step has a finished file in steps/. Copy it into place, for example: sudo cp steps/02-proxy.conf '+CONF);
+    }
+    return E('bash: '+c+': command not found');
+  }
+  function chain(line){
+    const parts=line.split(/\s*&&\s*/);let r=null;const outs=[];
+    for(const p of parts){r=one(p);if(r.clear)return r;if(r.out!=='')outs.push(r.out);if(!r.ok)break;}
+    return {ok:r.ok,out:outs.join('\n'),meta:r.meta};
+  }
+  function run(line){
+    ORDER.forEach(n=>w.be[n].peak=0);batch={n:0,by:{},hit:0,rej:0,bad:0,kj:0,secs:0,hops:[],over:[]};
+    let r;const m=/^for\s+\w+\s+in\s+(.+?)\s*;\s*do\s+(.+?)\s*;?\s*done$/.exec(line);
+    if(m){
+      let n;const sq=/^\$\(seq (\d+)\)$/.exec(m[1])||/^\{1\.\.(\d+)\}$/.exec(m[1]);n=sq?+sq[1]:m[1].split(/\s+/).length;
+      if(n>60)r=E('sandbox: at most 60 turns of a loop. For more, use ab.');
+      else{const outs=[],results=[];let ok=true;for(let i=0;i<n;i++){const x=chain(m[2]);if(x.out!=='')outs.push(x.out);results.push(x.meta);if(!x.ok){ok=false;break;}}
+        r={ok,out:outs.join('\n'),meta:{cmd:'loop',results}};}
+    }else if(/^for\b/.test(line))r=E('sandbox: write the loop on one line, like this: for i in 1 2 3; do curl -s localhost/targeting; done');
+    else r=chain(line);
+    if(batch.n){w.last=batch;r.meta.hops=batch.hops;}
+    return r;
+  }
+  function exec(line){return run(line.trim());}
+  function view(){
+    const t=clock(),N=w.nginx,cfg=N.running?N.cfg:null,disk=w.files[CONF]===undefined?null:w.files[CONF],role={};
+    if(cfg){for(const u in (cfg.ups||{}))cfg.ups[u].servers.forEach(s=>role[s.name]={pool:u,weight:s.weight||1,backup:!!s.backup});cfg.locs.forEach(l=>{if(l.direct)role[l.direct]={path:l.path};});}
+    const U=cfg&&cfg.ups&&cfg.ups.targeting;
+    return {running:N.running,loaded:N.running?N.text:null,loadedName:N.running?N.name:null,disk,diskName:disk===null?null:keyOf(STEP,disk),pending:disk!==null&&(!N.running||disk!==N.text),
+      cfg:cfg?{method:U?(U.method||(U.servers.some(s=>s.weight)?'weighted':'round robin')):null,limit:cfg.limit||null,cache:cfg.cache||null,paths:cfg.locs.map(l=>l.path)}:null,
+      cores:ORDER.map(n=>Object.assign({name:n,up:w.be[n].up,served:w.be[n].served,energy:w.be[n].energy,peak:w.be[n].peak,role:role[n]||null,marked:(w.fails[n]||0)>t,slow:w.be[n].slow>1},CORES[n])),
+      last:w.last,total:w.total,cached:Object.keys(w.cache).length,stamp:w.stamp};
+  }
+  /* ----- starting state: replay every command of the lessons before this one ----- */
+  (function boot(){
+    w.booting=true;
+    LESSONS.forEach(L=>{if(L.id<upto)L.tasks.forEach(t=>{try{exec(t.cmd);}catch(e){}w.skew+=60000;});});
+    w.booting=false;w.last=null;ORDER.forEach(n=>{w.be[n].served=0;w.be[n].energy=0;w.be[n].peak=0;});w.total=0;
+  })();
+  return {exec,world:w,view,prompt:()=>'kestrel $',help:HELP,setCols:n=>{w.cols=n;}};
+}
+
+/* ---------- Lesson content ---------- */
+const NX='https://nginx.org/en/docs',MDN='https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference';
+const CP=f=>'sudo cp steps/'+f+' '+CONF;
+const RELOAD='sudo nginx -t && sudo nginx -s reload';
+const LOOP=(n,u)=>'for i in '+Array.from({length:n},(_,i)=>i+1).join(' ')+'; do curl -s '+(u||'localhost/targeting')+'; done';
+const AB=(n,c,u)=>'ab -n '+n+' -c '+c+' '+(u||'http://localhost/targeting');
+const P_CP=f=>[['sudo','Run the command as root. Everything under /etc belongs to root.'],['cp steps/'+f,'Copy the finished file for this step. On your own machine you would open the file in an editor and type the changes.'],[CONF,'Where it goes. NGINX reads every .conf file in /etc/nginx/conf.d. The orders panel shows the new lines in green.']];
+const P_RELOAD=[['sudo nginx -t','Test the orders on disk. Nothing changes yet.'],['&&','Only carry on if the test passed.'],['sudo nginx -s reload','Send the running balancer the reload signal: start workers on the new orders, let the old workers finish what they were doing, then retire them. No command is dropped.']];
+const P_LOOP=n=>[['for i in 1 … '+n,'Repeat '+n+' times.'],['do curl -s localhost/targeting','The command to repeat: one targeting request through the balancer.'],['done','End of the loop.']];
+const P_AB=(n,c)=>[['ab','ApacheBench, a small load-testing tool that ships with Apache. It fires many requests and reports how long they took.'],['-n '+n,n+' requests in total.'],['-c '+c,c+' at the same time, as if '+c+' consoles were asking at once.'],['http://…','ab wants the full address, including http://.']];
+const coresOf=r=>(r.meta.results||[]).map(x=>x.core);
+const all200=r=>(r.meta.results||[]).length>0&&r.meta.results.every(x=>x.status===200);
+const loaded=(w,f)=>w.nginx.running&&w.nginx.name===f;
+
+const NOTES02=[
+['server {','One <strong>server block</strong> is one virtual server: a set of rules for requests arriving at a particular port and name.'],
+['    listen 80;','Listen on port 80, the standard HTTP port. That is why <code>curl localhost</code> needs no port number.'],
+['    location /targeting {','A <strong>location block</strong> matches requests by path. This one takes any request whose path starts with /targeting.'],
+['        proxy_pass http://127.0.0.1:8001;','The line that makes NGINX a reverse proxy. Open a connection to this address, send the request on, and relay the answer back. 127.0.0.1:8001 is core-1.'],
+['        proxy_set_header Host $host;','The core now sees every request coming from NGINX. This passes on the host name the pilot actually asked for.'],
+['        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;','And this passes on the pilot\'s address, so the core\'s own logs can still say who really asked.'],
+['    }','End of the location.'],
+['}','End of the server. Every directive ends in a semicolon and every block in a brace. Forgetting one is the most common NGINX mistake, and you will make it on purpose in the lab.']];
+const NOTES03=[
+['upstream targeting {','An <strong>upstream block</strong> names a group of servers that all do the same job. "targeting" is a name you choose.'],
+['    server 127.0.0.1:8001;  # core-1, torso','One member of the group: an address and a port.'],
+['    server 127.0.0.1:8002;  # core-2, arms','A second member. With no other instruction, NGINX hands requests to the members in turn. That is <strong>round robin</strong>.'],
+['    server 127.0.0.1:8003;  # core-3, legs','A third. Adding capacity is now one line and a reload.'],
+['}','End of the group.'],
+['        proxy_pass http://targeting;','The location now points at the group\'s name instead of one address. NGINX picks a member for every request.'],
+["log_format kestrel '… to=$upstream_addr …';",'A custom log line. <code>$upstream_addr</code> records which core NGINX chose, so the access log can answer "who handled that?".']];
+const NOTES06=[
+['limit_req_zone $binary_remote_addr zone=energy:10m rate=10r/s;','Declares the budget. Count requests <em>per client address</em> (<code>$binary_remote_addr</code>), keep the counters in 10 MB of shared memory called "energy", and allow 10 requests a second each.'],
+['        limit_req zone=energy burst=10 nodelay;','Apply that budget to this location. <code>burst=10</code> lets a client run up to 10 requests ahead of the steady rate. <code>nodelay</code> serves those straight away instead of spacing them out.'],
+['        limit_req_status 429;','What to answer when the budget is spent. The default is 503. 429 Too Many Requests is the honest code: "slow down", as opposed to "we are broken".']];
+const NOTES07=[
+['proxy_cache_path /var/cache/nginx keys_zone=solves:10m;','Where remembered answers live on disk, and a name ("solves") with 10 MB of memory for the index.'],
+['        proxy_cache solves;','Use that cache for this location. The key is the request: scheme, host, path and query string.'],
+['        proxy_cache_valid 200 60s;','Remember successful answers for 60 seconds. After that the next request goes to a core again. Errors are not remembered.'],
+['        add_header X-Cache-Status $upstream_cache_status;','Tell the client what happened: MISS (asked a core), HIT (answered from memory) or EXPIRED (had one, too old, asked again).']];
+
+const LESSONS=[
+{id:1,title:'Three cores and no gate',mins:8,
+idea:`
+<p>In <em>Kubernetes from Zero</em> you put a Service in front of the Kestrel's sensor pods and it quietly spread requests across them. That was a <strong>load balancer</strong> you got for free. This guide builds one by hand, with <strong>NGINX</strong>, so you can see every part that was hidden.</p>
+<p>The story this time is the Kestrel's compute bay. The fire-control console keeps asking for <strong>targeting solves</strong> (HTTP requests). Three <strong>compute cores</strong> (backend servers) can calculate them, and each solve draws energy from the reactor. The cores are not equal: core-1 in the torso is big and efficient, core-2 and core-3 in the limbs are small. The job of this guide is to spread the commands so that no core cooks, none sits idle, and the reactor is not drained.</p>
+<p>Right now nothing does that job. Each core listens on its own port, and whoever sends a command has to pick a core and know its address.</p>
+<dl class="terms">
+<dt>Pilot console (client)</dt><dd>Whoever sends the request. Here it is you, using <code>curl</code>.</dd>
+<dt>Compute core (backend server, or upstream server)</dt><dd>A program that does the real work and answers. Each one here is a container running the same targeting service.</dd>
+<dt>The balancer (reverse proxy)</dt><dd>A server that stands in front of the cores. Clients talk only to it, and it passes each request to a core and relays the answer. NGINX is the most widely used one.</dd>
+<dt>Load balancing</dt><dd>What a reverse proxy does when it has several cores to choose from: deciding which one gets each request.</dd>
+<dt>Forward proxy</dt><dd>The other kind of proxy. It sits in front of <em>clients</em> and hides them from the internet, as a company web filter or a VPN does. A reverse proxy sits in front of <em>servers</em>. This guide is about the reverse kind.</dd>
+</dl>
+<p>The mental model to keep: <strong>a reverse proxy is the one door into the building.</strong> Because every request walks through it, it is the natural place to decide who answers, to notice who is down, to refuse a flood, and to remember answers. Lessons 2 to 8 add those one at a time.</p>
+<p>One number to watch: the reactor budgets <strong>25 kW</strong> for compute. Short spikes above that are survivable. The panel shows what each command cost.</p>
+<h2>Translation key</h2>
+<p>The Kestrel is only there to make things easier to picture, so the real term always travels with it. The letters are the markers on the live schematic in the sandbox.</p>
+<table class="types"><thead><tr><th>On the Kestrel</th><th>Marker</th><th>In a real system</th></tr></thead><tbody>
+<tr><td>pilot console</td><td>P, the head</td><td>client: a browser, an app, another service</td></tr>
+<tr><td>targeting solve, "command"</td><td>glowing dot</td><td>one HTTP request</td></tr>
+<tr><td>the balancer, "the gate"</td><td>N, at the hip</td><td>NGINX: a reverse proxy and load balancer</td></tr>
+<tr><td>compute cores</td><td>1 torso, 2 arms, 3 legs</td><td>backend (upstream) servers running the same service</td></tr>
+<tr><td>the pool</td><td>conduits from N</td><td>an upstream group</td></tr>
+<tr><td>the balancer's orders</td><td></td><td>the NGINX configuration file</td></tr>
+<tr><td>a section filling with colour</td><td></td><td>requests in progress on that server, against its capacity</td></tr>
+<tr><td>a core going dark</td><td>dashed outline</td><td>a backend that is down</td></tr>
+<tr><td>reserve battery packs</td><td>R, behind the shoulders</td><td>a backup server</td></tr>
+<tr><td>energy budget</td><td>red bar above N</td><td>a rate limit</td></tr>
+<tr><td>memory bank</td><td>M</td><td>the proxy's cache</td></tr>
+<tr><td>sensors, thrusters</td><td>S, T</td><td>other services behind the same proxy</td></tr>
+<tr><td>the reactor</td><td>ring in the chest</td><td>whatever your requests cost: CPU, money, a database's patience</td></tr>
+</tbody></table>`,
+widget:'journey',widgetTitle:'One command, with a balancer in the way',
+widgetIntro:'This is where the guide is heading. Press Next to follow a single targeting request, or tap any box.',
+labIntro:'On wide screens the sandbox is on the right; on a phone it is just below these steps. The panel at the top shows the balancer\'s orders, a live schematic of the Kestrel, and what each command cost the reactor. On the schematic, glowing dots are commands in flight, a section of the frame fills with colour as its core gets busy (red means over capacity), and the reactor in the chest glows with the energy drawn. Tap a command to load it into the terminal, then press Run. This first lab has no balancer at all.',
+tasks:[
+{what:`See what is running in the compute bay`,cmd:`docker compose ps`,parts:[[`docker compose ps`,`List this project's containers. You met it in Docker from Zero.`]],
+ saw:`Six containers. Four run the targeting service: core-1, core-2, core-3 and a reserve. Each publishes its own port on this machine, 8001 to 8004. sensors and thrusters wait for lesson 8.`,test:(l,w,r)=>r.meta.cmd==='ps'},
+{what:`Ask core-1 for a solve, directly`,cmd:`curl -s localhost:8001/targeting`,parts:[[`curl -s`,`Make one HTTP request and print the answer. -s hides the progress meter.`],[`localhost:8001`,`This machine, port 8001: core-1's own front door.`],[`/targeting`,`The path. The targeting service answers here.`]],
+ saw:`core-1 answered, and the solve cost 2 kJ. On the schematic the dot flew in from outside straight to the torso, marker 1: no balancer (marker N, at the hip) was involved.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.core==='core-1'&&r.meta.via==='direct'},
+{what:`Ask core-2 instead`,cmd:`curl -s localhost:8002/targeting`,parts:[[`localhost:8002`,`A different port, so a different core.`]],
+ saw:`Same service, different core, and 3 kJ this time: the small cores are less efficient. Notice that you chose the core. Every console on the Kestrel would need this list of ports, and would need to be told whenever it changed.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.core==='core-2'},
+{what:`Send 60 commands, 12 at a time, all at core-1`,cmd:AB(60,12,'http://localhost:8001/targeting'),parts:P_AB(60,12),
+ saw:`core-1 took all 60 and ran at twice the load it is built for, while core-2 and core-3 did nothing. Look at the sandbox lines at the bottom of the output, and at the schematic: the torso flashes red and the reactor pulses, while the arms and legs stay dark. This is the problem a load balancer exists to solve.`,test:(l,w,r)=>r.meta.cmd==='ab'&&r.meta.by['core-1']===60},
+{what:`Try the address you wish existed`,cmd:`curl -s localhost/targeting`,parts:[[`localhost`,`No port given, so port 80: the standard place for a web server.`]],
+ saw:`Connection refused. Nothing is listening on port 80. The next lesson puts NGINX there.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.refused&&r.meta.port===80}
+],
+notes:`<h2>Where you have already met one</h2>
+<ul>
+<li><strong>Kubernetes Service.</strong> The thing that spread requests over sensor pods. It balances at the level of connections and knows nothing about HTTP.</li>
+<li><strong>Kubernetes Ingress.</strong> The door from outside the cluster. The controller behind it is very often NGINX itself.</li>
+<li><strong>Cloud load balancers</strong> (AWS ALB, Google Cloud Load Balancing, Azure Front Door) and <strong>CDNs</strong> such as Cloudflare are reverse proxies run for you.</li>
+<li><strong>A typical FastAPI deployment.</strong> uvicorn runs the app on some port, and NGINX (or Caddy, or Traefik) sits in front on ports 80 and 443.</li>
+</ul>
+<h2>Layer 4 and layer 7</h2>
+<p>You will see these two labels everywhere. A <strong>layer 4</strong> balancer forwards raw TCP connections and cannot read what is inside them. A <strong>layer 7</strong> balancer understands HTTP, so it can route by path, add headers, cache and rate-limit. Everything in this guide is layer 7. NGINX can also do layer 4, with its <code>stream</code> module.</p>`,
+quiz:[
+{q:'What does a reverse proxy sit in front of?',opts:['Clients, hiding them from the servers they visit','Servers, receiving requests on their behalf','The database only','The operating system\'s firewall'],a:1,why:'A reverse proxy stands in front of servers. Clients talk to it and never learn which server did the work. A forward proxy is the mirror image, in front of clients.'},
+{q:'In the lab, why did core-1 run over capacity while core-2 sat idle?',opts:['core-2 was switched off','core-1 is faster so requests prefer it','Every request was addressed to core-1\'s port, and nothing redirected any of them','ab always uses the first server'],a:2,why:'With no balancer the sender chooses, and it chose one address for all 60. Nothing in the system had the job of spreading them.'},
+{q:'Which of these can only a layer 7 balancer do?',opts:['Forward a TCP connection','Send /targeting and /sensors to different servers','Listen on a port','Work with more than one server'],a:1,why:'The path is part of the HTTP request. A layer 4 balancer never reads it, so it cannot route on it.'}],
+reading:[
+['What is a reverse proxy? (Cloudflare)','https://www.cloudflare.com/learning/cdn/glossary/reverse-proxy/','A short illustrated explanation, including the difference from a forward proxy.'],
+['What is load balancing? (Cloudflare)','https://www.cloudflare.com/learning/performance/what-is-load-balancing/','Why it exists and the common ways of choosing a server.'],
+['NGINX Beginner\'s Guide',NX+'/beginners_guide.html','The official first tour: starting, stopping, the configuration file, and a simple proxy.']]},
+
+{id:2,title:'A gate in front: the reverse proxy',mins:12,
+idea:`
+<p>NGINX is installed on this machine but not running. You will give it its orders, start it, and from then on send every command to <strong>one address</strong>: plain <code>localhost</code>.</p>
+<p>The orders live in a text file (the <strong>configuration file</strong>). NGINX reads it once when it starts and again whenever you tell it to <strong>reload</strong>. Editing the file changes nothing until then. That gap is useful: you can test a change before it takes effect.</p>
+<p>This first version does no balancing. It forwards every targeting command to core-1. That alone already buys something: the consoles no longer need to know where the cores are. Move core-1, swap it, add ten more, and no console changes.</p>
+<dl class="terms">
+<dt>Directive</dt><dd>One instruction in the file, ending in a semicolon: <code>listen 80;</code></dd>
+<dt>Block (context)</dt><dd>A group of directives in braces: <code>server { … }</code>. Blocks nest, and inner blocks inherit from outer ones.</dd>
+<dt><code>proxy_pass</code></dt><dd>The directive that forwards a request to another server. It is what turns NGINX from a web server into a reverse proxy.</dd>
+<dt>Reload</dt><dd>Re-read the configuration without dropping connections. New workers start on the new file; old ones finish their requests and exit.</dd>
+</dl>`,
+widget:'cfg02',widgetTitle:'The whole file, line by line',widgetIntro:'This is steps/02-proxy.conf. Tap any line.',
+labIntro:'From here on the orders panel matters. It shows the file on disk, says whether the balancer has loaded it, and marks new lines in green.',
+tasks:[
+{what:`Put the first orders in place`,cmd:CP('02-proxy.conf'),parts:P_CP('02-proxy.conf'),
+ saw:`The file is on disk and the panel shows it, marked "not loaded". NGINX is not running yet, so nothing has read it.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='02-proxy.conf'&&r.meta.to===CONF},
+{what:`Check the orders before using them`,cmd:`sudo nginx -t`,parts:[[`nginx -t`,`Test: read the whole configuration, report the first mistake with its file and line, and change nothing.`]],
+ saw:`"syntax is ok" and "test is successful". Make this a reflex before every start or reload.`,test:(l,w,r)=>r.meta.cmd==='nginx -t'&&!r.meta.bad},
+{what:`Start the balancer`,cmd:`sudo nginx`,parts:[[`sudo nginx`,`Start NGINX. It reads its configuration, opens port 80 and moves to the background. No output means it worked.`]],
+ saw:`The balancer is running on port 80, and the schematic has lit up: a conduit runs from the pilot (P) down to the balancer (N) and on to core-1 in the torso.`,test:(l,w,r)=>w.nginx.running},
+{what:`Ask for a solve at the one address`,cmd:`curl -s localhost/targeting`,parts:[[`localhost/targeting`,`Port 80 now, which is NGINX. You no longer name a core.`]],
+ saw:`The same kind of answer as before, from core-1, but you never mentioned port 8001. Watch the schematic: the dot goes pilot, balancer, core.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.via==='nginx'&&r.meta.status===200},
+{what:`Look at the response headers`,cmd:`curl -si localhost/targeting`,parts:[[`-i`,`Include the response's status line and headers above the body. -si is -s and -i together.`]],
+ saw:`"Server: nginx". From outside, the Kestrel's compute bay is NGINX. The core behind it is invisible, which is the point: you can change what is behind the gate without anyone noticing.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.headers&&r.meta.status===200&&r.meta.via==='nginx'},
+{what:`Read the balancer's logbook`,cmd:`tail -n 2 /var/log/nginx/access.log`,parts:[[`tail -n 2`,`Print the last 2 lines of a file.`],[`/var/log/nginx/access.log`,`The access log: one line for every request NGINX handled.`]],
+ saw:`Your two requests: who asked, when, what for, and the status code 200. Every request through the gate is recorded here whether or not a core ever saw it.`,test:(l,w,r)=>r.meta.cmd==='tail'&&/access/.test(r.meta.path)},
+{what:`Now break the orders on purpose`,cmd:CP('02-typo.conf'),parts:[[`02-typo.conf`,`The same file with one semicolon missing after proxy_pass.`]],
+ saw:`The broken file is on disk. The balancer has not read it and is still running on the good orders. The panel says so.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='02-typo.conf'},
+{what:`Let the test catch it`,cmd:`sudo nginx -t`,parts:[[`nginx -t`,`The same test as before.`]],
+ saw:`"[emerg] invalid number of arguments in "proxy_pass"", with the file and line number. Without its semicolon, proxy_pass swallowed the next line as extra arguments. A reload now would be refused too, and NGINX would carry on with the old orders. A bad file cannot take a running balancer down.`,test:(l,w,r)=>r.meta.cmd==='nginx -t'&&r.meta.bad},
+{what:`Put the good orders back`,cmd:CP('02-proxy.conf'),parts:[[`02-proxy.conf`,`The working file.`]],
+ saw:`Disk and balancer agree again.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='02-proxy.conf'},
+{what:`Confirm it is clean`,cmd:`sudo nginx -t`,parts:[[`nginx -t`,`Always the last thing you do after touching the file.`]],
+ saw:`Successful. One gate, one core behind it. Next: three.`,test:(l,w,r)=>r.meta.cmd==='nginx -t'&&!r.meta.bad}
+],
+notes:`<h2>On your own machine</h2>
+<ul>
+<li>On Linux, NGINX is usually started by the system: <code>sudo systemctl start nginx</code> and <code>sudo systemctl reload nginx</code>. The sandbox accepts both spellings.</li>
+<li>In Docker the usual pattern is the official <code>nginx</code> image with your file mounted at <code>/etc/nginx/conf.d/default.conf</code>. Inside a Compose project you proxy to a <em>service name</em>, for example <code>proxy_pass http://api:8000;</code>, because Compose gives every service a DNS name.</li>
+<li>The main file is <code>/etc/nginx/nginx.conf</code>. It contains <code>include /etc/nginx/conf.d/*.conf;</code> inside its <code>http</code> block, which is why a file dropped into conf.d is picked up. Try <code>cat /etc/nginx/nginx.conf</code> in the sandbox.</li>
+</ul>
+<h2>Why the two headers matter</h2>
+<p>Once a proxy is in the way, the backend sees every request arriving from the proxy's address. <code>X-Forwarded-For</code> carries the real client address along, and <code>Host</code> carries the name the client asked for. Web frameworks have a setting to trust these headers (in uvicorn it is <code>--proxy-headers</code>). Only trust them from your own proxy, since any client can type a fake one.</p>`,
+quiz:[
+{q:'You edit the configuration file and save it. What has changed in the running NGINX?',opts:['Everything, immediately','Nothing, until it is reloaded or restarted','Only new connections use the new file','It restarts by itself'],a:1,why:'NGINX reads the file at start and on reload. That is what makes it safe to run nginx -t on a change before it takes effect.'},
+{q:'What does proxy_pass do?',opts:['Checks a password','Forwards the request to another server and relays the answer','Redirects the browser to a new URL','Serves a file from disk'],a:1,why:'The client stays connected to NGINX. NGINX makes its own request to the backend and passes the response back.'},
+{q:'nginx -s reload is run on a file with a syntax error. What happens?',opts:['NGINX stops','NGINX serves errors until the file is fixed','The reload is refused and the old configuration keeps running','It loads the file up to the error'],a:2,why:'NGINX validates the new configuration first. If it is invalid the running workers are left alone.'}],
+reading:[
+['NGINX Reverse Proxy (admin guide)','https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/','proxy_pass, passing headers, and buffering, with examples.'],
+['How nginx processes a request',NX+'/http/request_processing.html','How NGINX chooses a server block and then a location for each request.'],
+['X-Forwarded-For (MDN)',MDN+'/Headers/X-Forwarded-For','What the header contains and why it should only be trusted from your own proxy.']]},
+
+{id:3,title:'Sharing the work: round robin',mins:10,
+idea:`
+<p>One core behind the gate is tidy, but core-1 still does everything. Now the balancer gets a <strong>pool of cores (an upstream group)</strong> and starts choosing.</p>
+<p>The default way of choosing is <strong>round robin</strong>: core-1, core-2, core-3, core-1, and so on. It needs no measurement and no memory beyond "who was last", and for identical servers it is hard to beat.</p>
+<p>The cores are stateless here: any core can answer any solve. That property is what makes balancing simple. Lesson 8's notes cover what to do when it is not true.</p>
+<dl class="terms">
+<dt><code>upstream</code></dt><dd>A named group of servers that do the same job. <code>proxy_pass</code> can point at the name.</dd>
+<dt>Round robin</dt><dd>Take turns. The default method, used when the upstream block names no other.</dd>
+<dt>Horizontal scaling</dt><dd>Handling more load by adding more servers, as opposed to buying a bigger one (vertical scaling). A load balancer is what makes it possible.</dd>
+</dl>`,
+widget:'cfg03',widgetTitle:'What changed in the file',widgetIntro:'These are the new lines in steps/03-pool.conf. Tap any line.',
+labIntro:'The same three moves every time the orders change: copy, test, reload.',
+tasks:[
+{what:`Put the pool orders in place`,cmd:CP('03-pool.conf'),parts:P_CP('03-pool.conf'),
+ saw:`On disk, not loaded. The green lines on the panel are what is new: an upstream block with three servers, and proxy_pass pointing at its name.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='03-pool.conf'},
+{what:`Test them`,cmd:`sudo nginx -t`,parts:[[`nginx -t`,`Read the file on disk and report mistakes.`]],
+ saw:`Clean.`,test:(l,w,r)=>r.meta.cmd==='nginx -t'&&!r.meta.bad},
+{what:`Tell the running balancer to re-read its orders`,cmd:`sudo nginx -s reload`,parts:[[`-s reload`,`Send the reload signal to the running NGINX. Requests in flight are finished on the old orders.`]],
+ saw:`No output, which is success. The schematic sweeps and redraws: three conduits now leave the balancer, to the torso, an arm and a leg.`,test:(l,w,r)=>loaded(w,'03-pool.conf')},
+{what:`Ask for a solve`,cmd:`curl -s localhost/targeting`,parts:[[`localhost/targeting`,`Exactly the command from the last lesson.`]],
+ saw:`Look at the "core" field to see who answered, and at which marker the dot landed on.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===200&&r.meta.via==='nginx'},
+{what:`Ask again`,cmd:`curl -s localhost/targeting`,parts:[[`localhost/targeting`,`The identical request.`]],
+ saw:`A different core. You did nothing differently. The balancer moved on to the next member of the pool.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===200},
+{what:`Ask six times in a row`,cmd:LOOP(6),parts:P_LOOP(6),
+ saw:`The core field cycles through the three cores, twice, and on the schematic the dots fan out to torso, arm and leg in turn. That is round robin.`,test:(l,w,r)=>r.meta.cmd==='loop'&&new Set(coresOf(r)).size===3},
+{what:`Check the logbook for who handled what`,cmd:`tail -n 3 /var/log/nginx/access.log`,parts:[[`tail -n 3`,`The last three lines.`]],
+ saw:`The new log format has a "to=" field: the address of the core NGINX picked. 8001, 8002 and 8003 take turns.`,test:(l,w,r)=>r.meta.cmd==='tail'&&/access/.test(r.meta.path)},
+{what:`Now the heavy test: 60 commands, 12 at a time`,cmd:AB(60,12),parts:P_AB(60,12),
+ saw:`20 each. Fair, and still wrong: the "over capacity" line shows core-2 and core-3 holding more solves at once than the 3 they are built for, while core-1, built for 6, had room to spare. Equal shares only suit equal servers. The next lesson fixes that.`,test:(l,w,r)=>r.meta.cmd==='ab'&&!r.meta.direct&&Object.keys(r.meta.by).length===3}
+],
+notes:`<h2>On your own machine</h2>
+<ul>
+<li>In Docker Compose the pool is usually service names: <code>server api-1:8000; server api-2:8000;</code>. If you scale one service with <code>docker compose up --scale api=3</code>, a single <code>server api:8000;</code> line resolves to all three containers when NGINX starts.</li>
+<li>The upstream block has to sit outside the server block, at the same level. Both live inside the <code>http</code> block of nginx.conf, which is where conf.d files are included.</li>
+</ul>
+<h2>What round robin assumes</h2>
+<p>That every server is the same size, and that every request costs about the same. When either is false you get what the last step showed: a fair split that overloads the small machines.</p>`,
+quiz:[
+{q:'An upstream block lists three servers and no method. How are requests shared?',opts:['All to the first server','At random','In turn, one after another','To whichever answered fastest last time'],a:2,why:'Round robin is the default. Each server gets the next request in order.'},
+{q:'Why can any core answer any targeting request here?',opts:['NGINX copies data between them','The cores keep no per-client state, so they are interchangeable','They share one port','Round robin requires it'],a:1,why:'Stateless backends are what make simple balancing work. If a server remembered things about a particular client, that client would have to keep returning to it.'},
+{q:'In the last lab step, what was wrong with a perfectly even split?',opts:['Nothing','ab cannot measure it','The cores have different capacities, so equal shares overloaded the small ones','Round robin dropped requests'],a:2,why:'core-2 and core-3 are built for 3 at once and were pushed past that, while core-1, built for 6, had room left.'}],
+reading:[
+['Using nginx as HTTP load balancer',NX+'/http/load_balancing.html','The official short guide: round robin, least connections, ip-hash, weights and health checks on one page.'],
+['ngx_http_upstream_module',NX+'/http/ngx_http_upstream_module.html','The reference for everything that can go inside an upstream block.'],
+['HTTP Load Balancing (admin guide)','https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/','A longer walk-through with more examples of each method.']]},
+
+{id:4,title:'Matching load to capacity',mins:12,
+idea:`
+<p>The Kestrel's cores are unequal, so equal shares are the wrong shares. There are two ways to tell the balancer, and they answer different questions.</p>
+<p><strong>Weights</strong> are you describing the hardware: "core-1 is twice the machine, give it twice the work." You write the number and NGINX obeys. It is simple and predictable, and it is only as good as your description stays true.</p>
+<p><strong>Least connections</strong> (<code>least_conn</code>) is the balancer looking before it chooses. For each new command it checks how many each core is working on <em>right now</em>, and picks the least busy one for its weight. A core that has slowed down is still holding its earlier commands, so it gets passed over without anyone having to notice the fault.</p>
+<p>There is an energy angle too. core-1 spends 2 kJ a solve and the small cores 3 kJ. Any method that leans on core-1 is cheaper for the reactor, as long as core-1 is not pushed past its capacity.</p>
+<dl class="terms">
+<dt><code>weight=N</code></dt><dd>A parameter on a server line. A server with weight 2 gets twice as many requests as one with weight 1. The default is 1.</dd>
+<dt><code>least_conn</code></dt><dd>A method line inside the upstream block. Send each request to the server with the fewest active connections.</dd>
+<dt><code>ip_hash</code></dt><dd>A third method you will see: always send the same client address to the same server. Lesson 8's notes explain when you need it.</dd>
+</dl>`,
+labIntro:'The same heavy test three times, under different orders and different damage. Compare the "who answered", "Time taken" and "over capacity" lines each time.',
+tasks:[
+{what:`Give core-1 a double share`,cmd:CP('04-weights.conf'),parts:P_CP('04-weights.conf'),
+ saw:`One change, in green: weight=2 on core-1's line.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='04-weights.conf'},
+{what:`Test and reload in one go`,cmd:RELOAD,parts:P_RELOAD,
+ saw:`Loaded. From now on the lessons use this one-liner.`,test:(l,w,r)=>loaded(w,'04-weights.conf')},
+{what:`Ask eight times`,cmd:LOOP(8),parts:P_LOOP(8),
+ saw:`core-1 answers four of the eight, and the small cores two each. NGINX spreads core-1's extra turns out instead of sending them back to back.`,test:(l,w,r)=>r.meta.cmd==='loop'&&coresOf(r).filter(c=>c==='core-1').length===4},
+{what:`Run the heavy test`,cmd:AB(60,12),parts:P_AB(60,12),
+ saw:`30, 15 and 15, and no "over capacity" line: 12 commands at once now sit as 6, 3 and 3, exactly what the cores are built for. The energy is lower than the round-robin run too, because half the solves went to the efficient core.`,test:(l,w,r)=>r.meta.cmd==='ab'&&r.meta.by['core-1']===30&&!r.meta.over.length},
+{what:`Damage: throttle core-3 to half a processor`,cmd:`docker update --cpus 0.5 kestrel-core-3-1`,parts:[[`docker update`,`Change a running container's resource limits.`],[`--cpus 0.5`,`Allow it half of one processor. The core still works, only slowly.`],[`kestrel-core-3-1`,`The container's full name, as docker compose ps lists it.`]],
+ saw:`core-3 is now running at a third of its speed. It still answers, so nothing looks broken, and the balancer's orders still give it a full share.`,test:(l,w,r)=>r.meta.cmd==='update'&&w.be['core-3'].slow>1},
+{what:`Run the heavy test again`,cmd:AB(60,12),parts:P_AB(60,12),
+ saw:`Still 30, 15 and 15, because weights are fixed. But core-3 takes three times as long over each solve, so its share piled up: it is far over capacity and the whole test took longer. Weights describe the cores as they were on a good day.`,test:(l,w,r)=>r.meta.cmd==='ab'&&r.meta.over.includes('core-3')&&loaded(w,'04-weights.conf')},
+{what:`Let the balancer look before it chooses`,cmd:CP('04-least.conf'),parts:P_CP('04-least.conf'),
+ saw:`One new line at the top of the upstream block: least_conn. The weight stays, so "least busy" is judged relative to each core's size.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='04-least.conf'},
+{what:`Test and reload`,cmd:RELOAD,parts:P_RELOAD,
+ saw:`Loaded.`,test:(l,w,r)=>loaded(w,'04-least.conf')},
+{what:`Run the heavy test a third time`,cmd:AB(60,12),parts:P_AB(60,12),
+ saw:`No core is over capacity, and the test finished sooner. core-3 was handed far fewer solves: it was always still busy with its last ones, so the balancer kept choosing someone else. Nobody told NGINX that core-3 was damaged. It reacted to what it saw.`,test:(l,w,r)=>r.meta.cmd==='ab'&&!r.meta.over.includes('core-3')&&r.meta.by['core-3']<15&&loaded(w,'04-least.conf')},
+{what:`Repair core-3`,cmd:`docker update --cpus 2 kestrel-core-3-1`,parts:[[`--cpus 2`,`Give it its processors back.`]],
+ saw:`core-3 is at full speed again. least_conn will notice that by itself as well.`,test:(l,w,r)=>r.meta.cmd==='update'&&w.be['core-3'].slow===1}
+],
+notes:`<h2>Which one to use</h2>
+<table class="types"><thead><tr><th>Method</th><th>Good when</th><th>Watch out for</th></tr></thead><tbody>
+<tr><td>Round robin</td><td>Servers are identical and requests are similar</td><td>Uneven servers, or a few very slow requests</td></tr>
+<tr><td>Weights</td><td>You know the servers' relative sizes and they do not change</td><td>The numbers go stale when hardware changes</td></tr>
+<tr><td><code>least_conn</code></td><td>Requests vary a lot in duration, or servers vary in speed</td><td>With very short, uniform requests it behaves like round robin</td></tr>
+<tr><td><code>ip_hash</code></td><td>A client must keep returning to the same server</td><td>Uneven load when many users share one address</td></tr>
+</tbody></table>
+<p>The two combine, as you did in the lab: <code>least_conn</code> respects weights, giving you a split that fits the hardware and still adapts when something slows down. For identical servers, <code>least_conn</code> with no weights is a sensible default.</p>
+<h2>What the sandbox simplifies</h2>
+<p>Each core here has a fixed speed and a fixed capacity, and slows down in proportion once it is over capacity. Real servers degrade less predictably, which is one more reason to prefer a method that looks over one that assumes.</p>`,
+quiz:[
+{q:'Server A has weight=3 and server B has no weight. Out of 8 requests, how many go to A?',opts:['3','4','6','8'],a:2,why:'B\'s weight is the default, 1. A gets 3 of every 4 requests, so 6 of 8.'},
+{q:'What does least_conn look at when choosing a server?',opts:['Which server has answered the most requests in total','How many requests each server is handling at this moment','Which server has the lowest port number','The server\'s CPU temperature'],a:1,why:'It counts active connections. A server that finishes quickly has fewer open, so it is chosen more often.'},
+{q:'Why did least_conn send fewer solves to the throttled core-3 without being told it was damaged?',opts:['It read the docker update command','core-3 is listed last','core-3 was still holding its earlier solves, so it was rarely the least busy','It did not; the split stayed 30, 15, 15'],a:2,why:'A slow server keeps its connections open for longer, so it looks busy and is passed over. The method reacts to what the servers actually do.'}],
+reading:[
+['Choosing a load-balancing method (admin guide)','https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/#choosing-a-load-balancing-method','Every method NGINX offers, with a config example for each.'],
+['server directive: weight and other parameters',NX+'/http/ngx_http_upstream_module.html#server','The reference for weight, max_fails, fail_timeout, backup and down.'],
+['Types of load balancing algorithms (Cloudflare)','https://www.cloudflare.com/learning/performance/types-of-load-balancing-algorithms/','Static and dynamic methods compared in plain language.']]},
+
+{id:5,title:'When a core goes dark',mins:12,
+idea:`
+<p>Mobile suits take hits. A balancer that keeps sending commands to a dead core is worse than no balancer, so the second job of a load balancer is noticing failure and routing around it.</p>
+<p>Open-source NGINX does this with <strong>passive health checks</strong>. It does not ping the cores. It learns from real traffic: when a connection to a core fails, NGINX marks that core as failed for a while, and <strong>tries the same request on the next core</strong>. The pilot sees a normal answer and never learns anything went wrong.</p>
+<p>After the timeout NGINX lets one request try the failed core again. If it works, the core is back in rotation. If not, it sits out another round.</p>
+<p>You will also add a <strong>reserve core (backup server)</strong>: a core on battery power that is expensive to run and receives nothing at all unless every regular core is down.</p>
+<dl class="terms">
+<dt><code>max_fails</code> and <code>fail_timeout</code></dt><dd>Parameters on a server line. After <code>max_fails</code> failed attempts within <code>fail_timeout</code>, skip this server for <code>fail_timeout</code>. The defaults are 1 and 10 seconds.</dd>
+<dt><code>backup</code></dt><dd>Marks a server that only receives requests when all the non-backup servers are unavailable.</dd>
+<dt>502 Bad Gateway</dt><dd>The status a proxy returns when it could not get an answer from any backend. It means "the gate is fine, nothing behind it answered".</dd>
+<dt>Failover</dt><dd>Moving work from a failed server to a healthy one automatically.</dd>
+</dl>`,
+labIntro:'You will take cores down with docker compose stop and watch what the pilot sees. On the schematic a stopped core\'s section goes dark with a dashed outline and its conduit turns red. A core the balancer has stopped trying is outlined in amber and tagged "skipped".',
+tasks:[
+{what:`Take core-2 dark`,cmd:`docker compose stop core-2`,parts:[[`docker compose stop core-2`,`Stop one container. Nothing tells NGINX.`]],
+ saw:`core-2 is down. The balancer does not know yet: its orders still list three cores.`,test:(l,w,r)=>r.meta.cmd==='stop'&&!w.be['core-2'].up},
+{what:`Ask six times`,cmd:LOOP(6),parts:P_LOOP(6),
+ saw:`Six answers, none from core-2, and no error anywhere. One of those commands was first sent to core-2, failed, and was quietly retried on another core.`,test:(l,w,r)=>r.meta.cmd==='loop'&&all200(r)&&!coresOf(r).includes('core-2')},
+{what:`See what the balancer noticed`,cmd:`tail -n 3 /var/log/nginx/error.log`,parts:[[`/var/log/nginx/error.log`,`The error log: things that went wrong from NGINX's point of view, even when the client never saw them.`]],
+ saw:`"connect() failed (111: Connection refused) while connecting to upstream", naming port 8002. One line, not six: after the first failure NGINX stopped trying core-2 for a while.`,test:(l,w,r)=>r.meta.cmd==='tail'&&/error/.test(r.meta.path)},
+{what:`Add a reserve core and a shorter time-out`,cmd:CP('05-reserve.conf'),parts:P_CP('05-reserve.conf'),
+ saw:`In green: max_fails=1 fail_timeout=5s written out on each core, and a fourth server marked backup.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='05-reserve.conf'},
+{what:`Test and reload`,cmd:RELOAD,parts:P_RELOAD,
+ saw:`Loaded. The battery packs behind the shoulders (marker R) have lit up with an amber conduit. The reserve will stay quiet while any regular core is alive.`,test:(l,w,r)=>loaded(w,'05-reserve.conf')},
+{what:`Lose the other two cores as well`,cmd:`docker compose stop core-1 core-3`,parts:[[`stop core-1 core-3`,`Several services in one command.`]],
+ saw:`All three regular cores are dark.`,test:(l,w,r)=>r.meta.cmd==='stop'&&!w.be['core-1'].up&&!w.be['core-3'].up},
+{what:`Ask four times`,cmd:LOOP(4),parts:P_LOOP(4),
+ saw:`Still four answers, all from the reserve, at 6 kJ each. Expensive, and far better than nothing. This is what a backup server is for.`,test:(l,w,r)=>r.meta.cmd==='loop'&&all200(r)&&coresOf(r).every(c=>c==='reserve')},
+{what:`Lose the reserve too`,cmd:`docker compose stop reserve`,parts:[[`stop reserve`,`The last targeting core.`]],
+ saw:`Nothing is left behind the gate.`,test:(l,w,r)=>r.meta.cmd==='stop'&&!w.be.reserve.up},
+{what:`Ask once, with headers`,cmd:`curl -si localhost/targeting`,parts:[[`-si`,`Quiet, and show the status line and headers.`]],
+ saw:`502 Bad Gateway, and note who sent it: "Server: nginx". The balancer is alive and honest. It tried and nothing answered.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===502},
+{what:`Bring everything back`,cmd:`docker compose start core-1 core-2 core-3 reserve`,parts:[[`docker compose start`,`Start stopped containers again.`]],
+ saw:`All four are up. Nobody told NGINX about that either.`,test:(l,w,r)=>r.meta.cmd==='start'&&['core-1','core-2','core-3','reserve'].every(n=>w.be[n].up)},
+{what:`Ask six times`,cmd:LOOP(6),parts:P_LOOP(6),
+ saw:`The regular cores are answering again and the reserve is quiet. The balancer found them by trying, the same way it lost them.`,test:(l,w,r)=>r.meta.cmd==='loop'&&coresOf(r).slice(-3).every(c=>/^core-/.test(c||''))}
+],
+notes:`<h2>Passive and active checks</h2>
+<p>What you used is <strong>passive</strong>: NGINX learns from failed requests. The cost is that one real request has to hit the dead server first (and gets retried). <strong>Active</strong> health checks send a small probe request every few seconds, whether or not there is traffic, and take a server out before any real request reaches it. In NGINX that is a feature of the commercial NGINX Plus. HAProxy, Traefik, Envoy and every cloud load balancer include active checks for free, and Kubernetes does the same job with readiness probes.</p>
+<h2>What gets retried</h2>
+<p>By default NGINX retries on connection errors and timeouts (<code>proxy_next_upstream error timeout</code>). It does <em>not</em> retry a request that reached a server and then failed halfway if the request is not safe to repeat, such as a POST that creates something. That caution is deliberate: retrying a payment twice is worse than reporting an error once.</p>
+<h2>"no live upstreams"</h2>
+<p>If every server in a group is marked failed, NGINX answers 502 at once, writes "no live upstreams" in the error log, and clears the marks so the next request tries again. If you see that line in real life, the question is always the same: are the backends actually down, or did one slow moment make NGINX give up on all of them?</p>`,
+quiz:[
+{q:'core-2 is stopped. The next request NGINX would have sent it does what?',opts:['Returns 502 to the client','Waits until core-2 comes back','Fails to connect, and is retried on another core','Is dropped silently'],a:2,why:'A connection error triggers proxy_next_upstream: the same request is tried on the next server, and the client sees a normal answer.'},
+{q:'When does a server marked backup receive requests?',opts:['Every fourth request','When the others are over a load threshold','Only when all non-backup servers are unavailable','Never; it is documentation'],a:2,why:'A backup server sits out entirely while any regular server is usable.'},
+{q:'A client receives 502 Bad Gateway. What does that tell you?',opts:['NGINX has crashed','The client sent a bad request','NGINX is running and could not get an answer from any backend','The rate limit was hit'],a:2,why:'A 502 is sent by the proxy itself. The first place to look is the proxy\'s error log, then the backends.'}],
+reading:[
+['HTTP Health Checks (admin guide)','https://docs.nginx.com/nginx/admin-guide/load-balancer/http-health-check/','Passive checks in open-source NGINX and active checks in NGINX Plus.'],
+['proxy_next_upstream',NX+'/http/ngx_http_proxy_module.html#proxy_next_upstream','Exactly which failures cause a request to be passed to the next server.'],
+['502 Bad Gateway (MDN)',MDN+'/Status/502','What the status means and how it differs from 503 and 504.']]},
+
+{id:6,title:'The energy budget: rate limiting',mins:12,
+idea:`
+<p>The cores are now shared sensibly and failures are survivable. One threat is left: <strong>too many commands</strong>. A stuck fire-control loop, a buggy script or an attacker can ask for solves faster than the reactor can pay for them. The balancer will faithfully spread that flood over every core and drain the suit.</p>
+<p>The reactor budgets 25 kW for compute. A solve costs 2 to 3 kJ, so the budget covers about <strong>10 solves a second</strong>. The gate is where to enforce that, because the gate sees every command before any energy is spent on it.</p>
+<p>NGINX's <strong>rate limiting</strong> (<code>limit_req</code>) works like a bucket with a hole. Each client's requests pour in, and they drain at the allowed rate. A short <strong>burst</strong> fits in the bucket. Anything that overflows is refused on the spot with <strong>429 Too Many Requests</strong>, and no core ever hears about it.</p>
+<dl class="terms">
+<dt><code>limit_req_zone</code></dt><dd>Declares a budget: what to count by (usually the client's address), where to keep the counters, and the rate.</dd>
+<dt><code>limit_req</code></dt><dd>Applies a declared budget to a server or location, with an optional burst.</dd>
+<dt>Burst</dt><dd>How far ahead of the steady rate a client may run before being refused.</dd>
+<dt>429 Too Many Requests</dt><dd>The status that tells a client it is being rate-limited and should slow down.</dd>
+</dl>`,
+widget:'cfg06',widgetTitle:'The three new lines',widgetIntro:'From steps/06-budget.conf. Tap any line.',
+labIntro:'The same flood twice: once with the gate wide open, once with a budget. Watch the reactor gauge at the bottom of the panel.',
+tasks:[
+{what:`Flood the gate: 200 commands, 20 at a time`,cmd:AB(200,20),parts:P_AB(200,20),
+ saw:`Every one of the 200 was served. The cores ran over capacity and the reactor gauge is deep in the red, many times over the 25 kW budget. The balancer did its job perfectly and the Kestrel is worse off for it.`,test:(l,w,r)=>r.meta.cmd==='ab'&&r.meta.n===200&&r.meta.rej===0&&!r.meta.direct},
+{what:`Put a budget on the gate`,cmd:CP('06-budget.conf'),parts:P_CP('06-budget.conf'),
+ saw:`Three green lines: the zone at the top, and limit_req and limit_req_status inside the location.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='06-budget.conf'},
+{what:`Test and reload`,cmd:RELOAD,parts:P_RELOAD,
+ saw:`Loaded. The balancer card now carries a "budget" tag, and on the schematic a red bar has appeared above the balancer: the gate that refuses commands over budget.`,test:(l,w,r)=>loaded(w,'06-budget.conf')},
+{what:`Send the same flood`,cmd:AB(200,20),parts:P_AB(200,20),
+ saw:`Look for "Non-2xx responses" in the output: most of the 200 were refused at the gate. Only the burst got through, the energy spent is a fraction of last time, and no core is over capacity. ab finished faster too, because a refusal costs almost nothing.`,test:(l,w,r)=>r.meta.cmd==='ab'&&r.meta.rej>100},
+{what:`Read what the balancer wrote about it`,cmd:`tail -n 2 /var/log/nginx/error.log`,parts:[[`tail -n 2`,`The last two lines of the error log.`]],
+ saw:`"limiting requests, excess: … by zone "energy"". Each refusal is logged with the client's address, which is how you find out who is flooding you.`,test:(l,w,r)=>r.meta.cmd==='tail'&&/error/.test(r.meta.path)},
+{what:`Check an ordinary command still gets through`,cmd:`curl -si localhost/targeting`,parts:[[`-si`,`Quiet, with the status line and headers.`]],
+ saw:`200 OK. The budget refills at 10 a second, so a pilot sending commands at a human pace never notices it. If you saw 429, you were quicker than the refill: run it once more.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===200&&r.meta.via==='nginx'}
+],
+notes:`<h2>Choosing the numbers</h2>
+<ul>
+<li><strong>Rate</strong> is the sustained speed you can afford. Here it came from the reactor: 25 kW divided by about 2.5 kJ a solve.</li>
+<li><strong>Burst</strong> is forgiveness for bunching. A web page that fires 8 requests at once is not an attack. Without a burst, a rate of 10 a second means "no two requests less than 100 ms apart", which refuses perfectly normal clients.</li>
+<li><strong><code>nodelay</code></strong> serves the burst immediately. Without it NGINX holds burst requests back and releases them at the steady rate, which smooths the load on the backends at the price of slower answers.</li>
+</ul>
+<h2>Per client, not in total</h2>
+<p>The zone is keyed by <code>$binary_remote_addr</code>, so each client address gets its own bucket. One noisy client is refused while everyone else is untouched. In the sandbox every request comes from 127.0.0.1, so there is one bucket. Behind another proxy or a CDN all requests appear to come from that proxy, and you would key on the forwarded address instead.</p>
+<h2>What a good client does with 429</h2>
+<p>Waits and tries again, with increasing pauses (exponential backoff). When you design an API, document the limit and send a <code>Retry-After</code> header so clients know how long to wait.</p>`,
+quiz:[
+{q:'Where is the cheapest place to refuse excess requests?',opts:['In each backend, after parsing the request','At the proxy, before any backend is involved','In the database','In the client'],a:1,why:'The proxy sees every request first. A refusal there costs almost nothing and protects everything behind it.'},
+{q:'rate=10r/s with burst=10. A client sends 30 requests in the same instant. Roughly how many are served?',opts:['All 30','About 10','Exactly 1','None'],a:1,why:'The burst allowance lets about 10 through at once. The rest overflow and get 429. A second later, about 10 more would be allowed.'},
+{q:'Why answer 429 instead of the default 503?',opts:['429 is faster to send','429 tells the client it is being limited and should slow down, while 503 suggests the service is broken','503 is not a valid status','NGINX cannot send 503'],a:1,why:'Status codes are messages to the client and to whoever reads the dashboards. 429 says precisely what happened.'}],
+reading:[
+['ngx_http_limit_req_module',NX+'/http/ngx_http_limit_req_module.html','The reference for limit_req_zone, limit_req, burst, nodelay and limit_req_status.'],
+['Rate Limiting with NGINX','https://blog.nginx.org/blog/rate-limiting-nginx','The classic explanation of the leaky bucket, burst and nodelay, with diagrams.'],
+['429 Too Many Requests (MDN)',MDN+'/Status/429','The status code and the Retry-After header that goes with it.']]},
+
+{id:7,title:'Not computing twice: caching',mins:10,
+idea:`
+<p>The cheapest solve is the one nobody calculates. If the console asks for the solution to sector 7 twice within a few seconds, the answer has not changed. The gate can <strong>remember it (cache it)</strong> and reply from memory: no core, no energy, and an answer in about a millisecond.</p>
+<p>A cache trades <strong>freshness</strong> for <strong>cost</strong>. You choose how old an answer may be. Here it is 60 seconds: fine for a target that is not moving much, wrong for one that is. That choice is the whole design problem of caching, and it belongs to whoever understands the data.</p>
+<p>The cache is keyed by the request. <code>/targeting?sector=7</code> and <code>/targeting?sector=9</code> are different questions and get separate entries.</p>
+<dl class="terms">
+<dt>Cache HIT</dt><dd>The proxy had a fresh stored answer and returned it. No backend was involved.</dd>
+<dt>Cache MISS</dt><dd>Nothing stored. The proxy asked a backend, returned the answer and kept a copy.</dd>
+<dt>EXPIRED</dt><dd>There was a stored answer but it was too old. The proxy asked a backend again and replaced it.</dd>
+<dt>TTL (time to live)</dt><dd>How long a stored answer counts as fresh.</dd>
+</dl>`,
+widget:'cfg07',widgetTitle:'The four new lines',widgetIntro:'From steps/07-cache.conf. Tap any line.',
+labIntro:'Watch two things in each answer: the X-Cache-Status header, and the "solve" number in the body. A new number means a core did the work. The same number means you are looking at a remembered answer.',
+tasks:[
+{what:`Give the gate a memory`,cmd:CP('07-cache.conf'),parts:P_CP('07-cache.conf'),
+ saw:`Four green lines: where the cache lives, and three lines in the location to use it.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='07-cache.conf'},
+{what:`Test and reload`,cmd:RELOAD,parts:P_RELOAD,
+ saw:`Loaded. A memory bank (marker M) has appeared beside the balancer.`,test:(l,w,r)=>loaded(w,'07-cache.conf')},
+{what:`Ask for the solve to sector 7`,cmd:`curl -si "localhost/targeting?sector=7"`,parts:[[`"…?sector=7"`,`A query string. The quotes stop the shell treating ? as a wildcard.`]],
+ saw:`X-Cache-Status: MISS. A core calculated it, and the gate will remember the answer for 60 seconds. Note the solve number.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.xcache==='MISS'},
+{what:`Ask the identical question again`,cmd:`curl -si "localhost/targeting?sector=7"`,parts:[[`sector=7`,`Exactly the same request.`]],
+ saw:`X-Cache-Status: HIT, and the body is the same down to the solve number. No core was asked and the reactor gauge shows 0 kJ. (If you saw EXPIRED, more than a minute had passed: run it once more.)`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.xcache==='HIT'},
+{what:`Ask a different question`,cmd:`curl -si "localhost/targeting?sector=9"`,parts:[[`sector=9`,`A different query string, so a different cache key.`]],
+ saw:`MISS. Sector 9 has never been asked, so a core had to work. The cache only helps with repeated questions.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.xcache==='MISS'&&/sector/.test(l)},
+{what:`Ask about sector 7 six more times`,cmd:LOOP(6,'"localhost/targeting?sector=7"'),parts:P_LOOP(6),
+ saw:`Six identical answers, all from memory, for 0 kJ. Without the cache that was 12 to 18 kJ.`,test:(l,w,r)=>r.meta.cmd==='loop'&&(r.meta.results||[]).length===6&&r.meta.results.slice(1).every(x=>x.xcache==='HIT')},
+{what:`Let the answer go stale`,cmd:`sleep 60`,parts:[[`sleep 60`,`Wait 60 seconds. The sandbox skips ahead instead of making you sit there.`]],
+ saw:`A minute has passed, which is the lifetime the orders give each answer.`,test:(l,w,r)=>r.meta.cmd==='sleep'&&r.meta.n>=60},
+{what:`Ask about sector 7 once more`,cmd:`curl -si "localhost/targeting?sector=7"`,parts:[[`sector=7`,`The same question as before.`]],
+ saw:`EXPIRED, and a new solve number. The stored answer was too old to trust, so a core recalculated it and the gate now remembers the new one.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.xcache==='EXPIRED'}
+],
+notes:`<h2>What is safe to cache</h2>
+<ul>
+<li><strong>Yes:</strong> answers that are the same for everyone and change slowly. Product lists, public pages, reference data, images, scripts.</li>
+<li><strong>Careful:</strong> anything personal. A cached "my account" page served to the next user is a data leak. By default NGINX will not cache a response that sets a cookie, and you should keep authenticated routes out of the cache unless the key includes the user.</li>
+<li><strong>No:</strong> requests that change things (POST, PUT, DELETE). NGINX only caches GET and HEAD unless told otherwise.</li>
+</ul>
+<h2>Who decides the lifetime</h2>
+<p>Here the proxy decided, with <code>proxy_cache_valid</code>. The better long-term arrangement is for the application to say so itself, with a <code>Cache-Control: max-age=60</code> response header, which NGINX honours ahead of its own setting. The application knows what its data is; the proxy is guessing.</p>
+<h2>The budget still counts</h2>
+<p>In these orders the rate limit is checked before the cache, so a remembered answer still uses up a little of the client's budget. That is NGINX's order of operations, and it is why the lab repeats the question six times instead of two hundred.</p>`,
+quiz:[
+{q:'A response comes back with X-Cache-Status: HIT. Which backend handled it?',opts:['The first in the pool','The least busy','None; the proxy answered from its stored copy','The backup'],a:2,why:'A hit never reaches a backend. That is the saving.'},
+{q:'/targeting?sector=7 is cached. A request arrives for /targeting?sector=9. What happens?',opts:['It gets the sector 7 answer','MISS: the query string is part of the cache key, so this is a different entry','An error','The cache is cleared'],a:1,why:'The default key includes the full request URI, query string included.'},
+{q:'What do you give up by caching for longer?',opts:['Security','Freshness: clients may see an answer that is out of date for up to the lifetime','Nothing','The ability to reload NGINX'],a:1,why:'The lifetime is exactly the maximum staleness you have agreed to accept.'}],
+reading:[
+['NGINX Content Caching (admin guide)','https://docs.nginx.com/nginx/admin-guide/content-cache/content-caching/','Setting up proxy_cache, choosing what to cache, and purging.'],
+['proxy_cache_valid and friends',NX+'/http/ngx_http_proxy_module.html#proxy_cache_valid','The reference for the caching directives used here.'],
+['HTTP caching (MDN)','https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching','How Cache-Control works for browsers and for shared caches such as a proxy.']]},
+
+{id:8,title:'One gate for everything: routing',mins:12,
+idea:`
+<p>The Kestrel is more than a targeting computer. The sensors and thrusters have their own services on their own ports, and so far the gate does not know them. The last job of a reverse proxy is <strong>routing</strong>: looking at each request's path and sending it to the right subsystem.</p>
+<p>This is what makes a pile of separate services look like one application from outside. One address, one port, one place for the access log, the budget and (in real life) the HTTPS certificate. When a reverse proxy is used this way in front of several services it is often called an <strong>API gateway</strong>.</p>
+<p>After this lab you will read the finished orders top to bottom. Every line in them is one you have added and tested.</p>
+<dl class="terms">
+<dt>Path-based routing</dt><dd>Choosing a backend by the request's path, with one <code>location</code> block per route.</dd>
+<dt>API gateway</dt><dd>A reverse proxy acting as the single entry point to several services, applying the shared rules (limits, logging, authentication) in one place.</dd>
+<dt>TLS termination</dt><dd>The proxy handles HTTPS with the outside world and talks plain HTTP to the services behind it, so certificates live in one place.</dd>
+<dt>404 Not Found</dt><dd>Here, the gate's own answer for a path that matches none of its locations.</dd>
+</dl>`,
+labIntro:'Three subsystems, one address.',
+tasks:[
+{what:`Ask the gate for the sensors`,cmd:`curl -s localhost/sensors`,parts:[[`localhost/sensors`,`A path the current orders do not mention.`]],
+ saw:`404 Not Found, from nginx. The sensors service is running (it was in docker compose ps), but the gate has no route to it.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===404&&r.meta.via==='nginx'},
+{what:`Add the routes`,cmd:CP('08-routes.conf'),parts:P_CP('08-routes.conf'),
+ saw:`Two new location blocks in green, each with a single proxy_pass. They have no pool, no budget and no cache: each location carries only the rules it needs.`,test:(l,w,r)=>r.meta.cmd==='cp'&&r.meta.name==='08-routes.conf'},
+{what:`Test and reload`,cmd:RELOAD,parts:P_RELOAD,
+ saw:`Loaded. On the schematic the sensor mast (S) and the outer thruster packs (T) have lit up, each with its own conduit from the balancer.`,test:(l,w,r)=>loaded(w,'08-routes.conf')},
+{what:`Ask for the sensors again`,cmd:`curl -s localhost/sensors`,parts:[[`/sensors`,`Matched by the new location /sensors block.`]],
+ saw:`The sensors subsystem answers, through the same front door as targeting.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.core==='sensors'},
+{what:`And the thrusters`,cmd:`curl -s localhost/thrusters`,parts:[[`/thrusters`,`Matched by location /thrusters.`]],
+ saw:`A third service, same address.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.core==='thrusters'},
+{what:`Targeting still works as before`,cmd:`curl -s localhost/targeting`,parts:[[`/targeting`,`Still handled by the pool, the budget and the cache.`]],
+ saw:`A solve, from the pool. Adding routes changed nothing for the existing one.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===200&&r.meta.path==='/targeting'&&r.meta.via==='nginx'},
+{what:`Ask for something the Kestrel does not expose`,cmd:`curl -si localhost/railgun`,parts:[[`/railgun`,`No location matches this.`]],
+ saw:`404 from the gate. Anything you have not routed is simply unreachable from outside, which is a security feature: services are private until you publish a path to them.`,test:(l,w,r)=>r.meta.cmd==='curl'&&r.meta.status===404&&r.meta.path==='/railgun'},
+{what:`Read the finished orders`,cmd:`cat `+CONF,parts:[[`cat`,`Print a file.`]],
+ saw:`About thirty lines: a log format, a budget, a cache, a pool with a reserve, and three routes. You have added and tested every one.`,test:(l,w,r)=>r.meta.cmd==='cat'&&r.meta.path===CONF},
+{what:`Read the logbook one last time`,cmd:`tail -n 5 /var/log/nginx/access.log`,parts:[[`tail -n 5`,`The last five requests.`]],
+ saw:`One line for each request with its path, status, the core it went to and whether the cache was used. Three services, one logbook.`,test:(l,w,r)=>r.meta.cmd==='tail'&&/access/.test(r.meta.path)}
+],
+notes:`<h2>What a real deployment adds</h2>
+<ul>
+<li><strong>HTTPS.</strong> <code>listen 443 ssl;</code> plus <code>ssl_certificate</code> and <code>ssl_certificate_key</code>, and a second server block on port 80 that redirects to https. Certificates usually come free from Let's Encrypt via certbot. This is TLS termination: the services behind the gate stay plain HTTP.</li>
+<li><strong>Time-outs.</strong> <code>proxy_connect_timeout</code> and <code>proxy_read_timeout</code> decide how long the gate waits for a backend before giving up with 504 Gateway Timeout.</li>
+<li><strong>WebSockets and streaming</strong> need two extra headers (<code>Upgrade</code> and <code>Connection</code>) and usually <code>proxy_buffering off</code>.</li>
+<li><strong>Upload size.</strong> <code>client_max_body_size</code> defaults to 1 MB. A "413 Request Entity Too Large" on a file upload is this setting.</li>
+</ul>
+<h2>Sticky sessions</h2>
+<p>Everything here assumed any core can answer any request. If a server keeps something in its own memory about a user (a login session, an upload in progress), that user must keep landing on the same server. <code>ip_hash</code> does that by client address. The better fix is usually to move the state out of the servers into a shared store such as Postgres or Redis, so they become interchangeable again.</p>
+<h2>NGINX and its neighbours</h2>
+<table class="types"><thead><tr><th>Tool</th><th>Known for</th></tr></thead><tbody>
+<tr><td>NGINX</td><td>The default choice. Web server, reverse proxy, cache. Configuration in files, applied on reload.</td></tr>
+<tr><td>HAProxy</td><td>A pure load balancer. Active health checks and very detailed statistics built in.</td></tr>
+<tr><td>Caddy</td><td>Gets and renews HTTPS certificates by itself. A two-line config for simple cases.</td></tr>
+<tr><td>Traefik</td><td>Reads its routes from Docker labels or Kubernetes, so new containers are picked up with no reload.</td></tr>
+<tr><td>Envoy</td><td>Built for service meshes and configured by API. Often underneath other products.</td></tr>
+<tr><td>Cloud load balancers, CDNs</td><td>The same ideas run as a service: AWS ALB, Google Cloud Load Balancing, Cloudflare.</td></tr>
+</tbody></table>
+<p>The vocabulary carries over to all of them: upstreams (also called backends, targets or pools), health checks, routing rules, rate limits, caching, TLS termination.</p>
+<h2>Back to Kubernetes</h2>
+<p>A Kubernetes <strong>Service</strong> is the pool and the round robin from lesson 3. Readiness probes are the health checks from lesson 5. An <strong>Ingress</strong> (or the newer Gateway API) is the routing from this lesson, and the controller that implements it is frequently NGINX, generating a file much like the one you just read.</p>`,
+quiz:[
+{q:'How does NGINX decide which location block handles a request?',opts:['By the client\'s address','By matching the request\'s path against each location','By the order the services started','At random'],a:1,why:'Locations match on the path. With simple prefix locations like these, the longest matching prefix wins.'},
+{q:'The sensors service was running all along. Why did /sensors return 404 at the start of the lab?',opts:['The service had crashed','The rate limit refused it','The gate had no location for that path, so it had no route to the service','curl needed a different flag'],a:2,why:'A reverse proxy only forwards what it has been told to. Unrouted paths get the proxy\'s own 404.'},
+{q:'What is TLS termination?',opts:['Switching HTTPS off','The proxy handling HTTPS with clients and speaking plain HTTP to the backends','Ending a connection after a timeout','Encrypting the access log'],a:1,why:'Certificates and encryption live at the gate, and the services behind it do not each have to manage them.'}],
+reading:[
+['ngx_http_core_module: location',NX+'/http/ngx_http_core_module.html#location','The exact rules for how locations are matched, including the prefix, exact and regular-expression forms.'],
+['Configuring HTTPS servers',NX+'/http/configuring_https_servers.html','The official guide to certificates, listen 443 ssl, and sensible TLS settings.'],
+['Kubernetes Ingress','https://kubernetes.io/docs/concepts/services-networking/ingress/','The same routing idea inside a cluster, and where NGINX fits as a controller.']]}
+];
+const CHEATS=[
+['Running NGINX','sudo nginx -t','Test the configuration on disk. Changes nothing'],
+['Running NGINX','sudo nginx','Start NGINX'],
+['Running NGINX','sudo nginx -s reload','Re-read the configuration without dropping connections'],
+['Running NGINX','sudo nginx -t && sudo nginx -s reload','Reload only if the test passes'],
+['Running NGINX','sudo nginx -s stop','Stop NGINX'],
+['Running NGINX','sudo systemctl reload nginx','The same reload on a Linux server managed by systemd'],
+['Files','/etc/nginx/nginx.conf','The main file. Includes conf.d/*.conf inside its http block'],
+['Files','/etc/nginx/conf.d/NAME.conf','Where your own server and upstream blocks go'],
+['Files','/var/log/nginx/access.log','One line per request handled'],
+['Files','/var/log/nginx/error.log','Failed upstream connections, refused requests, config errors'],
+['Reverse proxy','server { listen 80; … }','A virtual server on port 80'],
+['Reverse proxy','location /PATH { … }','Rules for requests whose path starts with /PATH'],
+['Reverse proxy','proxy_pass http://HOST:PORT;','Forward the request to one backend'],
+['Reverse proxy','proxy_pass http://GROUP;','Forward to a server chosen from an upstream group'],
+['Reverse proxy','proxy_set_header Host $host;','Pass on the host name the client asked for'],
+['Reverse proxy','proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;','Pass on the client\'s address'],
+['Load balancing','upstream GROUP { server HOST:PORT; … }','A pool of interchangeable backends. Round robin by default'],
+['Load balancing','server HOST:PORT weight=2;','Give this server twice the share'],
+['Load balancing','least_conn;','Send each request to the server with the fewest in progress'],
+['Load balancing','ip_hash;','Keep each client address on the same server (sticky sessions)'],
+['Failure','server HOST:PORT max_fails=1 fail_timeout=5s;','After 1 failure, skip this server for 5 seconds'],
+['Failure','server HOST:PORT backup;','Use only when every regular server is unavailable'],
+['Failure','502 Bad Gateway','The proxy could not get an answer from any backend'],
+['Failure','504 Gateway Timeout','A backend accepted the request and took too long'],
+['Rate limiting','limit_req_zone $binary_remote_addr zone=NAME:10m rate=10r/s;','Declare a per-client budget of 10 requests a second'],
+['Rate limiting','limit_req zone=NAME burst=10 nodelay;','Apply it, allowing bursts of 10 served immediately'],
+['Rate limiting','limit_req_status 429;','Answer 429 Too Many Requests instead of 503'],
+['Caching','proxy_cache_path /var/cache/nginx keys_zone=NAME:10m;','Declare where cached answers are stored'],
+['Caching','proxy_cache NAME;','Use that cache in this location'],
+['Caching','proxy_cache_valid 200 60s;','Keep successful answers for 60 seconds'],
+['Caching','add_header X-Cache-Status $upstream_cache_status;','Report MISS, HIT or EXPIRED to the client'],
+['Logging','log_format NAME \'… $upstream_addr $upstream_cache_status $request_time\';','A custom access-log line showing the chosen backend, cache result and duration'],
+['Logging','access_log /var/log/nginx/access.log NAME;','Write the access log in that format'],
+['Testing from the terminal','curl -s URL','One request, print the body'],
+['Testing from the terminal','curl -si URL','Also show the status line and response headers'],
+['Testing from the terminal','for i in 1 2 3; do curl -s URL; done','The same request several times'],
+['Testing from the terminal','ab -n 200 -c 20 http://URL','200 requests, 20 at a time, with timings'],
+['Testing from the terminal','tail -n 5 /var/log/nginx/access.log','The last five requests the proxy handled'],
+['Testing from the terminal','docker compose stop NAME','Take one backend down to see what the proxy does']
+];
+
+/* ---------- UI ---------- */
+(function(){
+const KEY='nginx-guide-v1';
+let saved={done:{},quiz:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.done&&s.quiz)saved=s;}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}};
+const $=(s,r)=>(r||document).querySelector(s);
+function el(tag,attrs,...kids){
+  const n=document.createElement(tag);
+  for(const k in (attrs||{})){const v=attrs[k];
+    if(k==='html')n.innerHTML=v;else if(k==='text')n.textContent=v;else if(k.startsWith('on'))n.addEventListener(k.slice(2),v);
+    else if(v!==false&&v!=null)n.setAttribute(k,v===true?'':v);}
+  kids.flat(Infinity).forEach(c=>{if(c!=null)n.append(c);});
+  return n;
+}
+const quizDone=L=>L.quiz.every((q,i)=>saved.quiz[L.id+'-'+i]===q.a);
+const lessonDone=L=>L.tasks?!!saved.done[L.id]:quizDone(L);
+
+/* ----- navigation ----- */
+function renderNav(active){
+  const nav=$('#nav');nav.textContent='';
+  LESSONS.forEach(L=>{
+    nav.append(el('a',{href:'#lesson-'+L.id,class:'nav-item'+(active===L.id?' active':'')+(lessonDone(L)?' done':''),'aria-current':active===L.id?'page':null},
+      el('span',{class:'num',text:lessonDone(L)?'✓':String(L.id).padStart(2,'0')}),el('span',{class:'nav-title',text:L.title})));
+  });
+  nav.append(el('a',{href:'#cheat-sheet',class:'nav-item'+(active==='cheats'?' active':'')},el('span',{class:'num',text:'≡'}),el('span',{class:'nav-title',text:'Cheat sheet'})));
+  const n=LESSONS.filter(lessonDone).length;
+  $('#progress-text').textContent='['+n+'/'+LESSONS.length+'] lessons complete';
+  $('#progress-bar').style.width=(n/LESSONS.length*100)+'%';
+  const a=$('.nav-item.active',nav);if(a&&a.scrollIntoView)a.scrollIntoView({block:'nearest',inline:'center'});
+}
+
+/* ----- widgets ----- */
+const W={};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function annotated(box,notes,label){
+  const pre=el('div',{class:'code-lines',role:'group','aria-label':label}),panel=el('div',{class:'explain','aria-live':'polite'});
+  const btns=[];
+  notes.forEach((n,i)=>{const b=el('button',{type:'button',class:'cl'+(n[0].startsWith('#')?' plain':''),text:n[0],onclick:()=>pick(i)});btns[i]=b;pre.append(b);});
+  function pick(i){btns.forEach((b,k)=>b.setAttribute('aria-pressed',k===i));panel.innerHTML='<code>'+esc(notes[i][0].trim())+'</code><p>'+notes[i][1]+'</p>';}
+  box.append(el('div',{class:'scroll-x'},pre),panel);pick(0);
+}
+function flow(box,steps){
+  let i=0;const row=el('div',{class:'flow'}),panel=el('div',{class:'explain','aria-live':'polite'}),btns=[];
+  const next=el('button',{type:'button',class:'btn next',text:'Next',onclick:()=>{i=(i+1)%steps.length;draw();}});
+  steps.forEach((s,k)=>{const b=el('button',{type:'button',class:'fstep',onclick:()=>{i=k;draw();}},el('span',{class:'fnum',text:'step '+(k+1)}),el('span',{class:'ft',text:s[0]}),el('span',{class:'fs',text:s[1]}));btns.push(b);row.append(b);});
+  function draw(){btns.forEach((b,k)=>{b.setAttribute('aria-pressed',k===i);b.classList.toggle('past',k<i);});
+    panel.innerHTML='<code>'+(i+1)+' of '+steps.length+': '+esc(steps[i][0])+'</code><p>'+steps[i][2]+'</p>';
+    next.textContent=i===steps.length-1?'Start again':'Next';next.classList.toggle('next',i<steps.length-1);}
+  box.append(row,panel,el('div',{class:'row'},next));draw();
+}
+W.journey=box=>flow(box,[
+ ['Pilot console','client','The console wants a targeting solve. It knows one address, the balancer\'s, and nothing about the cores. In real terms: a browser, a mobile app or another service sends an HTTP request.'],
+ ['The gate','reverse proxy','NGINX accepts the connection on port 80. The console is now talking to NGINX and only to NGINX.'],
+ ['Checks','limit, cache','Before any core is bothered: is this console within its energy budget (rate limit)? Has this exact question been answered recently (cache)? Either can end the journey here.'],
+ ['Choose a core','load balancing','NGINX picks one core from the pool: the next in turn, or the least busy, skipping any it knows are down.'],
+ ['The core works','backend','NGINX opens its own connection to the chosen core and passes the request on. The core calculates the solve and spends the energy.'],
+ ['Answer relayed','response','The core answers NGINX, and NGINX answers the console. From the console\'s side there was one server, and it was fast, always up, and never overloaded.']]);
+W.cfg02=box=>annotated(box,NOTES02,'steps/02-proxy.conf');
+W.cfg03=box=>annotated(box,NOTES03,'New lines in steps/03-pool.conf');
+W.cfg06=box=>annotated(box,NOTES06,'New lines in steps/06-budget.conf');
+W.cfg07=box=>annotated(box,NOTES07,'New lines in steps/07-cache.conf');
+
+W.cheats=function(box){
+  const inp=el('input',{id:'cheat-filter',type:'search',placeholder:'Filter, for example: cache, upstream, reload','aria-label':'Filter the cheat sheet',autocomplete:'off'}),out=el('div',{class:'cheats'});
+  function draw(){const q=inp.value.trim().toLowerCase();out.textContent='';let n=0;
+    [...new Set(CHEATS.map(c=>c[0]))].forEach(g=>{const rows=CHEATS.filter(c=>c[0]===g&&(g+' '+c[1]+' '+c[2]).toLowerCase().includes(q));if(!rows.length)return;n+=rows.length;
+      out.append(el('h3',{text:g}),el('dl',{class:'cheat'},rows.map(c=>[el('dt',{},el('code',{text:c[1]})),el('dd',{text:c[2]})])));});
+    if(!n)out.append(el('p',{class:'empty',text:'Nothing matches that.'}));}
+  inp.addEventListener('input',draw);box.append(inp,out);draw();
+};
+/* ----- bench: status map on top, terminal at the bottom ----- */
+const WIDE=window.matchMedia('(min-width:1040px)');
+let benchEl=null,slotEl=null,ticker=null;
+function placeBench(){if(!benchEl)return;const host=WIDE.matches?$('#bench'):slotEl;if(host&&benchEl.parentNode!==host)host.append(benchEl);}
+WIDE.addEventListener('change',placeBench);
+/* ----- the frame: the KF-07 Kestrel from Kubernetes from Zero, redrawn from live state as a load map ----- */
+const ANCH={'core-1':[150,153,'1'],'core-2':[88,106,'2'],'core-3':[129,304,'3'],reserve:[193,60,'R'],sensors:[189,12,'S'],thrusters:[78,58,'T']};
+const K_BAL=[150,190],K_HEAD=[150,50],K_MEM=[181,203];
+function kestrel(v,hops,refit){
+  const C={};v.cores.forEach(c=>C[c.name]=c);const L=v.last;
+  const tone=c=>!c.up?{f:'#0a0f14',s:'var(--bad)',k:'dark'}:c.peak>c.cap?{f:'rgba(255,123,114,.5)',s:'var(--bad)',k:'hot'}:c.slow?{f:'rgba(242,184,75,.3)',s:'var(--warn)',k:'slow'}:
+    {f:c.peak?'rgba(61,220,151,'+(0.16+0.5*Math.min(1,c.peak/c.cap)).toFixed(2)+')':'',s:c.role?'var(--good)':'',k:''};
+  const grp=(n,aux)=>{const c=C[n],t=tone(c);return '<g class="nd '+t.k+(c.marked?' skip':'')+(aux?' aux':'')+(c.role||c.served?' used':'')+'" style="'+(t.f?'--lf:'+t.f+';':'')+(t.s?'--ls:'+t.s:'')+'">';};
+  const both=h=>h+'<g transform="translate(300,0) scale(-1,1)">'+h+'</g>';
+  const boost=(x,y,w,h,a,px,py)=>'<g transform="rotate('+a+' '+px+' '+py+')"><rect class="pl" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="5"/><path class="ln" d="M'+x+' '+(y+12)+'h'+w+'M'+x+' '+(y+h-10)+'h'+w+'"/></g>';
+  const kw=L?L.kj/Math.max(1,L.secs):0,rx=kw>BUDGET_KW?'over':kw>0?'live':'idle';
+  const run=v.running;
+  let s='<svg class="kes'+(refit?' refit':'')+'" viewBox="-34 0 368 372" role="img" aria-label="Schematic of the KF-07 Kestrel showing how busy each compute core is">';
+  /* packs behind the shoulders: thrusters (outer) and the reserve battery (inner) */
+  s+=grp('thrusters',1)+both(boost(84,30,13,50,-30,90,80))+'</g>'+grp('reserve',1)+both(boost(106,32,14,54,-12,113,86))+'</g>';
+  s+=grp('core-3')+both('<path class="pl" d="M118 200l28 8-4 54h-26z"/><path class="pl" d="M112 262h34l2 20h-38z"/><circle class="pl" cx="129" cy="272" r="5"/><path class="pl" d="M114 284h32v56h-44z"/><path class="pl" d="M96 342h52v18h-60z"/><path class="ln" d="M120 222l23 4M109 312h37M100 351h46"/>')+'</g>';
+  s+=grp('core-1')+'<path class="pl" d="M124 80h52l6 8h-64z"/><path class="pl" d="M112 88h76l8 24-12 38h-68l-12-38z"/><path class="pl" d="M124 150h52l-4 26h-44z"/><path class="pl" d="M120 176h60l6 20-36 10-36-10z"/><path class="ln" d="M118 96l-6 18 10 28M182 96l6 18-10 28"/></g>';
+  s+='<g class="nd head"><path class="pl" d="M141 70h18v10h-18z"/><path class="pl" d="M132 70l-2-20 8-12h24l8 12-2 20z"/><path class="pl" d="M144 38l2-8h8l2 8z"/><path class="ln" d="M134 63h32M150 30v8"/><path class="ln" d="M137 43l-13-30"/><circle class="ln" cx="123" cy="10" r="3.2"/></g>';
+  s+=grp('core-2')+both('<circle class="pl" cx="88" cy="104" r="24"/><path class="pl" d="M62 100a26 26 0 0 1 52 0h-7a19 19 0 0 0-38 0z"/><path class="pl" d="M78 128h20l-2 36h-16z"/><circle class="pl" cx="88" cy="172" r="8"/><path class="pl" d="M72 180h32l-4 52h-24z"/><path class="pl" d="M78 236h20l2 16h-24z"/><path class="ln" d="M75 196h26M78 222h20M79 244h18"/>')+'</g>';
+  s+=grp('sensors',1)+'<path class="ln mast" d="M163 43l22-28"/><circle class="pl" cx="189" cy="12" r="10"/></g>';
+  /* the reactor glows with what the last command drew */
+  s+='<g class="reactor '+rx+'"><circle class="ring" cx="150" cy="116" r="21"/><circle class="glow" cx="150" cy="116" r="15" style="fill-opacity:'+(0.12+0.75*Math.min(1,kw/BUDGET_KW)).toFixed(2)+'"/><circle class="pip" cx="150" cy="116" r="6"/><path class="ln" d="M150 100v6M150 126v6M134 116h6M160 116h6"/></g>';
+  /* conduits: pilot to balancer, balancer to every core its orders name */
+  if(run)s+='<path class="cd in" d="M'+K_HEAD+'L'+K_BAL+'"/>';
+  if(run&&v.cfg&&v.cfg.cache)s+='<path class="cd mem" d="M'+K_BAL+'L'+K_MEM+'"/>';
+  v.cores.forEach(c=>{if(run&&c.role){const a=ANCH[c.name];s+='<path class="cd'+(!c.up?' dead':c.marked?' skip':'')+(c.role.backup?' bk':'')+'" d="M'+K_BAL+'L'+a[0]+' '+a[1]+'"/>';}});
+  /* commands in flight */
+  let n=0;const seen={};
+  (hops||[]).forEach(h=>{const key=h.kind+(h.core||'');seen[key]=(seen[key]||0)+1;if(seen[key]>6||n>22)return;
+    let d,k='';const a=h.core&&ANCH[h.core];
+    if(h.kind==='direct'&&a)d='M'+(a[0]<150?-30:330)+' '+a[1]+'L'+a[0]+' '+a[1];
+    else if(h.kind==='ok'&&a)d='M'+K_HEAD+'L'+K_BAL+'L'+a[0]+' '+a[1];
+    else if(h.kind==='hit'){d='M'+K_HEAD+'L'+K_BAL+'L'+K_MEM;k=' hit';}
+    else{d='M'+K_HEAD+'L150 178';k=' limit';}
+    s+='<circle class="pk'+k+'" r="4.5" style="offset-path:path(\''+d+'\');animation-delay:'+(n++*65)+'ms"/>';});
+  /* markers */
+  const mk=(x,y,t,cls)=>'<g class="mk '+cls+'"><circle cx="'+x+'" cy="'+y+'" r="10"/><text x="'+x+'" y="'+(y+4)+'">'+t+'</text></g>';
+  const hit=nm=>(hops||[]).some(h=>h.core===nm)?' hit':'';
+  v.cores.forEach(c=>{const a=ANCH[c.name];if(!(c.role||c.served||/^core-/.test(c.name)))return;s+=mk(a[0],a[1],a[2],(!c.up?'down':c.peak>c.cap?'hot':c.role||c.peak?'on':'off')+hit(c.name));});
+  if(v.cfg&&v.cfg.limit)s+='<path class="gatebar'+((hops||[]).some(h=>h.kind==='limit')?' shut':'')+'" d="M136 176h28"/>';
+  if(v.cfg&&v.cfg.cache)s+='<g class="mk on mem'+((hops||[]).some(h=>h.kind==='hit')?' hit':'')+'"><rect x="'+(K_MEM[0]-9)+'" y="'+(K_MEM[1]-9)+'" width="18" height="18" rx="3"/><text x="'+K_MEM[0]+'" y="'+(K_MEM[1]+4)+'">M</text></g>';
+  s+=mk(K_BAL[0],K_BAL[1],'N',(run&&!(hops||[]).some(h=>h.kind==='direct')?'on bal':'off bal')+((hops||[]).some(h=>h.kind==='bad')?' err':''));
+  s+=mk(K_HEAD[0],K_HEAD[1]+4,'P','on pilot');
+  s+='<rect class="scan" x="-34" y="0" width="368" height="3"/></svg>';
+  return s;
+}
+
+function lab(L,sec,ctx){
+  ctx=ctx||{};
+  const tasks=L.tasks||[],simId=L.id||LESSONS.length+1;
+  let sim=createSim(simId),cur=saved.done[L.id]?tasks.length:0;const hist=[];let hi=0;const skipped=new Set();
+  const list=el('ol',{class:'tasks'}),term=el('div',{class:'term-out',tabindex:'0','aria-label':'Terminal output',role:'log'}),map=el('div',{class:'pz'}),strip=el('div',{class:'strip'}),statusEl=el('span',{class:'pill'}),stepbar=el('div',{class:'stepbar'});
+  const input=el('input',{id:'term-in',type:'text',enterkeyhint:'go',autocomplete:'off',autocapitalize:'off',autocorrect:'off',spellcheck:'false','aria-label':'Command',placeholder:'type a command'});
+  const promptEl=el('span',{class:'prompt',text:'$'});
+  const form=el('form',{class:'term-in',onsubmit:e=>{e.preventDefault();runLine();}},promptEl,input,el('button',{type:'submit',class:'run',text:'Run'}));
+  const banner=el('div',{class:'banner',hidden:true});
+  const setPrompt=()=>{promptEl.textContent=sim.prompt();};
+  function print(text,cls){if(text==='')return;term.append(el('div',{class:'tl '+(cls||''),text:text}));term.scrollTop=term.scrollHeight;term.scrollLeft=0;}
+  function loadCmd(c,jump){input.value=c;if(jump&&!WIDE.matches)form.scrollIntoView({block:'center',behavior:'smooth'});else if(WIDE.matches)input.focus();}
+  const cmdBtn=(c,jump)=>el('button',{type:'button',class:'cmd',title:'Put this command in the terminal',onclick:()=>loadCmd(c,jump)},el('code',{text:c,'data-p':'$'}),el('span',{class:'tap',text:'Tap to load'}));
+  const ranBtn=c=>el('button',{type:'button',class:'ran','data-p':'$',title:'Put this command in the terminal',onclick:()=>loadCmd(c,true)},el('code',{text:c}));
+  function redo(){cur=0;reset(true);}
+  const norm1=s=>s.replace(/\s+/g,' ').trim();
+  function drawTasks(){
+    list.textContent='';
+    tasks.forEach((t,i)=>{
+      const st=i<cur?(skipped.has(i)?'skip':'done'):i===cur?'now':'todo';
+      const li=el('li',{class:'task '+st},el('div',{class:'task-h'},el('span',{class:'mark',text:st==='done'?'✓':st==='skip'?'–':String(i+1)}),el('span',{class:'what',text:t.what})));
+      if(st==='done')li.append(ranBtn(t.cmd),el('p',{class:'saw',text:t.saw}));
+      if(st==='now')li.append(cmdBtn(t.cmd,true),el('dl',{class:'parts'},t.parts.map(p=>[el('dt',{},el('code',{text:p[0]})),el('dd',{text:p[1]})])));
+      if(st==='todo')li.append(ranBtn(t.cmd));
+      if(st==='skip')li.append(ranBtn(t.cmd),el('p',{class:'saw',text:'Skipped. You can still run it.'}));
+      list.append(li);
+    });
+    const all=tasks.length&&cur>=tasks.length;banner.hidden=!all;
+    if(all){banner.textContent='';banner.append(el('strong',{text:'Lab complete. '}),document.createTextNode('The sandbox is still live, so experiment freely. The help button on the terminal lists what it understands. '),el('button',{type:'button',class:'mini',text:'Do the lab again',onclick:redo}));}
+    stepbar.textContent='';
+    if(!tasks.length)stepbar.append(el('span',{class:'sb-h',text:'Free sandbox'}),el('span',{class:'sb-w',text:'Nothing to complete here. Try a command:'}),cmdBtn('curl -si localhost/targeting'));
+    else if(all)stepbar.append(el('span',{class:'sb-h',text:'Lab complete'}),el('span',{class:'sb-w',text:'Experiment freely, or press help.'}));
+    else stepbar.append(el('span',{class:'sb-h',text:'Step '+(cur+1)+' of '+tasks.length}),el('span',{class:'sb-w',text:tasks[cur].what}),cmdBtn(tasks[cur].cmd));
+  }
+  const HL=/(#.*$)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(^\s*[a-z_]+)|(\$[a-z_]+)|\b(\d+[a-z\/]*)\b/g;
+  function codeLine(text,i,fresh){
+    const d=el('div',{class:'pl'+(fresh?' new':'')},el('i',{text:String(i+1)}));let last=0,m;HL.lastIndex=0;
+    while((m=HL.exec(text))){if(m[0]===''){HL.lastIndex++;continue;}if(m.index>last)d.append(text.slice(last,m.index));d.append(el('span',{class:m[1]?'c':m[2]?'s':m[3]?'d':m[4]?'k':'n',text:m[0]}));last=m.index+m[0].length;}
+    if(last<text.length)d.append(text.slice(last));if(!text)d.append(' ');
+    return d;
+  }
+  let seenStamp=-1,lastSig='';
+  const sigOf=v=>JSON.stringify([v.stamp,v.cores.map(c=>[c.up,c.marked])]);
+  function drawMap(hops){
+    const old=map.querySelector('.pycode'),keep=old?old.scrollTop:0;
+    const v=sim.view();map.textContent='';strip.textContent='';lastSig=sigOf(v);
+    statusEl.className='pill '+(v.running?'ok':'off');statusEl.textContent=v.running?'nginx running on :80':'nginx stopped';
+    const chip=(t,c)=>el('span',{class:'chip '+(c||''),text:t});
+    const zone=(host,key,title,sub,items)=>{const z=el('div',{class:'zone z-'+key},el('h3',{text:title}),el('div',{class:'zsub',text:sub}),el('div',{class:'zlist'},items));host.append(z);return z;};
+    const colL=el('div',{class:'pcol'}),colR=el('div',{class:'pcol'});
+    /* left: the orders */
+    const text=v.disk!==null?v.disk:v.loaded,items=[];let box=null,firstNew=null;
+    if(text){
+      const base=v.pending&&v.loaded?new Set(v.loaded.split('\n')):null;
+      box=el('div',{class:'pycode',tabindex:'0','aria-label':'kestrel.conf'});
+      text.replace(/\n$/,'').split('\n').forEach((ln,i)=>{const fresh=!!base&&ln.trim()!==''&&!base.has(ln);const d=codeLine(ln,i,fresh);if(fresh&&!firstNew)firstNew=d;box.append(d);});
+      items.push(el('span',{class:'chips'},chip(v.diskName||'kestrel.conf','port'),!v.pending?chip('loaded','ix'):chip(v.running?'on disk only: test, then reload':'on disk only: nginx is not running','vol')),box);
+    }else items.push(el('span',{class:'empty',text:'no kestrel.conf yet, so the balancer has no orders'}));
+    zone(colL,'code','The balancer\'s orders',text?(v.pending?(v.loaded?'green lines differ from what nginx is running':'nginx has not read this file'):'this is what nginx is doing now'):CONF,items);
+    /* right: the frame, as a load map */
+    const L=v.last,hp=hops||[];
+    const fig=el('div',{class:'kfig',html:kestrel(v,hp,seenStamp!==-1&&v.stamp!==seenStamp)});
+    const badge=(t,c)=>el('span',{class:'bdg '+(c||''),text:t});
+    const cards=el('div',{class:'lanes2'});
+    cards.append(el('div',{class:'ccard gatec '+(v.running?'up':'')},el('div',{class:'card-h'},badge('P'),el('span',{class:'arrowr','aria-hidden':'true',text:'→'}),badge('N',v.running?'on':''),el('b',{text:'balancer :80'}),el('span',{class:'pill '+(v.running?'ok':'off'),text:v.running?'nginx':'not running'})),
+      v.cfg?el('span',{class:'chips'},v.cfg.method?chip(v.cfg.method.replace('_',' '),'net'):null,v.cfg.limit?chip('budget '+v.cfg.limit.rate+'/s','bad'):null,v.cfg.cache?chip('memory '+v.cfg.cache.valid+'s','ix'):null,v.cfg.paths.map(p=>chip(p,'port'))):
+        el('span',{class:'sub',text:v.running?'running with no orders':'commands can only go straight to a core'})));
+    if(v.cfg&&v.cfg.limit)cards.append(el('div',{class:'ccard spec'+(hp.some(h=>h.kind==='limit')?' glow':'')},el('div',{class:'card-h'},badge('▬','lim'),el('b',{text:'refused at the gate'}),el('span',{class:'pill bad',text:'429'})),el('span',{class:'sub',text:'over budget (rate limit) · last command: '+(L?L.rej:0)+' · 0 kJ'})));
+    if(v.cfg&&v.cfg.cache)cards.append(el('div',{class:'ccard spec'+(hp.some(h=>h.kind==='hit')?' glow':'')},el('div',{class:'card-h'},badge('M','on'),el('b',{text:'memory'}),el('span',{class:'pill ok',text:'cache'})),el('span',{class:'sub',text:v.cached+' answer'+(v.cached===1?'':'s')+' remembered · last command: '+(L?L.hit:0)+' from memory · 0 kJ'})));
+    v.cores.filter(c=>c.role||c.served>0||/^core-/.test(c.name)).forEach(c=>{
+      const over=c.peak>c.cap,st=!c.up?'down':over?'over':'up';
+      const pills=[!c.up?el('span',{class:'pill bad',text:'dark'}):over?el('span',{class:'pill bad',text:'over capacity'}):el('span',{class:'pill ok',text:'online'})];
+      if(c.marked)pills.push(el('span',{class:'pill re',text:'skipped by nginx'}));
+      if(c.slow)pills.push(el('span',{class:'pill re',text:'throttled'}));
+      if(c.role&&c.role.backup)pills.push(chip('backup','vol'));
+      if(c.role&&c.role.weight>1)pills.push(chip('weight '+c.role.weight,'net'));
+      if(v.running&&!c.role)pills.push(chip('not behind the gate'));
+      cards.append(el('div',{class:'ccard '+st+(hp.some(h=>h.core===c.name)?' glow':'')},el('div',{class:'card-h'},badge(ANCH[c.name][2],st==='up'?'on':st),el('b',{text:c.name}),pills),
+        el('div',{class:'lbar'+(over?' over':''),title:'Solves in progress at the busiest moment of the last command, against what the core is built for'},el('i',{style:'width:'+Math.min(100,c.peak/c.cap*100)+'%'})),
+        el('span',{class:'sub',text:(c.battery?'battery pack':c.node)+' :'+c.port+' · '+c.kj+' kJ/solve · peak '+c.peak+' of '+c.cap+' · served '+c.served+' = '+c.energy+' kJ'})));
+    });
+    zone(colR,'path','KF-07 Kestrel: where the load is',!v.running?'P pilot · 1 2 3 compute cores (backend servers) · no balancer yet':'P pilot → N balancer (nginx) → a core · a section fills as its core gets busy',[el('div',{class:'duo2'},fig,cards)]);
+    /* strip: the reactor */
+    const kw=L?L.kj/Math.max(1,L.secs):0,ov=kw>BUDGET_KW;
+    const g=el('div',{class:'gauge'+(ov?' over':''),role:'img','aria-label':Math.round(kw)+' kilowatts against a budget of '+BUDGET_KW},el('i',{style:'width:'+Math.min(100,kw/(BUDGET_KW*2)*100)+'%'}),el('em',{}));
+    const z=el('div',{class:'zone z-reactor'},el('h3',{text:'Reactor: energy for compute'}),el('div',{class:'zlist'},
+      el('div',{class:'kv'},el('span',{text:'last command'}),el('b',{text:L?L.kj+' kJ for '+L.n+' command'+(L.n===1?'':'s'):'nothing sent yet'})),
+      el('div',{class:'kv grow'},el('span',{text:'draw over a second · mark: '+BUDGET_KW+' kW budget'}),el('div',{class:'row'},g,el('b',{class:ov?'hot':'',text:Math.round(kw)+' kW'+(ov?' · over budget':'')}))),
+      el('div',{class:'kv'},el('span',{text:'this session'}),el('b',{text:v.total+' kJ'}))));
+    strip.append(z);
+    map.append(colL,colR);
+    if(box){if(v.stamp!==seenStamp&&firstNew){const t=firstNew.offsetTop-box.offsetTop-40;box.scrollTop=Math.max(0,t);}else box.scrollTop=keep;}
+    seenStamp=v.stamp;
+  }
+  function reset(clearTerm){
+    sim=createSim(simId);skipped.clear();runId++;busy=false;seenStamp=-1;form.classList.remove('busy');input.disabled=false;if(clearTerm)term.textContent='';
+    print('A simulated terminal. Nothing is run on your device: NGINX, the containers and the logs all live in this page. Press help for what the sandbox understands.','note');
+    print('You are in ~/kestrel on the Kestrel\'s gateway machine. nginx, curl, ab and docker are installed. The compute cores are running as containers. NGINX is '+(sim.world.nginx.running?'running, with '+sim.world.nginx.name+' loaded.':'installed but not started.'),'note');
+    setPrompt();drawTasks();drawMap(null);
+    if(ctx.onReset)ctx.onReset();
+  }
+  let busy=false,runId=0;
+  /* output arrives one line at a time, and the newest line is kept in view */
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function showLine(text,cls){const d=el('div',{class:'tl '+(cls||''),text:text});term.append(d);term.scrollTop=term.scrollHeight;term.scrollLeft=0;return d;}
+  async function printOut(text,cls,id){
+    if(text==='')return;
+    const lines=text.split('\n'),gap=Math.max(16,Math.min(90,2000/lines.length));
+    for(let n=0;n<lines.length;n++){
+      const ln=lines[n],c0=ln.charCodeAt(0);
+      if(c0===2){const ms=+ln.slice(1)||300;const d=showLine('…','wait');await sleep(ms);d.remove();}
+      else{showLine(ln,/^sandbox:/.test(ln)?'note':cls);if(n<lines.length-1)await sleep(gap);}
+      if(id!==runId)return;
+    }
+    await sleep(gap);
+  }
+  function keepInView(){if(WIDE.matches)return;const b=form.getBoundingClientRect();if(b.bottom>window.innerHeight||b.top<80)form.scrollIntoView({block:'end',behavior:'smooth'});}
+  async function runLine(){
+    if(busy)return;
+    const raw=input.value,line=raw.trim();if(!line)return;input.value='';hist.push(line);hi=hist.length;
+    print(sim.prompt()+' '+line,'in');
+    keepInView();
+    let r;try{r=sim.exec(line);}catch(e){r={ok:false,out:'sandbox: could not run that ('+e.message+').',meta:{}};}
+    if(r.clear){term.textContent='';setPrompt();return;}
+    const id=runId;busy=true;form.classList.add('busy');input.disabled=true;
+    const soft=/^(curl|loop|ab|nginx -t)$/.test(r.meta.cmd||'');
+    drawMap(r.meta.hops||[]);
+    await printOut(r.out,r.ok||soft?'':'err',id);
+    if(id!==runId)return;
+    busy=false;form.classList.remove('busy');input.disabled=false;setPrompt();
+    if(cur<tasks.length){
+      const l=norm1(line);let pass=false,jump=0;try{pass=!!tasks[cur].test(l,sim.world,r);}catch(e){}
+      /* ran a later step's command: move on to it and mark the ones in between as skipped */
+      if(!pass)for(let k=cur+1;k<tasks.length;k++){let ok=false;try{ok=l===norm1(tasks[k].cmd)&&l!==norm1(tasks[cur].cmd)&&!!tasks[k].test(l,sim.world,r);}catch(e){}
+        if(ok){for(let s=cur;s<k;s++)skipped.add(s);jump=k-cur;cur=k;pass=true;break;}}
+      /* went back to a skipped step: tick it off */
+      if(!pass)for(const s of [...skipped]){let ok=false;try{ok=l===norm1(tasks[s].cmd)&&!!tasks[s].test(l,sim.world,r);}catch(e){}
+        if(ok){skipped.delete(s);print('✓ Step '+(s+1)+' of '+tasks.length+' done. '+tasks[s].saw,'ok');drawTasks();break;}}
+      if(pass){
+        const t=tasks[cur];cur++;
+        print('✓ Step '+cur+' of '+tasks.length+' done'+(jump?' ('+jump+' earlier step'+(jump>1?'s':'')+' skipped). ':'. ')+t.saw,'ok');
+        if(cur>=tasks.length){saved.done[L.id]=true;save();renderNav(L.id);print('✓ Lesson '+L.id+' lab complete.','ok');}
+        drawTasks();
+        if(WIDE.matches){const n=$('.task.now',list)||banner;if(n.scrollIntoView)n.scrollIntoView({block:'nearest'});}
+      }else if(l===norm1(tasks[cur].cmd))print('That was the right command, but the step is not done yet. Read the output above: something it depends on has not happened yet. Running it again often does it.','note');
+      else if(!r.ok&&!soft)print('Hint: read the message above. This step is waiting for: '+tasks[cur].cmd,'note');
+    }
+    if(WIDE.matches)input.focus();
+    requestAnimationFrame(keepInView);
+  }
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();runLine();}
+    else if(e.key==='ArrowUp'&&hist.length){e.preventDefault();hi=Math.max(0,hi-1);input.value=hist[hi];}
+    else if(e.key==='ArrowDown'&&hist.length){e.preventDefault();hi=Math.min(hist.length,hi+1);input.value=hist[hi]||'';}
+  });
+  if(sec&&tasks.length)sec.append(el('p',{text:L.labIntro}),list,banner);
+  const bench=el('div',{class:'bench-in'},
+    el('section',{class:'map','aria-label':'The Kestrel\'s compute bay'},el('div',{class:'map-head'},el('b',{text:'Kestrel compute bay'}),statusEl),map,strip),
+    stepbar,
+    el('section',{class:'term','aria-label':'Terminal'},el('div',{class:'term-bar'},el('span',{text:'Terminal (simulated)'}),el('span',{class:'row'},el('button',{type:'button',class:'mini dark',text:'help',onclick:()=>{if(!busy)print(sim.help,'note');}}),el('button',{type:'button',class:'mini dark',text:'reset',onclick:()=>{if(cur<tasks.length)cur=0;reset(true);}}))),term,form));
+  /* a skipped core is tried again once its time-out passes: keep the panel honest while you read */
+  if(ticker)clearInterval(ticker);
+  ticker=setInterval(()=>{if(!busy&&sigOf(sim.view())!==lastSig)drawMap(null);},1000);
+  reset(false);
+  return bench;
+}
+
+/* ----- quiz ----- */
+function quiz(L,sec){
+  L.quiz.forEach((q,i)=>{
+    const key=L.id+'-'+i,fb=el('p',{class:'fb','aria-live':'polite'}),opts=el('div',{class:'opts'});
+    function draw(){
+      const ch=saved.quiz[key];opts.textContent='';
+      q.opts.forEach((o,k)=>opts.append(el('button',{type:'button',class:'opt'+(ch===k?(k===q.a?' right':' wrong'):''),'aria-pressed':ch===k,text:o,onclick:()=>{saved.quiz[key]=k;save();draw();renderNav(L.id);}})));
+      fb.className='fb'+(ch==null?'':ch===q.a?' good':' bad');
+      fb.textContent=ch==null?'':ch===q.a?'Correct. '+q.why:'Not quite. Have another look at the options, or re-read the section above.';
+    }
+    sec.append(el('div',{class:'q'},el('p',{class:'qt',text:(i+1)+'. '+q.q}),opts,fb));draw();
+  });
+}
+
+/* ----- page ----- */
+function mount(art,bench,slot){
+  const main=$('#main'),old=benchEl;main.textContent='';if(old)old.remove();
+  main.append(art);benchEl=bench;slotEl=slot;placeBench();
+}
+function showLesson(id){
+  const L=LESSONS.find(x=>x.id===id)||LESSONS[0];
+  const art=el('article',{}),slot=el('div',{class:'slot'}),ctx={};
+  art.append(el('p',{class:'eyebrow',text:'Lesson '+L.id+' of '+LESSONS.length+' · about '+L.mins+' minutes'}),el('h1',{text:L.title}),el('section',{class:'prose',html:L.idea}));
+  if(L.widget){const box=el('div',{class:'widget'});art.append(el('section',{},el('h2',{text:L.widgetTitle}),el('p',{text:L.widgetIntro}),box));W[L.widget](box,ctx);}
+  const s=el('section',{class:'lab'},el('h2',{text:'Try it'}));art.append(s);const bench=lab(L,s,ctx);s.append(slot);
+  if(L.notes)art.append(el('section',{class:'prose notes',html:L.notes}));
+  const qs=el('section',{},el('h2',{text:'Check yourself'}));art.append(qs);quiz(L,qs);
+  art.append(el('section',{},el('h2',{text:'Further reading'}),el('ul',{class:'reading'},L.reading.map(r=>el('li',{},el('a',{href:r[1],target:'_blank',rel:'noopener',text:r[0]}),el('span',{text:r[2]}))))));
+  const prev=LESSONS.find(x=>x.id===L.id-1),next=LESSONS.find(x=>x.id===L.id+1);
+  art.append(el('nav',{class:'pager','aria-label':'Lessons'},prev?el('a',{href:'#lesson-'+prev.id,class:'btn ghost',text:'← '+prev.title}):el('span'),next?el('a',{href:'#lesson-'+next.id,class:'btn',text:next.title+' →'}):el('a',{href:'#cheat-sheet',class:'btn',text:'Cheat sheet →'})));
+  mount(art,bench,slot);renderNav(L.id);
+}
+function showCheats(){
+  const box=el('div',{class:'widget'}),slot=el('div',{class:'slot'});
+  const art=el('article',{},el('p',{class:'eyebrow',text:'reference'}),el('h1',{text:'Cheat sheet'}),el('p',{class:'prose',text:'Every directive and command from the eight lessons. Words in capitals are placeholders for your own values. The sandbox here is free play: the finished gate from lesson 8, with every core online.'}),box,el('section',{class:'slot-sec'},el('h2',{text:'Sandbox'}),slot));
+  W.cheats(box);mount(art,lab({id:0},null),slot);renderNav('cheats');
+}
+function route(){
+  const h=location.hash.replace('#','');const m=/^lesson-(\d+)$/.exec(h);
+  if(h==='cheat-sheet')showCheats();else showLesson(m?+m[1]:1);
+  $('#main').scrollTop=0;window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);route();
+})();
+
+</script>
+</script>
+</body>
+</html>

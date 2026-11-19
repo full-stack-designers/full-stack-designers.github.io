@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-15",
+  "did": "Committed tokens/kestrel.tokens.json: five colour ramps, semantic colours for background, text and border (including nominal, warning, offline and danger), spacing, radius, sizes, type styles, motion and a shadow, each with a note on when to use it. The token values were supplied; this step was about the workflow, not the Kestrel's look.",
+  "evidence": [
+    {
+      "label": "Kestrel tokens commit",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/c9996b0f6fb462294b283e688b34fcd0c763da72"
+    },
+    {
+      "label": "The merge commit it caused",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/a676652af97a8059d8751d78a48ef1bde1467d0c"
+    }
+  ],
+  "fixes": [],
+  "id": "2026-11-15-design-tokens",
+  "learned": "I committed on an out-of-date local main while GitHub's main had moved on, so git made a merge commit instead of a pull request. Nothing broke. Now I pull before starting new work and do everything on a branch.",
+  "title": "Design tokens for the cockpit",
+  "tutorial": "design-tokens"
+}

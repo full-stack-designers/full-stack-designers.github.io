@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-15",
+  "did": "Followed the Git Basics Sandbox on my real kestrel-simulator folder, in Windows Command Prompt. Created the repository, wrote the README and the project goals, set up a .gitignore and an env example so secrets stay out of git, and opened and merged my first pull request.",
+  "evidence": [
+    {
+      "label": "Secrets setup (.gitignore and env example)",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/fca4619c5ee529b82d10aed58d7a7b96b10b06ba"
+    },
+    {
+      "label": "Pull request #1, merged on GitHub",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/pull/1"
+    }
+  ],
+  "fixes": [
+    "Added lessons on creating a working folder and a repository, and on creating the GitHub repository before pushing",
+    "Added a terminal picker: Mac/Linux/Git Bash, Command Prompt and PowerShell ('ls' isn't recognized in Command Prompt)",
+    "Explained the \"dubious ownership\" error and the safe.directory fix",
+    "Explained the \"pathspec did not match any files\" error",
+    "Said explicitly when to create the README",
+    "Rebuilt the commit lesson for when several files change",
+    "Added the \"staging adds up\" rule for separate git add commands",
+    "Started the sandbox on master and added the git branch -M main step",
+    "Added an \"I am also doing this on my own project\" switch to every step",
+    "Made the pull request and teammates lessons work on a real project",
+    "Added an \"I use VS Code\" switch with a terminal-to-button table",
+    "The tutorial went from 6 lessons and 42 steps to 7 lessons and 56 steps"
+  ],
+  "id": "2026-11-15-git-basics",
+  "learned": "The sandbox was tidier than a real machine. It assumed a folder, files, a main branch, a GitHub repository and a Mac-style terminal were already there, and each of those assumptions failed on the real project.",
+  "title": "Git Basics on a real project",
+  "tutorial": "git-basics"
+}

@@ -1,0 +1,31 @@
+name: Tutorial last-updated times
+# When a tutorial page is pushed without its time (a tutorial's own chat pushes tutorials/<slug>/index.html directly),
+# record the push time in tutorials/updated.json so the Learning Path page shows the right "Last updated".
+on:
+  push:
+    branches: [main]
+    paths: ['tutorials/*/index.html']
+permissions:
+  contents: write
+concurrency:
+  group: tutorial-times
+  cancel-in-progress: false
+jobs:
+  stamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Record times for tutorials pushed without one
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          TZ: UTC
+        run: python3 .github/tutorial_times.py "$BEFORE" "$AFTER"
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tutorials/updated.json
+          if ! git diff --cached --quiet; then git commit -m "Record tutorial last-updated times" && git pull --rebase -q && git push; fi

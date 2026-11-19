@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MCP Interface Design Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: fixed left rail of seven steps (learn, then build), one reading column, a sticky review panel beside the workbook. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --sunk:#e8ecea; --ink:#15211f; --muted:#5a6966; --line:#d3dad7;
+  --accent:#0a6a60; --accent-ink:#ffffff; --accent-soft:#dcefeb;
+  --ok:#1f7a3d; --ok-soft:#dff2e4; --warn:#9a5b00; --warn-soft:#fbeed3; --bad:#b3261e; --bad-soft:#fbe1de;
+  --code-bg:#12201e; --code-ink:#dbe8e4; --code-key:#7fd6c6; --code-str:#f2c879;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1716; --surface:#172220; --sunk:#1f2d2a; --ink:#e4ecea; --muted:#9aaba7; --line:#2c3d39;
+    --accent:#5cc9b8; --accent-ink:#06211d; --accent-soft:#17352f;
+    --ok:#6fd08a; --ok-soft:#15301d; --warn:#f0b955; --warn-soft:#382a0e; --bad:#ff8f86; --bad-soft:#3d1a17;
+    --code-bg:#0a1211; --code-ink:#d5e3df; --code-key:#7fd6c6; --code-str:#f2c879;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1716; --surface:#172220; --sunk:#1f2d2a; --ink:#e4ecea; --muted:#9aaba7; --line:#2c3d39;
+  --accent:#5cc9b8; --accent-ink:#06211d; --accent-soft:#17352f;
+  --ok:#6fd08a; --ok-soft:#15301d; --warn:#f0b955; --warn-soft:#382a0e; --bad:#ff8f86; --bad-soft:#3d1a17;
+  --code-bg:#0a1211; --code-ink:#d5e3df; --code-key:#7fd6c6; --code-str:#f2c879;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:1.25rem;font-weight:700}
+h2{font-size:2rem;font-weight:700;margin-bottom:.4rem}
+h3{font-size:1.2rem;font-weight:700;margin:2rem 0 .5rem}
+p{margin:.6rem 0}
+code,pre,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--sunk);padding:.08em .35em;border-radius:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;align-self:start;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.rail p{font-size:.85rem;color:var(--muted);margin:0}
+.rail nav{display:flex;flex-direction:column;gap:2px}
+.rail .grp{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 8px 4px}
+.rail a{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;color:var(--ink);text-decoration:none;font-weight:500;font-size:.95rem}
+.rail a:hover{background:var(--sunk)}
+.rail a.on{background:var(--accent-soft);color:var(--accent)}
+.rail .n{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font:500 .72rem var(--mono);color:var(--muted)}
+.rail a.done .n{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.rail .badge{margin-left:auto;font:500 .72rem var(--mono);padding:1px 7px;border-radius:99px;background:var(--warn-soft);color:var(--warn)}
+.rail .badge.zero{background:var(--ok-soft);color:var(--ok)}
+main{padding:36px clamp(16px,4vw,56px) 80px;min-width:0}
+section.view{display:none;max-width:1180px}
+section.view.on{display:block}
+.read{max-width:68ch}
+.lede{font-size:1.1rem;color:var(--muted)}
+.step-tag{font:500 .78rem var(--mono);color:var(--accent);margin-bottom:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h4{margin:0 0 4px;font:700 1.02rem var(--display)}
+.card p{margin:.3rem 0;font-size:.93rem}
+.card .who{font:500 .74rem var(--mono);color:var(--accent)}
+.card .so{border-top:1px dashed var(--line);margin-top:10px;padding-top:8px;font-size:.9rem}
+.card .so b{color:var(--accent)}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:16px 0;font-size:.95rem}
+ol.steps{padding-left:1.2rem}
+ol.steps li{margin:.5rem 0}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:12px 0}
+.pair>div{border-radius:10px;padding:12px 14px;font-size:.92rem;border:1px solid var(--line);background:var(--surface)}
+.pair .lab{font:500 .74rem var(--mono);display:block;margin-bottom:4px}
+.pair .no{border-color:var(--bad)}.pair .no .lab{color:var(--bad)}
+.pair .yes{border-color:var(--ok)}.pair .yes .lab{color:var(--ok)}
+pre.code{background:var(--code-bg);color:var(--code-ink);padding:16px;border-radius:12px;overflow-x:auto;line-height:1.55;margin:0;white-space:pre}
+pre.code .k{color:var(--code-key)}pre.code .s{color:var(--code-str)}
+pre.code button{all:unset;cursor:pointer;border-bottom:1px dashed var(--code-key);border-radius:3px}
+pre.code button:hover,pre.code button.on{background:rgba(127,214,198,.22)}
+.anat{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;margin:16px 0}
+.anat .ex{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;align-self:start;position:sticky;top:16px}
+.anat .ex h4{margin:0 0 6px;font:700 1.05rem var(--display)}
+/* quiz */
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+.quiz .q{font-weight:600;margin:0 0 10px}
+.quiz .opts{display:flex;flex-wrap:wrap;gap:8px}
+.quiz .opts.col{flex-direction:column}
+.quiz button{font:inherit;text-align:left;background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+.quiz button:hover{border-color:var(--accent)}
+.quiz button.right{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.quiz button.wrong{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.quiz .fb{margin:10px 0 0;font-size:.93rem;min-height:1.4em;color:var(--muted)}
+/* calculator */
+.calc{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;margin:14px 0}
+.calc label{display:block;font-size:.88rem;font-weight:500;margin-bottom:10px}
+.calc label span{float:right;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+.calc input[type=range]{width:100%;accent-color:var(--accent)}
+.bar{height:14px;background:var(--sunk);border-radius:99px;overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .a{background:var(--accent)}.bar .b{background:var(--warn)}
+.calc .big{font:700 1.8rem var(--display);font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;font-size:.82rem;color:var(--muted);flex-wrap:wrap;margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+/* workbook */
+.wb{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.panel>h3{margin:0 0 4px;font-size:1.08rem}
+.panel>.hint{font-size:.87rem;color:var(--muted);margin:0 0 12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label{font-size:.8rem;font-weight:600;color:var(--muted)}
+input[type=text],textarea,select{font:inherit;font-size:.93rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:60px}
+.btn{font:500 .9rem var(--body);background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.sm{padding:4px 10px;font-size:.82rem}
+.btn.x{background:transparent;color:var(--muted);border:1px solid var(--line);padding:4px 9px}
+.btn.x:hover{color:var(--bad);border-color:var(--bad)}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.row input{flex:1}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+details.tool{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--bg)}
+details.tool>summary{cursor:pointer;padding:10px 12px;display:flex;gap:10px;align-items:center;font-family:var(--mono);font-size:.9rem;list-style:none}
+details.tool>summary::-webkit-details-marker{display:none}
+details.tool>summary::before{content:"▸";color:var(--muted)}
+details.tool[open]>summary::before{content:"▾"}
+details.tool .body{padding:4px 12px 14px;display:flex;flex-direction:column;gap:12px}
+.pill{font:500 .72rem var(--mono);padding:1px 8px;border-radius:99px;margin-left:auto}
+.pill.read{background:var(--ok-soft);color:var(--ok)}
+.pill.write{background:var(--warn-soft);color:var(--warn)}
+.pill.destructive{background:var(--bad-soft);color:var(--bad)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.ok{background:var(--ok)}
+.prm{display:grid;grid-template-columns:1.1fr .8fr auto 1fr 2fr auto;gap:6px;align-items:center;margin-bottom:6px}
+.prm .rq{display:flex;gap:4px;align-items:center;font-size:.78rem;color:var(--muted)}
+.prm-h{font-size:.74rem;color:var(--muted);font-weight:600}
+.checks{display:flex;gap:16px;flex-wrap:wrap;font-size:.88rem}
+.checks label{display:flex;gap:6px;align-items:center}
+.review{position:sticky;top:16px}
+.review h3{margin:0 0 8px;font-size:1.08rem}
+.score{display:flex;gap:10px;margin-bottom:12px}
+.score div{flex:1;background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--line)}
+.score b{display:block;font:700 1.35rem var(--display);font-variant-numeric:tabular-nums}
+.score span{font-size:.74rem;color:var(--muted)}
+.issues{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:52vh;overflow:auto}
+.issues li{display:flex;gap:8px;font-size:.86rem;padding:7px 9px;border-radius:8px;border-left:3px solid var(--warn);background:var(--warn-soft)}
+.issues li.bad{border-color:var(--bad);background:var(--bad-soft)}
+.issues li.ok{border-color:var(--ok);background:var(--ok-soft)}
+.issues .w{font-family:var(--mono);font-size:.78rem;display:block;color:var(--muted)}
+.spec-out{background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:18px;white-space:pre-wrap;word-break:break-word;font:400 .82rem/1.6 var(--mono);max-height:70vh;overflow:auto;margin:0}
+.links{padding-left:1.1rem}.links li{margin:.35rem 0}
+.next{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:14px 16px}
+  .rail p{display:none}
+  .rail nav{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:4px}
+  .rail .grp{display:none}
+  .rail a{white-space:nowrap}
+  .wb,.anat{grid-template-columns:1fr}
+  .review,.anat .ex{position:static}
+  .prm{grid-template-columns:1fr 1fr;background:var(--surface);padding:8px;border-radius:8px;border:1px solid var(--line)}
+  .prm-h{display:none}
+  h2{font-size:1.6rem}
+}
+@media (prefers-reduced-motion:no-preference){.rail a,.quiz button{transition:background .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="shell">
+<aside class="rail">
+  <div>
+    <h1>MCP Interface Design Tutor</h1>
+    <p>Learn the ideas, design your server, hand a spec to a coding agent.</p>
+  </div>
+  <nav id="nav" aria-label="Steps">
+    <span class="grp">Learn</span>
+    <a href="#basics"><span class="n">1</span>What you are designing</a>
+    <a href="#define"><span class="n">2</span>How to define it</a>
+    <a href="#constraints"><span class="n">3</span>Constraints</a>
+    <a href="#practices"><span class="n">4</span>Best practices</a>
+    <span class="grp">Build</span>
+    <a href="#project"><span class="n">5</span>Practice project</a>
+    <a href="#workbook"><span class="n">6</span>Design workbook<span class="badge" id="navBadge">0</span></a>
+    <a href="#spec"><span class="n">7</span>Spec for your agent</a>
+  </nav>
+  <p>Written against MCP revision <span class="mono">2026-07-28</span>. Your workbook draft is kept in this browser only.</p>
+</aside>
+
+<main>
+<!-- 1 -->
+<section class="view" id="basics">
+ <div class="read">
+  <div class="step-tag">Step 1 of 7</div>
+  <h2>What you are designing</h2>
+  <p class="lede">An MCP interface is the set of things your application offers to an AI model, described clearly enough that the model can use them without a human explaining.</p>
+  <p>The Model Context Protocol (MCP) is an open standard for connecting AI applications to outside systems. Three roles are involved. The <b>host</b> is the AI app a person uses, such as Claude or an IDE assistant. The host runs a <b>client</b> that speaks the protocol. Your application exposes a <b>server</b>, which is the part you design.</p>
+  <p>Think of it as a user interface whose user is a language model. A person reads labels and layouts. A model reads names, descriptions and schemas. If those are vague, the model picks the wrong tool or fills arguments badly, the same way a person misuses a confusing screen.</p>
+  <h3>The three things a server can offer</h3>
+ </div>
+ <div class="cards">
+  <div class="card"><span class="who">the model decides when</span><h4>Tools</h4><p>Functions the model can call: search, create, send, update. Each has a name, a description and a typed input schema.</p><p class="so">Use for <b>actions and lookups</b> the model chooses during a task.</p></div>
+  <div class="card"><span class="who">the app decides when</span><h4>Resources</h4><p>Read-only data addressed by a URI, such as a file, a record or a reference table. The host attaches it as context.</p><p class="so">Use for <b>reference material</b> a user or host picks.</p></div>
+  <div class="card"><span class="who">the user decides when</span><h4>Prompts</h4><p>Reusable templates the user invokes by name, often as a slash command, with a few arguments.</p><p class="so">Use for <b>repeatable workflows</b> a person starts on purpose.</p></div>
+ </div>
+ <div class="read">
+  <div class="note">Many clients support tools well and resources or prompts only partly. Design the tools so the server is useful on its own, then add resources and prompts as extras.</div>
+  <h3>Check yourself: which primitive fits?</h3>
+  <div class="quiz" data-answer="tool"><p class="q">Email invoice #1042 to the customer.</p><div class="opts"><button data-o="tool">Tool</button><button data-o="resource">Resource</button><button data-o="prompt">Prompt</button></div><p class="fb" data-right="Yes. It is an action with a side effect, chosen by the model mid-task." data-wrong="It changes something in the world and the model chooses when, so it is a tool."></p></div>
+  <div class="quiz" data-answer="resource"><p class="q">The company's chart of accounts, attached as background for a conversation.</p><div class="opts"><button data-o="tool">Tool</button><button data-o="resource">Resource</button><button data-o="prompt">Prompt</button></div><p class="fb" data-right="Yes. Stable, read-only reference data addressed by a URI." data-wrong="Nothing is being done here. It is reference data to read, which makes it a resource."></p></div>
+  <div class="quiz" data-answer="prompt"><p class="q">A “month-end close review” routine the user starts from a menu, giving a month.</p><div class="opts"><button data-o="tool">Tool</button><button data-o="resource">Resource</button><button data-o="prompt">Prompt</button></div><p class="fb" data-right="Yes. The user starts it deliberately and it packages instructions with arguments." data-wrong="The user triggers it by name and it carries instructions, so it is a prompt."></p></div>
+  <div class="next"><a class="btn" href="#define">Next: how to define it</a></div>
+ </div>
+</section>
+
+<!-- 2 -->
+<section class="view" id="define">
+ <div class="read">
+  <div class="step-tag">Step 2 of 7</div>
+  <h2>How to define it</h2>
+  <p class="lede">Start from the jobs people want done, then work down to names, descriptions and schemas. Do not start from your API endpoints.</p>
+  <ol class="steps">
+   <li><b>List the workflows.</b> Write five to ten sentences a real user would say to an assistant. “Find overdue invoices for Acme and send a reminder.”</li>
+   <li><b>Walk each workflow.</b> Note every piece of data the model must read and every action it must take. Those become candidate capabilities.</li>
+   <li><b>Merge and trim.</b> Combine steps that always go together into one tool. Drop anything no workflow needs.</li>
+   <li><b>Pick the primitive</b> for each: tool, resource or prompt.</li>
+   <li><b>Write the contract</b> for each tool: name, description, inputs, outputs, errors and behaviour hints.</li>
+   <li><b>Test with a model.</b> Run the workflow sentences against the server and read the transcripts. Fix what the model misreads.</li>
+  </ol>
+  <h3>Anatomy of a tool</h3>
+  <p>Select any underlined part to see what it is for.</p>
+ </div>
+ <div class="anat">
+<pre class="code" id="anat">{
+  <button data-p="name">"name"</button>: <span class="s">"search_invoices"</span>,
+  <button data-p="title">"title"</button>: <span class="s">"Search invoices"</span>,
+  <button data-p="description">"description"</button>: <span class="s">"Find invoices by customer, status or
+    date range. Use this first when the user refers to
+    an invoice without giving its ID. Returns up to
+    `limit` matches, newest first."</span>,
+  <button data-p="inputSchema">"inputSchema"</button>: {
+    <span class="k">"type"</span>: <span class="s">"object"</span>,
+    <span class="k">"properties"</span>: {
+      <span class="k">"customer_name"</span>: { <span class="k">"type"</span>: <span class="s">"string"</span>,
+        <button data-p="pdesc">"description"</button>: <span class="s">"Full or partial name"</span> },
+      <span class="k">"status"</span>: { <span class="k">"type"</span>: <span class="s">"string"</span>,
+        <button data-p="enum">"enum"</button>: [<span class="s">"draft"</span>, <span class="s">"sent"</span>, <span class="s">"overdue"</span>, <span class="s">"paid"</span>] },
+      <span class="k">"limit"</span>: { <span class="k">"type"</span>: <span class="s">"integer"</span>, <button data-p="default">"default"</button>: 20,
+        <span class="k">"maximum"</span>: 50 }
+    },
+    <button data-p="required">"required"</button>: []
+  },
+  <button data-p="outputSchema">"outputSchema"</button>: { <span class="k">"type"</span>: <span class="s">"object"</span>, ... },
+  <button data-p="annotations">"annotations"</button>: {
+    <span class="k">"readOnlyHint"</span>: true,
+    <span class="k">"openWorldHint"</span>: false
+  }
+}</pre>
+  <div class="ex" id="anatEx" aria-live="polite"><h4>name</h4><p></p></div>
+ </div>
+ <div class="read">
+  <h3>What comes back</h3>
+  <p>A tool result carries <code>content</code> (text the model reads) and, when you declare an <code>outputSchema</code>, a matching <code>structuredContent</code> object. Send both so older clients still work.</p>
+  <p>There are two kinds of failure. A <b>protocol error</b> means the request itself was wrong, for example an unknown tool name. A <b>tool execution error</b> means the tool ran and failed, for example “customer not found”. Return those as a normal result with <code>isError: true</code> and a message that says what to try next, because the model can read it and recover.</p>
+  <div class="quiz" data-answer="b"><p class="q">The model calls <code>send_invoice</code> with an invoice that is still a draft. What should the server do?</p><div class="opts col"><button data-o="a">Raise a protocol error with code -32602.</button><button data-o="b">Return a result with <code>isError: true</code> saying the invoice is a draft and must be finalised first.</button><button data-o="c">Send it anyway to keep the conversation moving.</button></div><p class="fb" data-right="Yes. A business-rule failure belongs in the result, worded so the model can fix its next step." data-wrong="The request was well formed, so this is a tool execution error: return isError true with a message the model can act on."></p></div>
+  <div class="next"><a class="btn" href="#constraints">Next: constraints</a></div>
+ </div>
+</section>
+
+<!-- 3 -->
+<section class="view" id="constraints">
+ <div class="read">
+  <div class="step-tag">Step 3 of 7</div>
+  <h2>Constraints to design around</h2>
+  <p class="lede">Each constraint below changes a design decision. The line at the bottom of each card says which one.</p>
+ </div>
+ <div class="cards">
+  <div class="card"><h4>The model's context is small and shared</h4><p>Every tool definition is sent to the model on each turn, and every result is added to the conversation. Both spend the same budget as the user's actual task.</p><p class="so"><b>So:</b> fewer tools, tight descriptions, filtered and paginated results.</p></div>
+  <div class="card"><h4>The protocol is stateless</h4><p>Since revision 2026-07-28 there is no handshake and no session. Any request can reach any server instance.</p><p class="so"><b>So:</b> never rely on “the previous call”. If a flow needs state, return a handle and take it back as an argument.</p></div>
+  <div class="card"><h4>The caller is not fully trusted</h4><p>The model can be steered by text it reads, including data your own tools return. Arguments can be wrong or hostile.</p><p class="so"><b>So:</b> validate every input, check permissions on every call from the access token, and never from an argument.</p></div>
+  <div class="card"><h4>Auth is the user's, scoped down</h4><p>Remote servers use OAuth. The server acts for one signed-in user and must respect that user's permissions and tenant.</p><p class="so"><b>So:</b> decide scopes early, split read from write, and keep tenants isolated in every query.</p></div>
+  <div class="card"><h4>Some actions cannot be undone</h4><p>Hosts decide whether to ask the user before a call, partly from your annotations. Annotations are hints, so the server must still be safe without them.</p><p class="so"><b>So:</b> mark read-only and destructive tools honestly, prefer drafts and soft deletes, and make writes safe to retry.</p></div>
+  <div class="card"><h4>Clients differ</h4><p>Hosts vary in which features they support, how long they wait and how much output they accept.</p><p class="so"><b>So:</b> make tools carry the value, keep results well under a few thousand tokens, and avoid depending on optional features.</p></div>
+  <div class="card"><h4>Transport shapes deployment</h4><p><code>stdio</code> runs the server as a local process on the user's machine. Streamable HTTP runs it as a remote service. The older HTTP+SSE transport is deprecated.</p><p class="so"><b>So:</b> a SaaS product wants Streamable HTTP with OAuth. A developer tool on local files wants stdio.</p></div>
+  <div class="card"><h4>Slow work needs a different shape</h4><p>A tool call is one request and one response. Work that takes minutes does not fit, and the Tasks extension exists for it.</p><p class="so"><b>So:</b> keep calls fast, or split into start and check tools that pass a job handle, or adopt Tasks if your clients support it.</p></div>
+  <div class="card"><h4>The interface is a contract</h4><p>Hosts cache tool lists, and people build habits and automations on tool names.</p><p class="so"><b>So:</b> add optional parameters freely, but treat renames and removals as breaking changes with notice.</p></div>
+ </div>
+ <div class="read">
+  <h3>See the context budget move</h3>
+  <p>A rough model using about four characters per token. Definitions are paid on every turn. Results pile up across a task.</p>
+ </div>
+ <div class="calc">
+  <div>
+   <label for="cTools">Tools on the server <span id="vTools"></span></label><input type="range" id="cTools" min="1" max="80" value="12">
+   <label for="cDef">Tokens per tool definition <span id="vDef"></span></label><input type="range" id="cDef" min="40" max="600" step="10" value="180">
+   <label for="cCalls">Tool calls in one task <span id="vCalls"></span></label><input type="range" id="cCalls" min="1" max="30" value="6">
+   <label for="cRes">Tokens per result <span id="vRes"></span></label><input type="range" id="cRes" min="100" max="12000" step="100" value="1500">
+  </div>
+  <div>
+   <div class="big" id="cTotal"></div>
+   <p id="cPct" style="margin:.2rem 0 .8rem;color:var(--muted);font-size:.9rem"></p>
+   <div class="bar"><i class="a" id="bA"></i><i class="b" id="bB"></i></div>
+   <div class="legend"><span><i style="background:var(--accent)"></i>definitions <span id="lA"></span></span><span><i style="background:var(--warn)"></i>results <span id="lB"></span></span></div>
+   <p id="cTip" style="font-size:.9rem;margin-top:12px"></p>
+  </div>
+ </div>
+ <div class="read">
+  <div class="quiz" data-answer="c"><p class="q">A wizard needs three calls: pick a client, pick a period, confirm. How should the server remember the choices between calls?</p><div class="opts col"><button data-o="a">Store them in memory keyed by the session ID.</button><button data-o="b">Assume the model will call the three tools in order.</button><button data-o="c">Return a handle or the chosen IDs, and require them as arguments on the next call.</button></div><p class="fb" data-right="Yes. Explicit handles work on any instance and survive retries." data-wrong="There is no session to key on and call order is never guaranteed. Pass state explicitly as arguments."></p></div>
+  <div class="next"><a class="btn" href="#practices">Next: best practices</a></div>
+ </div>
+</section>
+
+<!-- 4 -->
+<section class="view" id="practices">
+ <div class="read">
+  <div class="step-tag">Step 4 of 7</div>
+  <h2>Best practices</h2>
+  <p class="lede">Ten habits, each with a before and after. The workbook checks most of them for you.</p>
+
+  <h3>1. Design for workflows, not endpoints</h3>
+  <p>One tool that completes a job beats three that mirror your REST routes.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>get_customer</code>, <code>list_invoices</code>, <code>get_invoice_lines</code> called in sequence for every question.</div><div class="yes"><span class="lab">after</span><code>search_invoices</code> that accepts a customer name and returns the fields people ask about.</div></div>
+
+  <h3>2. Name tools verb_noun, consistently</h3>
+  <p>Use letters, digits, underscores, hyphens or dots, and stay under 64 characters because some clients are strict. Pick one style for the whole server.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>get</code>, <code>deleteAppt</code>, <code>invoice-maker</code></div><div class="yes"><span class="lab">after</span><code>get_invoice</code>, <code>cancel_appointment</code>, <code>create_invoice_draft</code></div></div>
+
+  <h3>3. Write descriptions like onboarding notes</h3>
+  <p>Say what it does, when to use it, when not to, and what comes back. Two to four sentences.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span>“Gets invoices.”</div><div class="yes"><span class="lab">after</span>“Find invoices by customer, status or date range. Use this first when the user mentions an invoice without an ID. Returns up to <code>limit</code> matches, newest first.”</div></div>
+
+  <h3>4. Make inputs hard to get wrong</h3>
+  <p>Describe every parameter. Use enums for fixed choices, defaults for the common case, and as few required fields as possible. Accept names where people use names, and resolve them yourself.</p>
+
+  <h3>5. Return less, and make it meaningful</h3>
+  <p>Give the fields the workflows need, with human-readable names beside IDs. Paginate with a <code>limit</code> and a cursor. Say when results were cut off.</p>
+
+  <h3>6. Turn errors into directions</h3>
+  <div class="pair"><div class="no"><span class="lab">before</span>“Error 422”</div><div class="yes"><span class="lab">after</span>“No customer matches ‘Acme’. Three close matches: Acme Ltd, Acme Tools, Acmé SARL. Call again with one of these.”</div></div>
+
+  <h3>7. Label behaviour honestly</h3>
+  <p>Set <code>readOnlyHint</code> on lookups. Set <code>destructiveHint</code> on anything that deletes or overwrites. Set <code>idempotentHint</code> when repeating the call changes nothing more. Set <code>openWorldHint</code> to false when the tool only touches your own system.</p>
+
+  <h3>8. Keep risky actions two-step</h3>
+  <p>Create a draft, then send. Preview, then apply. The model, the host and the user each get a chance to stop a mistake.</p>
+
+  <h3>9. Keep the surface small</h3>
+  <p>Start with the five to fifteen tools your workflows need. A model choosing among sixty similar tools chooses worse and pays for all sixty on every turn.</p>
+
+  <h3>10. Evaluate with real prompts</h3>
+  <p>Keep your workflow sentences as a test set. Run them after every change and read what the model did. Most fixes are edits to descriptions.</p>
+
+  <h3>Check yourself</h3>
+  <div class="quiz" data-answer="b"><p class="q">Which description will a model use best?</p><div class="opts col"><button data-o="a">“Calls POST /v2/appointments with the given body.”</button><button data-o="b">“Book an appointment for a patient. Use after find_open_slots has returned a slot ID. Returns the confirmed time and a booking reference.”</button><button data-o="c">“Appointment tool.”</button></div><p class="fb" data-right="Yes. It names the job, the precondition and the result." data-wrong="Look for the one that says what the job is, when to call it and what comes back."></p></div>
+  <div class="quiz" data-answer="a"><p class="q">Your API has 48 endpoints. What is the best first version of the server?</p><div class="opts col"><button data-o="a">About ten tools built around the most common workflows.</button><button data-o="b">48 tools generated from the OpenAPI file.</button><button data-o="c">One <code>call_api</code> tool taking a path and a JSON body.</button></div><p class="fb" data-right="Yes. Small, workflow-shaped, and cheap in context." data-wrong="Generated wrappers flood the context, and a single generic tool pushes all the hard work onto the model. Start from workflows."></p></div>
+
+  <h3>Further reading</h3>
+  <ul class="links">
+   <li><a href="https://modelcontextprotocol.io/specification/2026-07-28">MCP specification, revision 2026-07-28</a>, the authoritative reference</li>
+   <li><a href="https://blog.modelcontextprotocol.io/posts/2026-07-28/">Release notes for 2026-07-28</a>, on the stateless redesign and extensions</li>
+   <li><a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Writing effective tools for agents</a>, Anthropic's guide to descriptions and evaluation</li>
+   <li><a href="https://engineering.block.xyz/blog/blocks-playbook-for-designing-mcp-servers">Block's playbook for designing MCP servers</a>, lessons from more than 60 servers</li>
+   <li><a href="https://github.com/modelcontextprotocol/inspector">MCP Inspector</a>, the tool for trying a server by hand</li>
+  </ul>
+  <div class="next"><a class="btn" href="#project">Next: practice project</a></div>
+ </div>
+</section>
+
+<!-- 5 -->
+<section class="view" id="project">
+ <div class="read">
+  <div class="step-tag">Step 5 of 7</div>
+  <h2>Practice project: rescue the clinic server</h2>
+  <p class="lede">Paws &amp; Claws, a small vet clinic, shipped an MCP server by wrapping its database API. The assistant keeps booking the wrong pets. Your job is to fix the interface.</p>
+  <p>The broken design has five tools with vague names, thin descriptions, a free-form <code>data</code> object, a list with no limit and a delete with no warning. Load it into the workbook and the review panel will list every problem.</p>
+  <h3>Your brief</h3>
+  <ol class="steps">
+   <li>Receptionists say three things most: “When is Biscuit's next visit?”, “Book Luna in with Dr Okafor on Thursday afternoon”, and “Cancel Max's appointment tomorrow”.</li>
+   <li>Redesign the tools so each sentence takes one or two calls.</li>
+   <li>Get the review panel to zero issues with the definitions under 1,500 tokens.</li>
+   <li>Open the spec and read it as if you were the coding agent. Would you know what to build?</li>
+  </ol>
+  <div class="note">Stuck? A good answer has about four tools: <code>find_patient</code>, <code>find_open_slots</code>, <code>book_appointment</code> and <code>cancel_appointment</code>. Each accepts names where a receptionist would use names.</div>
+  <div class="toolbar"><button class="btn" data-act="load-project">Load the broken server into the workbook</button><a class="btn ghost" href="#workbook">Skip to my own design</a></div>
+  <h3>Then do it for your own application</h3>
+  <p>Clear the workbook, write your workflow sentences first, and only then add tools. If you already have an API, keep its documentation closed until the workflows are written.</p>
+ </div>
+</section>
+
+<!-- 6 -->
+<section class="view" id="workbook">
+ <div class="step-tag">Step 6 of 7</div>
+ <h2>Design workbook</h2>
+ <p class="lede read">Fill this in from top to bottom. The review panel updates as you type, and step 7 turns it into a spec.</p>
+ <div class="toolbar">
+  <button class="btn ghost sm" data-act="load-example">Load example (invoicing app)</button>
+  <button class="btn ghost sm" data-act="load-project">Load practice project</button>
+  <button class="btn ghost sm" data-act="clear">Start blank</button>
+  <span id="wbNote" style="font-size:.85rem;color:var(--muted);align-self:center"></span>
+ </div>
+ <div class="wb">
+  <div id="wb"></div>
+  <aside class="panel review">
+   <h3>Design review</h3>
+   <div class="score">
+    <div><b id="sIssues">0</b><span>issues</span></div>
+    <div><b id="sTools">0</b><span>tools</span></div>
+    <div><b id="sTok">0</b><span>est. tokens</span></div>
+   </div>
+   <div class="bar" title="Tool definitions against a 5,000 token guide"><i class="a" id="tokBar"></i></div>
+   <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 0">Definitions against a 5,000-token guide, at about 4 characters per token.</p>
+   <ul class="issues" id="issues"></ul>
+  </aside>
+ </div>
+ <div class="next"><a class="btn" href="#spec">Next: generate the spec</a></div>
+</section>
+
+<!-- 7 -->
+<section class="view" id="spec">
+ <div class="read">
+  <div class="step-tag">Step 7 of 7</div>
+  <h2>Spec for your coding agent</h2>
+  <p class="lede">Built from the workbook. Paste it into Claude Code or another coding agent as the task brief.</p>
+  <p id="specWarn" style="font-size:.92rem"></p>
+  <div class="toolbar"><button class="btn" id="copyBtn">Copy spec</button><a class="btn ghost" href="#workbook">Back to workbook</a><span id="copyMsg" style="align-self:center;font-size:.88rem;color:var(--muted)"></span></div>
+ </div>
+ <pre class="spec-out" id="specOut" tabindex="0"></pre>
+</section>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var store={get:function(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- routing + progress ---------- */
+var VIEWS=["basics","define","constraints","practices","project","workbook","spec"];
+var done=store.get("mcpTutorDone")||{};
+function route(){
+  var h=(location.hash||"").slice(1); if(VIEWS.indexOf(h)<0)h="basics";
+  $$("section.view").forEach(function(s){s.classList.toggle("on",s.id===h)});
+  $$("#nav a").forEach(function(a){var id=a.getAttribute("href").slice(1);a.classList.toggle("on",id===h);a.classList.toggle("done",!!done[id]);if(id===h)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+  if(h==="spec")renderSpec();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+function markDone(id){done[id]=1;store.set("mcpTutorDone",done);$$("#nav a").forEach(function(a){if(a.getAttribute("href")==="#"+id)a.classList.add("done")})}
+
+/* ---------- quizzes ---------- */
+document.addEventListener("click",function(e){
+  var b=e.target.closest(".quiz button"); if(!b)return;
+  var q=b.closest(".quiz"), fb=$(".fb",q), ok=b.dataset.o===q.dataset.answer;
+  $$("button",q).forEach(function(x){x.classList.remove("right","wrong")});
+  b.classList.add(ok?"right":"wrong");
+  fb.textContent=ok?fb.dataset.right:fb.dataset.wrong; fb.style.color=ok?"var(--ok)":"var(--bad)";
+  if(ok){q.dataset.solved="1";var sec=q.closest("section.view");if($$(".quiz",sec).every(function(x){return x.dataset.solved}))markDone(sec.id)}
+});
+
+/* ---------- anatomy ---------- */
+var ANAT={
+ name:["name","The identifier the model calls. Make it a verb and a noun in snake_case so it reads like an action. It must be unique on the server, and it is what people will see in permission dialogs."],
+ title:["title","A human-friendly label that hosts show in their interface. Optional, and worth setting."],
+ description:["description","The most important field. The model reads it to decide whether and when to call the tool. Say what it does, when to use it, and what comes back."],
+ inputSchema:["inputSchema","A JSON Schema object describing the arguments. The host validates the model's arguments against it, and the model reads it to learn what to send."],
+ pdesc:["parameter description","Every parameter needs one. Include format, units and an example when the value is not obvious, such as a date format."],
+ enum:["enum","A fixed list of allowed values. Enums remove guesswork and prevent invalid arguments more reliably than prose."],
+ default:["default and limits","Defaults let the model omit the parameter in the common case. A maximum protects the context window from an oversized result."],
+ required:["required","Keep this list short. Every required field is one more thing the model has to find or ask the user for before it can call the tool."],
+ outputSchema:["outputSchema","Optional schema for the structured result. When you declare it, return a matching structuredContent object along with readable text."],
+ annotations:["annotations","Behaviour hints for the host: readOnlyHint, destructiveHint, idempotentHint, openWorldHint. Hosts use them to decide when to ask the user for approval. If you leave them out, hosts assume the tool may be destructive and may reach outside systems."]
+};
+function showAnat(p){var a=ANAT[p];$("#anatEx h4").textContent=a[0];$("#anatEx p").textContent=a[1];$$("#anat button").forEach(function(b){b.classList.toggle("on",b.dataset.p===p)})}
+$("#anat").addEventListener("click",function(e){var b=e.target.closest("button");if(b){showAnat(b.dataset.p);markDone("define-anat")}});
+showAnat("name");
+
+/* ---------- budget calculator ---------- */
+function fmt(n){return Math.round(n).toLocaleString("en-US")}
+function calc(){
+  var t=+$("#cTools").value,d=+$("#cDef").value,c=+$("#cCalls").value,r=+$("#cRes").value;
+  $("#vTools").textContent=t;$("#vDef").textContent=fmt(d);$("#vCalls").textContent=c;$("#vRes").textContent=fmt(r);
+  var A=t*d,B=c*r,T=A+B,W=200000;
+  $("#cTotal").textContent=fmt(T)+" tokens";
+  $("#cPct").textContent=(T/W*100).toFixed(1)+"% of a 200,000-token context window, before the user's own task";
+  $("#bA").style.width=Math.min(100,A/W*100)+"%";$("#bB").style.width=Math.min(100-Math.min(100,A/W*100),B/W*100)+"%";
+  $("#lA").textContent=fmt(A);$("#lB").textContent=fmt(B);
+  $("#cTip").textContent=B>A*3?"Results dominate here. Filter fields, lower the default limit and paginate.":A>B?"Definitions dominate here. Merge overlapping tools and shorten descriptions.":"Balanced. Both definitions and results are worth trimming.";
+}
+$$(".calc input").forEach(function(i){i.addEventListener("input",function(){calc();markDone("constraints-calc")})});calc();
+
+/* ---------- workbook data ---------- */
+function P(name,type,required,desc,values){return {name:name,type:type,required:!!required,desc:desc||"",values:values||""}}
+var EXAMPLE={
+ app:{name:"Tally Desk",summary:"Invoicing for small service businesses: customers, invoices, payments.",users:"Owners and bookkeepers, each signed in to one business account.",lang:"Python (FastMCP)",transport:"Streamable HTTP (remote)",auth:"OAuth 2.1, acting as the signed-in user",tenancy:"Every query is filtered by the business account in the access token.",limits:"Results capped at 50 rows. 60 calls per minute per user.",notes:"Example data. Replace with your own application."},
+ workflows:["Which invoices for Acme are overdue, and how much do they owe in total?","Draft an invoice for Northwind for 6 hours of consulting at the usual rate.","Send invoice 1042 to the customer.","Void the duplicate invoice I created this morning."],
+ tools:[
+  {name:"search_invoices",title:"Search invoices",purpose:"Find invoices by customer, status or date range.",when:"Use this first when the user refers to an invoice without giving its ID. Do not use it to fetch line items; call get_invoice for those.",returns:"Up to `limit` invoices, newest first, each with id, number, customer name, status, total, currency and due date, plus a next_cursor when more exist.",effect:"read",idempotent:true,openWorld:false,params:[P("customer_name","string",0,"Full or partial customer name."),P("status","string",0,"Filter by invoice status.","draft, sent, overdue, paid, void"),P("due_before","string",0,"ISO date, for example 2026-11-30."),P("limit","integer",0,"Maximum rows to return. Default 20, maximum 50."),P("cursor","string",0,"Pass next_cursor from a previous call to get the next page.")]},
+  {name:"get_invoice",title:"Get invoice",purpose:"Get one invoice with its line items and payment history.",when:"Use when you already have an invoice ID from search_invoices.",returns:"The invoice header, line items, payments and the customer's billing contact.",effect:"read",idempotent:true,openWorld:false,params:[P("invoice_id","string",1,"Invoice ID as returned by search_invoices.")]},
+  {name:"create_invoice_draft",title:"Create invoice draft",purpose:"Create a draft invoice for a customer. Nothing is sent to the customer.",when:"Use when the user asks to bill a customer. Follow with send_invoice only after the user has confirmed the draft.",returns:"The new draft's id, number, total and a preview of its lines.",effect:"write",idempotent:true,openWorld:false,params:[P("customer_name","string",1,"Customer name. Must match one customer; close matches are returned in the error if not."),P("lines","array",1,"Line items, each with description (string), quantity (number) and unit_price (number). unit_price may be omitted to use the customer's usual rate."),P("due_in_days","integer",0,"Payment terms in days. Default 30."),P("idempotency_key","string",1,"Any unique string. Repeating a call with the same key returns the same draft.")]},
+  {name:"send_invoice",title:"Send invoice",purpose:"Email a finalised invoice to the customer's billing contact.",when:"Use only after the user has confirmed. Fails on invoices that are void or already paid.",returns:"The recipient address and the time it was sent.",effect:"write",idempotent:true,openWorld:true,params:[P("invoice_id","string",1,"Invoice ID as returned by search_invoices or create_invoice_draft.")]},
+  {name:"void_invoice",title:"Void invoice",purpose:"Void an invoice so it no longer counts as owed. This cannot be undone.",when:"Use only when the user explicitly asks to void or cancel an invoice. For a wrong amount, prefer creating a corrected draft.",returns:"The invoice's new status and the time it was voided.",effect:"destructive",idempotent:true,openWorld:false,params:[P("invoice_id","string",1,"Invoice ID as returned by search_invoices."),P("reason","string",1,"Short reason, kept in the audit log.")]}
+ ],
+ resources:[{uri:"tallydesk://customers/{customer_id}",desc:"A customer's profile and usual rates, for attaching as context."}],
+ prompts:[{name:"month_end_review",desc:"Walk through unpaid and overdue invoices for a given month and suggest follow-ups. Argument: month (YYYY-MM)."}]
+};
+var PROJECT={
+ app:{name:"Paws & Claws Clinic",summary:"Vet clinic bookings: patients (pets), owners, vets, appointments.",users:"Receptionists at one clinic.",lang:"Python (FastMCP)",transport:"Streamable HTTP (remote)",auth:"None",tenancy:"",limits:"",notes:"Practice project. This design is broken on purpose."},
+ workflows:[],
+ tools:[
+  {name:"get",title:"",purpose:"Gets data.",when:"",returns:"",effect:"read",idempotent:false,openWorld:true,params:[P("type","string",1,""),P("id","string",1,"")]},
+  {name:"post_appointment",title:"",purpose:"POST /appointments",when:"",returns:"",effect:"read",idempotent:false,openWorld:true,params:[P("data","object",1,"")]},
+  {name:"deleteAppt",title:"",purpose:"Deletes.",when:"",returns:"",effect:"destructive",idempotent:false,openWorld:true,params:[P("id","string",1,"")]},
+  {name:"list_all_patients",title:"",purpose:"Returns all patients in the system.",when:"",returns:"",effect:"read",idempotent:true,openWorld:false,params:[]},
+  {name:"update",title:"",purpose:"Updates a record.",when:"",returns:"",effect:"write",idempotent:false,openWorld:true,params:[P("table","string",1,""),P("id","string",1,""),P("data","object",1,"")]}
+ ],
+ resources:[],prompts:[]
+};
+var BLANK={app:{name:"",summary:"",users:"",lang:"Python (FastMCP)",transport:"Streamable HTTP (remote)",auth:"OAuth 2.1, acting as the signed-in user",tenancy:"",limits:"",notes:""},workflows:[""],tools:[],resources:[],prompts:[]};
+function clone(o){return JSON.parse(JSON.stringify(o))}
+var S=store.get("mcpTutorDraft"); if(!S||!S.app||!S.tools)S=clone(EXAMPLE);
+function save(){store.set("mcpTutorDraft",S)}
+function getP(path){return path.split(".").reduce(function(o,k){return o==null?o:o[k]},S)}
+function setP(path,v){var ks=path.split("."),o=S;for(var i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks[ks.length-1]]=v}
+
+/* ---------- workbook render ---------- */
+function fid(path){return "f-"+path.replace(/\./g,"-")}
+function inp(path,label,ph){return '<div class="f"><label for="'+fid(path)+'">'+label+'</label><input type="text" id="'+fid(path)+'" data-k="'+path+'" value="'+esc(getP(path))+'" placeholder="'+esc(ph||"")+'"></div>'}
+function txt(path,label,ph){return '<div class="f"><label for="'+fid(path)+'">'+label+'</label><textarea id="'+fid(path)+'" data-k="'+path+'" placeholder="'+esc(ph||"")+'">'+esc(getP(path))+'</textarea></div>'}
+function sel(path,label,opts){var v=getP(path);return '<div class="f"><label for="'+fid(path)+'">'+label+'</label><select id="'+fid(path)+'" data-k="'+path+'">'+opts.map(function(o){var val=Array.isArray(o)?o[0]:o,lab=Array.isArray(o)?o[1]:o;return '<option value="'+esc(val)+'"'+(val===v?" selected":"")+'>'+esc(lab)+'</option>'}).join("")+'</select></div>'}
+var LANGS=["Python (FastMCP)","TypeScript (official MCP SDK)","Go (official MCP SDK)","C# (official MCP SDK)","Let the agent choose to match the existing codebase"];
+var TRANS=["Streamable HTTP (remote)","stdio (local process)","Both"];
+var AUTHS=["OAuth 2.1, acting as the signed-in user","API key or service account (single tenant)","None (local stdio only)","None"];
+var TYPES=["string","integer","number","boolean","array","object"];
+var EFFECTS=[["read","Read only"],["write","Writes or sends"],["destructive","Destructive or irreversible"]];
+function renderWB(){
+  var h='<div class="panel"><h3>1. Application</h3><p class="hint">Enough context for an agent that has never seen your product.</p>'+
+   '<div class="grid2">'+inp("app.name","Application name","Tally Desk")+sel("app.lang","Language and SDK",LANGS)+sel("app.transport","Transport",TRANS)+sel("app.auth","Authentication",AUTHS)+'</div>'+
+   '<div class="grid2" style="margin-top:12px">'+txt("app.summary","What the application does","One or two sentences.")+txt("app.users","Who will use the assistant","Roles, and what they are allowed to do.")+txt("app.tenancy","Permissions and tenant isolation","How a call is limited to the user's own data.")+txt("app.limits","Limits","Rate limits, max rows, timeouts.")+'</div></div>';
+  h+='<div class="panel"><h3>2. Workflows</h3><p class="hint">Sentences a real user would say. These drive the design and become the acceptance tests.</p>'+
+   S.workflows.map(function(w,i){return '<div class="row"><input type="text" id="'+fid("workflows."+i)+'" aria-label="Workflow '+(i+1)+'" data-k="workflows.'+i+'" value="'+esc(w)+'" placeholder="Find overdue invoices for Acme and send a reminder."><button class="btn x sm" data-act="del-wf" data-i="'+i+'" aria-label="Remove workflow">Remove</button></div>'}).join("")+
+   '<button class="btn ghost sm" data-act="add-wf">Add workflow</button></div>';
+  h+='<div class="panel"><h3>3. Tools</h3><p class="hint">One card per tool. Open a card to edit it.</p>'+S.tools.map(toolCard).join("")+'<button class="btn ghost sm" data-act="add-tool">Add tool</button></div>';
+  h+='<div class="panel"><h3>4. Resources and prompts <span style="font-weight:400;color:var(--muted);font-size:.85rem">(optional)</span></h3><p class="hint">Reference data the host attaches, and routines the user starts by name.</p>'+
+   S.resources.map(function(r,i){return '<div class="row"><input type="text" style="flex:.8" aria-label="Resource URI" id="'+fid("resources."+i+".uri")+'" data-k="resources.'+i+'.uri" value="'+esc(r.uri)+'" placeholder="app://customers/{id}"><input type="text" aria-label="Resource description" id="'+fid("resources."+i+".desc")+'" data-k="resources.'+i+'.desc" value="'+esc(r.desc)+'" placeholder="What it contains"><button class="btn x sm" data-act="del-res" data-i="'+i+'">Remove</button></div>'}).join("")+
+   S.prompts.map(function(r,i){return '<div class="row"><input type="text" style="flex:.8" aria-label="Prompt name" id="'+fid("prompts."+i+".name")+'" data-k="prompts.'+i+'.name" value="'+esc(r.name)+'" placeholder="month_end_review"><input type="text" aria-label="Prompt description" id="'+fid("prompts."+i+".desc")+'" data-k="prompts.'+i+'.desc" value="'+esc(r.desc)+'" placeholder="What it does and its arguments"><button class="btn x sm" data-act="del-prm" data-i="'+i+'">Remove</button></div>'}).join("")+
+   '<div class="row"><button class="btn ghost sm" data-act="add-res">Add resource</button><button class="btn ghost sm" data-act="add-prm">Add prompt</button></div></div>';
+  h+='<div class="panel"><h3>5. Anything else the agent should know</h3>'+txt("app.notes","Notes, non-goals, existing code to reuse","Where the API client lives, what is out of scope, naming conventions.")+'</div>';
+  $("#wb").innerHTML=h;
+}
+function toolCard(t,i){
+  var b="tools."+i;
+  return '<details class="tool" data-ti="'+i+'"'+(t._open?" open":"")+'><summary><span class="dot ok" data-dot="'+i+'"></span><span data-sum="'+i+'">'+esc(t.name||"(unnamed tool)")+'</span><span class="pill '+t.effect+'" data-pill="'+i+'">'+t.effect+'</span></summary><div class="body">'+
+   '<div class="grid2">'+inp(b+".name","Name","search_invoices")+inp(b+".title","Title shown to people","Search invoices")+sel(b+".effect","Effect",EFFECTS)+'</div>'+
+   txt(b+".purpose","What it does","One sentence naming the job.")+
+   txt(b+".when","When to use it, and when not to","Use this first when… Do not use it for…")+
+   txt(b+".returns","What it returns","Fields, ordering, limits, pagination.")+
+   '<div><div class="prm prm-h"><span>Parameter</span><span>Type</span><span>Req.</span><span>Allowed values</span><span>Description</span><span></span></div>'+
+   t.params.map(function(p,j){var pb=b+".params."+j;return '<div class="prm">'+
+     '<input type="text" aria-label="Parameter name" id="'+fid(pb+".name")+'" data-k="'+pb+'.name" value="'+esc(p.name)+'" placeholder="name">'+
+     '<select aria-label="Type" id="'+fid(pb+".type")+'" data-k="'+pb+'.type">'+TYPES.map(function(x){return '<option'+(x===p.type?" selected":"")+'>'+x+'</option>'}).join("")+'</select>'+
+     '<label class="rq"><input type="checkbox" id="'+fid(pb+".required")+'" data-k="'+pb+'.required"'+(p.required?" checked":"")+'>req</label>'+
+     '<input type="text" aria-label="Allowed values, comma separated" id="'+fid(pb+".values")+'" data-k="'+pb+'.values" value="'+esc(p.values)+'" placeholder="a, b, c">'+
+     '<input type="text" aria-label="Parameter description" id="'+fid(pb+".desc")+'" data-k="'+pb+'.desc" value="'+esc(p.desc)+'" placeholder="Format, units, example">'+
+     '<button class="btn x sm" data-act="del-param" data-i="'+i+'" data-j="'+j+'" aria-label="Remove parameter">×</button></div>'}).join("")+
+   '<button class="btn ghost sm" data-act="add-param" data-i="'+i+'">Add parameter</button></div>'+
+   '<div class="checks"><label><input type="checkbox" id="'+fid(b+".idempotent")+'" data-k="'+b+'.idempotent"'+(t.idempotent?" checked":"")+'>Safe to repeat (idempotent)</label><label><input type="checkbox" id="'+fid(b+".openWorld")+'" data-k="'+b+'.openWorld"'+(t.openWorld?" checked":"")+'>Reaches outside your system (email, web, third parties)</label></div>'+
+   '<div><button class="btn x sm" data-act="del-tool" data-i="'+i+'">Delete this tool</button></div></div></details>';
+}
+
+/* ---------- definitions + lint ---------- */
+function describe(t){return [t.purpose,t.when].filter(function(x){return x&&x.trim()}).join(" ")+(t.returns&&t.returns.trim()?" Returns: "+t.returns.trim():"")}
+function toolDef(t){
+  var props={},req=[];
+  t.params.forEach(function(p){if(!p.name)return;var o={type:p.type};if(p.desc)o.description=p.desc;var vals=(p.values||"").split(",").map(function(x){return x.trim()}).filter(Boolean);if(vals.length)o.enum=vals;if(p.type==="array")o.items={};props[p.name]=o;if(p.required)req.push(p.name)});
+  var d={name:t.name};if(t.title)d.title=t.title;d.description=describe(t);
+  d.inputSchema={type:"object",properties:props,required:req};
+  d.annotations={readOnlyHint:t.effect==="read",destructiveHint:t.effect==="destructive",idempotentHint:!!t.idempotent,openWorldHint:!!t.openWorld};
+  return d;
+}
+var GENERIC=["get","set","run","do","process","handle","execute","manage","update","delete","create","list","query","call","data","tool","api","post","put","fetch","search"];
+function lint(){
+  var out=[],seen={},styles={snake:0,other:0};
+  function add(level,where,msg,ti){out.push({level:level,where:where,msg:msg,ti:ti})}
+  if(!S.app.name.trim())add("warn","Application","Name the application so the agent knows what it is building for.");
+  if(!S.app.summary.trim())add("warn","Application","Add a one or two sentence summary of what the application does.");
+  var wf=S.workflows.filter(function(w){return w.trim()});
+  if(wf.length<3)add("warn","Workflows","Write at least three workflow sentences. They justify each tool and become acceptance tests.");
+  if(/^None$/.test(S.app.auth)&&/HTTP|Both/.test(S.app.transport))add("bad","Application","A remote server with no authentication exposes every user's data. Choose OAuth or restrict to local stdio.");
+  if(/OAuth|API key/.test(S.app.auth)&&!S.app.tenancy.trim())add("warn","Application","Say how each call is limited to the signed-in user's own data.");
+  if(!S.tools.length)add("bad","Tools","Add at least one tool.");
+  if(S.tools.length>20)add("warn","Tools",S.tools.length+" tools is a lot for a model to choose among. Merge tools that serve the same workflow.");
+  S.tools.forEach(function(t,i){
+    var w=t.name||"(unnamed tool)",n=t.name.trim();
+    if(!n)add("bad",w,"Give the tool a name.",i);
+    else{
+      if(!/^[A-Za-z0-9_.-]+$/.test(n))add("bad",w,"Names may only use letters, digits, underscores, hyphens and dots.",i);
+      if(n.length>64)add("warn",w,"Keep names under 64 characters. Some clients reject longer ones.",i);
+      if(seen[n.toLowerCase()])add("bad",w,"Duplicate tool name.",i);seen[n.toLowerCase()]=1;
+      var snake=/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(n);
+      if(snake)styles.snake++;else styles.other++;
+      if(GENERIC.indexOf(n.toLowerCase())>=0)add("bad",w,"The name is too generic to choose correctly. Use a verb and a noun, such as cancel_appointment.",i);
+      else if(!snake)add("warn",w,"Use snake_case verb_noun, such as cancel_appointment.",i);
+      if(t.effect==="read"&&/^(create|update|delete|remove|send|post|put|cancel|void|book|add|set)[_A-Z]/.test(n))add("bad",w,"The name suggests a change but the effect is read only. Fix the effect so hosts ask for approval.",i);
+    }
+    var p=t.purpose.trim();
+    if(p.length<25)add("bad",w,"The description says too little. Name the job it does in a full sentence.",i);
+    if(/\b(GET|POST|PUT|PATCH|DELETE)\b\s*\/|\/v\d|\/\w+\/\{/.test(p))add("warn",w,"Describe the job, not the HTTP endpoint.",i);
+    if(!t.when.trim())add("warn",w,"Say when to use it, and when not to.",i);
+    if(!t.returns.trim())add("warn",w,"Say what it returns, including limits.",i);
+    var miss=t.params.filter(function(x){return x.name&&!x.desc.trim()}).length;
+    if(miss)add("warn",w,miss+" parameter"+(miss>1?"s have":" has")+" no description.",i);
+    if(t.params.some(function(x){return !x.name.trim()}))add("bad",w,"A parameter has no name.",i);
+    if(t.params.some(function(x){return x.type==="object"}))add("warn",w,"A free-form object parameter makes the model guess. Replace it with named fields.",i);
+    if(t.params.filter(function(x){return x.required}).length>5)add("warn",w,"More than five required parameters. Add defaults or split the tool.",i);
+    if(/^(list|search|find)_/.test(n)&&!t.params.some(function(x){return /limit|page_size|cursor|max/.test(x.name)}))add("warn",w,"A list or search tool needs a limit, so one call cannot flood the context.",i);
+    if(t.effect==="destructive"&&!/cannot be undone|irreversibl|permanent|can't be undone/i.test(describe(t)))add("warn",w,"State the consequence in the description, for example “This cannot be undone.”",i);
+    if(t.effect==="write"&&!t.idempotent)add("warn",w,"A retried call could repeat the change. Add an idempotency key or make the operation safe to repeat.",i);
+    if(t.effect==="read"&&t.idempotent===false&&n)add("warn",w,"Read-only tools are normally safe to repeat. Tick idempotent if that is true.",i);
+  });
+  if(styles.snake&&styles.other)add("warn","Tools","Naming styles are mixed. Use one style across the server.");
+  var tok=Math.round(JSON.stringify(S.tools.map(toolDef)).length/4);
+  if(tok>5000)add("warn","Tools","Definitions use about "+fmt(tok)+" tokens on every turn. Trim descriptions or merge tools.");
+  return {issues:out,tokens:tok};
+}
+function refresh(){
+  var r=lint();
+  $("#sIssues").textContent=r.issues.length;$("#sTools").textContent=S.tools.length;$("#sTok").textContent=fmt(r.tokens);
+  $("#tokBar").style.width=Math.min(100,r.tokens/5000*100)+"%";$("#tokBar").style.background=r.tokens>5000?"var(--warn)":"var(--accent)";
+  var b=$("#navBadge");b.textContent=r.issues.length;b.classList.toggle("zero",!r.issues.length);
+  $("#issues").innerHTML=r.issues.length?r.issues.map(function(x){return '<li class="'+x.level+'"><div><span class="w">'+esc(x.where)+'</span>'+esc(x.msg)+'</div></li>'}).join(""):'<li class="ok"><div>No issues found. Read the spec as if you were the agent, then test with real prompts.</div></li>';
+  S.tools.forEach(function(t,i){
+    var lv=r.issues.filter(function(x){return x.ti===i}).reduce(function(a,x){return x.level==="bad"?"bad":a==="bad"?a:"warn"},"ok");
+    var d=$('[data-dot="'+i+'"]');if(d)d.className="dot "+lv;
+    var s=$('[data-sum="'+i+'"]');if(s)s.textContent=t.name||"(unnamed tool)";
+    var p=$('[data-pill="'+i+'"]');if(p){p.className="pill "+t.effect;p.textContent=t.effect}
+  });
+  if(!r.issues.length&&S.tools.length)markDone("workbook");
+  return r;
+}
+var wb=$("#wb");
+wb.addEventListener("input",function(e){var k=e.target.dataset.k;if(!k)return;setP(k,e.target.type==="checkbox"?e.target.checked:e.target.value);save();refresh()});
+wb.addEventListener("toggle",function(e){var d=e.target;if(d.matches&&d.matches("details.tool"))S.tools[+d.dataset.ti]._open=d.open},true);
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-act]");if(!b)return;var a=b.dataset.act,i=+b.dataset.i,j=+b.dataset.j,note="";
+  if(a==="add-wf")S.workflows.push("");
+  else if(a==="del-wf")S.workflows.splice(i,1);
+  else if(a==="add-tool")S.tools.push({name:"",title:"",purpose:"",when:"",returns:"",effect:"read",idempotent:true,openWorld:false,params:[],_open:true});
+  else if(a==="del-tool")S.tools.splice(i,1);
+  else if(a==="add-param"){S.tools[i].params.push(P("","string",0,""));S.tools[i]._open=true}
+  else if(a==="del-param"){S.tools[i].params.splice(j,1);S.tools[i]._open=true}
+  else if(a==="add-res")S.resources.push({uri:"",desc:""});
+  else if(a==="del-res")S.resources.splice(i,1);
+  else if(a==="add-prm")S.prompts.push({name:"",desc:""});
+  else if(a==="del-prm")S.prompts.splice(i,1);
+  else if(a==="load-example"){S=clone(EXAMPLE);note="Example loaded."}
+  else if(a==="load-project"){S=clone(PROJECT);S.tools.forEach(function(t){t._open=false});note="Practice project loaded. Fix the issues in the review panel.";markDone("project")}
+  else if(a==="clear"){S=clone(BLANK);note="Blank workbook. Start with the workflows."}
+  else return;
+  save();renderWB();refresh();
+  if(note){$("#wbNote").textContent=note;if(location.hash!=="#workbook")location.hash="#workbook"}
+});
+
+/* ---------- spec ---------- */
+function buildSpec(){
+  var a=S.app,L=[],wf=S.workflows.filter(function(w){return w.trim()}),name=a.name.trim()||"the application";
+  function add(s){L.push(s==null?"":s)}
+  add("# Build an MCP server for "+name);add();
+  add("You are implementing a Model Context Protocol (MCP) server. This document is the full brief. If anything is ambiguous or conflicts with the existing codebase, stop and list your questions before writing code.");add();
+  add("## 1. Context");
+  add("- Application: "+name+(a.summary.trim()?". "+a.summary.trim():""));
+  if(a.users.trim())add("- Users of the assistant: "+a.users.trim());
+  add("- Language and SDK: "+a.lang);
+  add("- Transport: "+a.transport);
+  add("- Authentication: "+a.auth);
+  if(a.tenancy.trim())add("- Permissions and tenancy: "+a.tenancy.trim());
+  if(a.limits.trim())add("- Limits: "+a.limits.trim());
+  if(a.notes.trim())add("- Notes: "+a.notes.trim());add();
+  add("## 2. Protocol requirements");
+  add("- Target MCP specification revision 2026-07-28. Use the official SDK and confirm the installed version supports that revision. Do not hand-write JSON-RPC handling.");
+  add("- The server must be stateless. Do not depend on an initialize handshake, a session ID or in-memory state between calls. Any state a later call needs is returned to the caller as an ID or handle and accepted back as an argument.");
+  if(/HTTP|Both/.test(a.transport))add("- Serve Streamable HTTP on a single /mcp endpoint. Do not implement the deprecated HTTP+SSE transport.");
+  if(/stdio|Both/.test(a.transport))add("- For stdio, write only protocol messages to stdout. Send logs to stderr.");
+  if(/OAuth/.test(a.auth))add("- Implement authorization as an OAuth 2.1 resource server per the MCP authorization spec. Derive the user and tenant from the validated access token on every call, never from tool arguments.");
+  add("- Do not use sampling, roots or protocol-level logging. They are deprecated in this revision.");add();
+  add("## 3. Workflows the server must support");
+  if(wf.length)wf.forEach(function(w,i){add((i+1)+". "+w.trim())});else add("(none provided; ask the product owner before designing further)");add();
+  add("## 4. Tools");
+  add("Implement exactly these tools. Names, descriptions, schemas and annotations are the contract; do not rename or add tools without asking.");add();
+  S.tools.forEach(function(t){
+    add("### "+(t.name||"(unnamed)"));
+    add("```json");add(JSON.stringify(toolDef(t),null,2));add("```");
+    if(t.returns.trim())add("Result: "+t.returns.trim()+" Declare an outputSchema for this shape and return it as structuredContent, with a short readable text summary in content.");
+    if(t.effect==="destructive")add("Safety: destructive. Prefer a soft delete or reversible state change where the application allows it, and write an audit log entry.");
+    if(t.effect==="write")add("Safety: changes data"+(t.openWorld?" and has effects outside the system":"")+". "+(t.idempotent?"Must be safe to retry with the same arguments.":"Add protection against duplicate execution on retry."));
+    add();
+  });
+  if(S.resources.filter(function(r){return r.uri.trim()}).length){add("## 5. Resources");S.resources.forEach(function(r){if(r.uri.trim())add("- `"+r.uri.trim()+"`: "+r.desc.trim())});add("Resources are read-only. The server must stay fully usable through tools alone, because not every client supports resources.");add()}
+  if(S.prompts.filter(function(r){return r.name.trim()}).length){add("## 6. Prompts");S.prompts.forEach(function(r){if(r.name.trim())add("- `"+r.name.trim()+"`: "+r.desc.trim())});add()}
+  add("## 7. Conventions for every tool");
+  add("- Validate all arguments on the server against the schema and business rules, even though the client also validates.");
+  add("- Enforce the caller's permissions inside each tool. Never trust an ID in the arguments to prove access.");
+  add("- Return tool failures as a normal result with isError true and a message that says what went wrong and what to try next (for example, close matches for a name that was not found). Reserve protocol errors for malformed requests and unknown tools. Never return stack traces or internal identifiers.");
+  add("- Keep results small. Return only the fields listed, include a human-readable name next to every ID, apply the limit, and say when results were truncated and how to get the next page.");
+  add("- Treat text that came from application data as untrusted content. Return it as data and never as instructions.");
+  add("- Do not put secrets, tokens or other users' data in results or logs.");
+  add("- Log every tool call for audit: user, tool, outcome and duration.");add();
+  add("## 8. Acceptance criteria");
+  add("- Unit tests cover each tool's success path, validation failures and permission failures.");
+  add("- The server passes a manual check with MCP Inspector: every tool lists with the definitions above and can be called.");
+  add("- Each workflow in section 3 can be completed by a model using only these tools. Provide a short transcript or test for each:");
+  wf.forEach(function(w){add("  - \""+w.trim()+"\"")});
+  add("- Tool definitions total no more than about "+fmt(Math.max(1500,Math.ceil(lint().tokens*1.15/100)*100))+" tokens.");add();
+  add("## 9. Deliverables");
+  add("- Server source code following the repository's existing structure and style.");
+  add("- Tests, and a README covering how to run the server, how to connect a client and which environment variables it needs.");
+  add("- A short list of open questions and any place you deviated from this brief, with the reason.");
+  return L.join("\n");
+}
+function renderSpec(){
+  var r=lint();$("#specOut").textContent=buildSpec();
+  var bad=r.issues.filter(function(x){return x.level==="bad"}).length;
+  $("#specWarn").innerHTML=r.issues.length?'<span style="color:var('+(bad?"--bad":"--warn")+')">The design review still lists '+r.issues.length+' issue'+(r.issues.length>1?"s":"")+'.</span> The spec below is usable, but fix them first for a better build.':'<span style="color:var(--ok)">The design review is clean.</span>';
+}
+$("#copyBtn").addEventListener("click",function(){
+  var t=$("#specOut").textContent,m=$("#copyMsg");
+  function fallback(){var r=document.createRange();r.selectNodeContents($("#specOut"));var s=window.getSelection();s.removeAllRanges();s.addRange(r);m.textContent="Selected. Press Ctrl or Cmd + C to copy."}
+  try{navigator.clipboard.writeText(t).then(function(){m.textContent="Copied.";markDone("spec")},fallback)}catch(e){fallback()}
+});
+
+renderWB();refresh();route();
+})();
+</script>
+</body>
+</html>

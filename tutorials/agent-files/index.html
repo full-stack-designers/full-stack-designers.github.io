@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Files Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: questions on the left, the learner's real file assembling itself on the right, with a coach that checks it. Same visual system as Git Basics Sandbox. */
+:root{
+  --bg:#ECEFF3; --surface:#FFFFFF; --sunk:#F4F6F8; --ink:#141D27; --muted:#566575; --line:#D2D9E0;
+  --accent:#C93A16; --accent-soft:#FBE4DC;
+  --add:#1B7447; --add-soft:#DDF2E6; --del:#B4261C; --del-soft:#FBE3E0; --warn:#8A5A00; --warn-soft:#FBEFD0; --pr:#0B5CD6; --pr-soft:#DCE9FC;
+  --term-bg:#121A23; --term-ink:#DCE4EC; --term-muted:#8496A8; --term-line:#263341; --t-accent:#FF8A66; --t-add:#6FD39A;
+  --font-display:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E141B; --surface:#17202A; --sunk:#121A23; --ink:#E4EAF0; --muted:#94A4B4; --line:#2A3743;
+    --accent:#FF7A55; --accent-soft:#3A2018;
+    --add:#5BC98C; --add-soft:#16301F; --del:#FF8A7E; --del-soft:#3A1B18; --warn:#E3B341; --warn-soft:#33290F; --pr:#7DB4FF; --pr-soft:#13294B;
+    --term-bg:#090E14; --term-line:#1E2935;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E141B; --surface:#17202A; --sunk:#121A23; --ink:#E4EAF0; --muted:#94A4B4; --line:#2A3743;
+  --accent:#FF7A55; --accent-soft:#3A2018;
+  --add:#5BC98C; --add-soft:#16301F; --del:#FF8A7E; --del-soft:#3A1B18; --warn:#E3B341; --warn-soft:#33290F; --pr:#7DB4FF; --pr-soft:#13294B;
+  --term-bg:#090E14; --term-line:#1E2935;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--font-body);-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+.mono,code{font-family:var(--font-mono);font-size:.9em}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.15}
+[hidden]{display:none!important}
+
+.app{display:flex;flex-direction:column;min-height:100%}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand b{font:700 22px/1 var(--font-display);letter-spacing:.01em}
+.brand b i{font-style:normal;color:var(--accent)}
+.nav{display:flex;gap:6px;overflow-x:auto;flex:1 1 420px;padding:2px}
+.nav button{flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border:1px solid var(--line);background:var(--sunk);border-radius:999px;font-size:14px;white-space:nowrap}
+.nav .n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font:600 12px/1 var(--font-mono)}
+.nav button.done .n{background:var(--add);border-color:var(--add);color:var(--surface)}
+.nav button[aria-current="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.nav button[aria-current="true"] .n{color:var(--ink)}
+.nav button[aria-current="true"].done .n{color:var(--surface)}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+.guide{padding:24px 20px 40px;background:var(--surface)}
+.guide-in{max-width:68ch;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.eyebrow{margin:0;font:600 12px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.guide h1{font-size:34px;font-weight:700}
+.guide h2{font-size:20px;font-weight:700}
+.prose{display:flex;flex-direction:column;gap:12px}
+.prose p,.prose ul{margin:0}
+.prose ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.hint{font-size:13.5px;color:var(--muted);margin:0}
+.banner{border:1px solid var(--pr);border-left-width:3px;background:var(--pr-soft);border-radius:0 8px 8px 0;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:14.5px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#1a0d08}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#1a0d08}}
+.btn.small{padding:4px 10px;font-size:13px}
+
+.card{border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;background:var(--surface)}
+.card h3{font-size:18px}
+.card h3 span{font:500 12px/1 var(--font-mono);color:var(--muted);margin-left:8px;letter-spacing:.04em}
+.card p{margin:0}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.put,.skip{font-size:14.5px;border-radius:6px;padding:8px 10px}
+.put{background:var(--add-soft)}
+.skip{background:var(--sunk)}
+.put b,.skip b{display:block;font:600 11.5px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.put b{color:var(--add)}
+.skip b{color:var(--muted)}
+.put ul,.skip ul{margin:4px 0 0;padding-left:18px}
+.ex{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;font-size:14px;align-items:baseline}
+.ex .t{font:600 11.5px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase}
+.ex .weak{color:var(--del)}
+.ex .strong{color:var(--add)}
+.ex .v{font-family:var(--font-mono);font-size:13px;overflow-wrap:anywhere;white-space:pre-wrap}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600}
+label.f span.sub{font-weight:400;color:var(--muted);font-size:13px}
+input[type=text],textarea{width:100%;border:1px solid var(--line);border-radius:6px;background:var(--sunk);padding:8px 10px;font:400 14px/1.5 var(--font-mono)}
+textarea{resize:vertical;min-height:84px}
+input[type=text]:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0;background:var(--surface)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.color-row{display:grid;grid-template-columns:86px 46px 92px minmax(0,1fr);gap:8px;align-items:center}
+.color-row .role{font:600 13px/1.2 var(--font-mono)}
+.color-row input[type=color]{width:46px;height:36px;padding:2px;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:15px;cursor:pointer}
+.check input{margin-top:4px;width:16px;height:16px;accent-color:var(--accent)}
+.sheet-table{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.2 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+.pill{font:600 11px/1 var(--font-mono);padding:3px 7px;border-radius:4px;border:1px solid var(--line);white-space:nowrap}
+.pill.ok{background:var(--add);border-color:var(--add);color:var(--surface)}
+.pill.todo{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+
+.bench{display:flex;flex-direction:column;gap:12px;padding:16px 20px 24px;min-width:0}
+.coach{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:auto}
+.coach-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+.coach-head b{font:700 14px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase}
+.coach ul{list-style:none;margin:0;padding:8px 12px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.coach li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px}
+.coach li i{font-style:normal;font:600 12px/20px var(--font-mono);text-align:center;border-radius:50%;width:20px;height:20px}
+.coach li.ok i{background:var(--add-soft);color:var(--add)}
+.coach li.todo i{background:var(--warn-soft);color:var(--warn)}
+.coach li.bad i{background:var(--del-soft);color:var(--del)}
+.coach li.tip i{background:var(--pr-soft);color:var(--pr)}
+.coach li.ok{color:var(--muted)}
+.specimen{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.specimen-head{padding:6px 12px;font:600 12px/1.4 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);background:var(--surface);border-bottom:1px solid var(--line)}
+.spec-body{display:flex;flex-direction:column}
+.spec-body h4{margin:0}
+.spec-body p{margin:0}
+.swatches{display:flex;flex-wrap:wrap}
+.swatches span{flex:1 1 60px;padding:6px 8px;font:500 11px/1.3 var(--font-mono)}
+.file{display:flex;flex-direction:column;border-radius:8px;background:var(--term-bg);color:var(--term-ink);border:1px solid var(--term-line);min-height:320px;overflow:hidden}
+.file-bar{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--term-line)}
+.file-tabs{display:flex;gap:2px;overflow-x:auto}
+.file-tabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--term-muted);font:500 12.5px/1.4 var(--font-mono);padding:5px 9px;white-space:nowrap}
+.file-tabs button[aria-selected="true"]{color:var(--term-ink);border-bottom-color:var(--t-accent)}
+.file-bar .copy{flex:none;background:var(--t-accent);color:#1a0d08;border:0;border-radius:5px;padding:5px 12px;font:600 13px/1.4 var(--font-body)}
+.file pre{margin:0;padding:12px 14px;flex:1 1 280px;overflow:auto;font:400 13px/1.6 var(--font-mono);white-space:pre-wrap;overflow-wrap:anywhere;tab-size:2}
+.file pre .ph{color:var(--term-muted);font-style:italic}
+.file-foot{padding:6px 12px;border-top:1px solid var(--term-line);color:var(--term-muted);font:400 12px/1.4 var(--font-mono);display:flex;justify-content:space-between;gap:10px}
+.cmdblock{font:400 13px/1.7 var(--font-mono);background:var(--term-bg);color:var(--term-ink);border-radius:8px;padding:12px 14px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+
+@media (min-width:1040px){
+  .app{height:100%}
+  .work{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:0}
+  .guide{overflow:auto;border-right:1px solid var(--line)}
+  .bench{min-height:0;overflow:hidden;padding:16px}
+  .coach{flex:0 1 auto;max-height:30%}
+  .specimen{flex:none}
+  .file{flex:1 1 0;min-height:200px}
+  .file pre{flex:1 1 0;min-height:0}
+}
+@media (max-width:520px){.color-row{grid-template-columns:70px 46px minmax(0,1fr)}.color-row .use{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>Agent<i>/</i>Files</b></div>
+    <nav class="nav" id="nav" aria-label="Chapters"></nav>
+  </header>
+  <div class="work">
+    <main class="guide" id="guide" tabindex="-1"></main>
+    <aside class="bench" aria-label="Your file">
+      <section class="coach" id="coach" aria-live="polite"></section>
+      <section class="specimen" id="specimen" hidden></section>
+      <section class="file" aria-label="File preview">
+        <div class="file-bar"><div class="file-tabs" id="ftabs" role="tablist"></div><button type="button" class="copy" id="copy">Copy file</button></div>
+        <pre id="fout" tabindex="0"></pre>
+        <div class="file-foot"><span id="fmeta"></span><span id="fmsg" aria-live="polite"></span></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const KEY = 'agent-files-tutor-v1', TICK = '`';
+
+/* ---------- the example project, and a blank start ---------- */
+const EXAMPLE = {
+  project: { name: 'hello-api', what: 'A small web service that returns product data for the online shop.', stack: 'Python 3.12, FastAPI 0.115, pytest', entry: 'main.py', hasUI: true },
+  agents: {
+    install: 'pip install -r requirements.txt', run: 'uvicorn main:app --reload', test: 'pytest -q', lint: 'ruff check .',
+    structure: 'main.py: every endpoint, one function each\ntests/: one test file per endpoint\nrequirements.txt: dependencies, pinned',
+    style: 'Type hints on every function.\nEndpoints return plain dicts, not custom classes.\nNames in snake_case.',
+    styleExample: '@app.get("/health")\ndef health() -> dict:\n    return {"status": "ok"}',
+    testing: 'Every endpoint has a test in tests/.\nA change is finished when pytest -q passes with no warnings.',
+    git: 'Branch from main as feature/<short-name>.\nCommit messages in the imperative: "Add version endpoint".\nOpen a pull request. Never push to main.',
+    always: 'Run pytest -q before committing.\nUpdate README.md when a command changes.',
+    ask: 'Adding or upgrading a dependency.\nChanging the response shape of an existing endpoint.',
+    never: 'Commit .env or any other secret.\nEdit files under migrations/.'
+  },
+  design: {
+    overview: 'Calm and technical. Used by shop staff during long sessions, so contrast is high, layouts are dense and nothing is decorative.',
+    colors: [
+      { role: 'primary', hex: '#C93A16', use: 'The single most important action on a screen. Nothing else.' },
+      { role: 'surface', hex: '#FFFFFF', use: 'Page and card backgrounds.' },
+      { role: 'text', hex: '#141D27', use: 'All body text and headings.' },
+      { role: 'border', hex: '#D2D9E0', use: 'Dividers and input outlines, always 1px.' },
+      { role: 'error', hex: '#B4261C', use: 'Validation messages and destructive actions only.' }
+    ],
+    headFont: 'IBM Plex Sans Condensed', headSize: '28', headWeight: '700', bodyFont: 'IBM Plex Sans', bodySize: '16',
+    typeRule: 'Headings in sentence case.\nBody text never below 14px.\nNumbers in tables use tabular figures.',
+    spSm: '8', spMd: '16', spLg: '24', layoutRule: 'Page gutter is spacing.md.\nText columns no wider than 65 characters.\nOne column on phones.',
+    rSm: '4', rMd: '8', rLg: '12', shapeRule: 'Cards and inputs use rounded.md.\nPills and avatars are fully round.',
+    components: 'Buttons: one primary button per screen; the label is a verb.\nTables: header row sticks; right-align numbers.\nForms: label above the field, error text below it.',
+    dos: 'Reuse the tokens above for every colour, size and radius.\nShow state with a word as well as a colour.',
+    donts: 'Invent new colours or font sizes.\nUse gradients, shadows or emoji.'
+  },
+  spec: {
+    title: 'Version endpoint', goal: 'Support staff need to know which release is running when they report a problem. Add an endpoint that returns the service version.',
+    context: 'Endpoints live in main.py. The version string is the VERSION constant in main.py.',
+    criteria: 'GET /version responds with status 200.\nThe body is exactly {"version": "<VERSION>"}.\nThe response arrives in under 200 ms locally.\ntests/test_version.py covers the endpoint and passes.',
+    out: 'Authentication.\nReturning the build date or commit hash.',
+    constraints: 'No new dependencies.\nDo not change existing endpoints.',
+    verify: 'pytest -q\ncurl localhost:8000/version',
+    questions: ''
+  },
+  claudeExtra: ''
+};
+const BLANK = {
+  project: { name: '', what: '', stack: '', entry: '', hasUI: true },
+  agents: { install: '', run: '', test: '', lint: '', structure: '', style: '', styleExample: '', testing: '', git: '', always: '', ask: '', never: '' },
+  design: { overview: '', colors: EXAMPLE.design.colors.map(c => ({ role: c.role, hex: { primary: '#2456D6', surface: '#FFFFFF', text: '#1A1A1A', border: '#D0D5DD', error: '#B42318' }[c.role], use: '' })),
+    headFont: '', headSize: '', headWeight: '', bodyFont: '', bodySize: '', typeRule: '', spSm: '', spMd: '', spLg: '', layoutRule: '', rSm: '', rMd: '', rLg: '', shapeRule: '', components: '', dos: '', donts: '' },
+  spec: { title: '', goal: '', context: '', criteria: '', out: '', constraints: '', verify: '', questions: '' },
+  claudeExtra: ''
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+let D, U = { ch: 0, tab: 'AGENTS.md', mode: 'example' };
+
+/* ---------- helpers ---------- */
+const lines = t => String(t || '').split('\n').map(s => s.replace(/^\s*[-*]\s+/, '').trim()).filter(Boolean);
+const bullets = t => lines(t).map(l => '- ' + l).join('\n');
+const slug = t => (String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'feature');
+const px = v => (String(v || '').trim() ? String(v).trim().replace(/px$/i, '') + 'px' : '');
+const get = path => path.split('.').reduce((o, k) => (o == null ? o : o[k]), D);
+const set = (path, v) => { const ks = path.split('.'), last = ks.pop(); ks.reduce((o, k) => o[k], D)[last] = v; };
+const hexOk = h => /^#[0-9a-f]{6}$/i.test(h || '');
+function lum(h) { const c = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+function contrast(a, b) { if (!hexOk(a) || !hexOk(b)) return 0; const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+const col = role => (D.design.colors.find(c => c.role === role) || {}).hex;
+const VAGUE = /\b(properly|appropriate(ly)?|clean(ly)?|best practices?|good quality|high quality|nice(ly)?|as needed|where necessary|user[- ]friendly|intuitive(ly)?|easy to use|fast|quick(ly)?|robust|seamless(ly)?|modern|simple|readable|well[- ]written|etc\.?)\b/gi;
+const SECRET = /(sk_live_|sk-[a-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY|(password|passwd|api[_-]?key|secret|token)\s*[:=]\s*["']?[^\s"'<]{8,})/i;
+const vagueIn = t => [...new Set((String(t || '').match(VAGUE) || []).map(s => s.toLowerCase()))];
+
+/* ---------- file generators ---------- */
+function genAgents() {
+  const p = D.project, a = D.agents, out = ['# AGENTS.md', ''];
+  const sec = (h, body) => { if (body && body.trim()) out.push('## ' + h, '', body.trim(), ''); };
+  const proj = [p.name && p.what ? `${p.name}: ${p.what}` : (p.what || p.name || ''), p.stack && `- Stack: ${p.stack}`, p.entry && `- Entry point: ${TICK}${p.entry}${TICK}`].filter(Boolean);
+  sec('Project', proj.length ? proj[0] + (proj.length > 1 ? '\n\n' + proj.slice(1).join('\n') : '') : '');
+  sec('Commands', [['Install', a.install], ['Run', a.run], ['Test', a.test], ['Lint', a.lint]].filter(x => x[1].trim()).map(x => `- ${x[0]}: ${TICK}${x[1].trim()}${TICK}`).join('\n'));
+  sec('Project structure', lines(a.structure).map(l => { const m = l.match(/^([^:\s]+)\s*[:—-]\s*(.+)$/); return m ? `- ${TICK}${m[1]}${TICK}: ${m[2]}` : '- ' + l; }).join('\n'));
+  sec('Code style', bullets(a.style) + (a.styleExample.trim() ? '\n\nExample of the expected style:\n\n' + TICK.repeat(3) + '\n' + a.styleExample.replace(/\s+$/, '') + '\n' + TICK.repeat(3) : ''));
+  sec('Testing', bullets(a.testing));
+  sec('Git workflow', bullets(a.git));
+  const b = [['Always', a.always], ['Ask first', a.ask], ['Never', a.never]].filter(x => lines(x[1]).length).map(x => `### ${x[0]}\n\n${bullets(x[1])}`).join('\n\n');
+  sec('Boundaries', b);
+  return out.join('\n').replace(/\n+$/, '\n');
+}
+const genClaude = () => '@AGENTS.md\n' + (D.claudeExtra.trim() ? '\n## Claude Code\n\n' + bullets(D.claudeExtra) + '\n' : '');
+function genDesign() {
+  const d = D.design, y = ['---'];
+  if (D.project.name) y.push(`name: ${D.project.name}`);
+  const cs = d.colors.filter(c => hexOk(c.hex));
+  if (cs.length) { y.push('colors:'); cs.forEach(c => y.push(`  ${c.role}: "${c.hex.toUpperCase()}"`)); }
+  const ty = [];
+  if (d.headFont || d.headSize) { ty.push('  headline:'); if (d.headFont) ty.push(`    fontFamily: ${d.headFont}`); if (d.headSize) ty.push(`    fontSize: ${px(d.headSize)}`); if (d.headWeight) ty.push(`    fontWeight: ${d.headWeight}`); }
+  if (d.bodyFont || d.bodySize) { ty.push('  body:'); if (d.bodyFont) ty.push(`    fontFamily: ${d.bodyFont}`); if (d.bodySize) ty.push(`    fontSize: ${px(d.bodySize)}`); }
+  if (ty.length) y.push('typography:', ...ty);
+  const scale = (k, vals) => { const r = vals.filter(v => v[1]); if (r.length) { y.push(k + ':'); r.forEach(v => y.push(`  ${v[0]}: ${px(v[1])}`)); } };
+  scale('rounded', [['sm', d.rSm], ['md', d.rMd], ['lg', d.rLg]]);
+  scale('spacing', [['sm', d.spSm], ['md', d.spMd], ['lg', d.spLg]]);
+  y.push('---', '');
+  const sec = (h, body) => { if (body && body.trim()) y.push('## ' + h, '', body.trim(), ''); };
+  sec('Overview', d.overview);
+  sec('Colors', cs.filter(c => c.use.trim()).map(c => `- **${c.role}** (${c.hex.toUpperCase()}): ${c.use.trim()}`).join('\n'));
+  sec('Typography', bullets(d.typeRule));
+  sec('Layout', bullets(d.layoutRule));
+  sec('Shapes', bullets(d.shapeRule));
+  sec('Components', bullets(d.components));
+  const dd = [...lines(d.dos).map(l => '- Do: ' + l.replace(/^do:?\s*/i, '')), ...lines(d.donts).map(l => "- Don't: " + l.replace(/^don'?t:?\s*/i, ''))].join('\n');
+  sec("Do's and Don'ts", dd);
+  return y.join('\n').replace(/\n+$/, '\n');
+}
+function genTokens() {
+  const d = D.design, t = {}, dim = v => ({ $type: 'dimension', $value: { value: Number(String(v).replace(/px$/i, '')), unit: 'px' } });
+  const cs = d.colors.filter(c => hexOk(c.hex));
+  if (cs.length) { t.color = {}; cs.forEach(c => { const n = [1, 3, 5].map(i => +(parseInt(c.hex.slice(i, i + 2), 16) / 255).toFixed(3)); t.color[c.role] = { $type: 'color', $value: { colorSpace: 'srgb', components: n, hex: c.hex.toLowerCase() } }; if (c.use.trim()) t.color[c.role].$description = c.use.trim(); }); }
+  const grp = (name, vals) => { const r = vals.filter(v => String(v[1]).trim() && !isNaN(Number(String(v[1]).replace(/px$/i, '')))); if (r.length) { t[name] = {}; r.forEach(v => { t[name][v[0]] = dim(v[1]); }); } };
+  grp('spacing', [['sm', d.spSm], ['md', d.spMd], ['lg', d.spLg]]);
+  grp('radius', [['sm', d.rSm], ['md', d.rMd], ['lg', d.rLg]]);
+  const font = {};
+  if (d.headFont || d.bodyFont) { font.family = {}; if (d.headFont) font.family.heading = { $type: 'fontFamily', $value: d.headFont }; if (d.bodyFont) font.family.body = { $type: 'fontFamily', $value: d.bodyFont }; }
+  const sz = [['heading', d.headSize], ['body', d.bodySize]].filter(v => String(v[1]).trim());
+  if (sz.length) { font.size = {}; sz.forEach(v => { font.size[v[0]] = dim(v[1]); }); }
+  if (d.headWeight) font.weight = { heading: { $type: 'fontWeight', $value: Number(d.headWeight) || d.headWeight } };
+  if (Object.keys(font).length) t.font = font;
+  return JSON.stringify(t, null, 2) + '\n';
+}
+function genSpec() {
+  const s = D.spec, out = [`# Spec: ${s.title.trim() || 'Untitled feature'}`, ''];
+  const sec = (h, body) => { if (body && body.trim()) out.push('## ' + h, '', body.trim(), ''); };
+  sec('Goal', s.goal); sec('Context', s.context);
+  sec('Acceptance criteria', lines(s.criteria).map(l => '- [ ] ' + l).join('\n'));
+  sec('Out of scope', bullets(s.out)); sec('Constraints', bullets(s.constraints));
+  sec('How to verify', lines(s.verify).map(l => `- ${TICK}${l}${TICK}`).join('\n'));
+  sec('Open questions', bullets(s.questions));
+  return out.join('\n').replace(/\n+$/, '\n');
+}
+const specPath = () => `specs/${slug(D.spec.title)}.md`;
+const FILES = () => {
+  const f = [['AGENTS.md', genAgents], ['CLAUDE.md', genClaude]];
+  if (D.project.hasUI) f.push(['DESIGN.md', genDesign], ['tokens.json', genTokens]);
+  f.push([specPath(), genSpec]); return f;
+};
+
+/* ---------- the coach: checks on what the learner wrote ---------- */
+const ck = (ok, msg, kind) => ({ ok: !!ok, msg, kind: ok ? 'ok' : (kind || 'todo') });
+function checkAgents() {
+  const p = D.project, a = D.agents, text = genAgents(), n = text.split('\n').length, v = vagueIn([a.style, a.testing, a.git, a.always, a.ask, a.never, p.what].join('\n'));
+  return [
+    ck(p.name.trim() && p.what.trim().length > 20, 'Project: a name and one full sentence on what it does.'),
+    ck(/\d/.test(p.stack), 'Stack: name the languages and frameworks with version numbers.'),
+    ck(a.test.trim(), 'Commands: a test command. It lets the agent check its own work.'),
+    ck([a.install, a.run, a.lint].filter(x => x.trim()).length >= 2, 'Commands: at least two more of install, run, lint.'),
+    ck(lines(a.structure).length >= 2, 'Project structure: at least two places and what lives in each.'),
+    ck(lines(a.style).length >= 2, 'Code style: at least two rules of your own.'),
+    ck(a.styleExample.trim(), 'Code style: a short real snippet. One example beats three sentences.', 'tip'),
+    ck(lines(a.testing).length >= 1, 'Testing: say what "finished" means.'),
+    ck(lines(a.git).length >= 1, 'Git workflow: branch, commit and pull request expectations.'),
+    ck(lines(a.never).length >= 1, 'Boundaries: at least one "never".'),
+    ck(/secret|\.env|key|password|credential/i.test(a.never), 'Boundaries: a "never" about secrets. It is the most useful single line.', 'tip'),
+    ck(lines(a.ask).length >= 1, 'Boundaries: at least one "ask first" for risky changes.', 'tip'),
+    ck(!v.length, v.length ? `Vague wording an agent cannot act on: ${v.map(x => '"' + x + '"').join(', ')}. Say what to do instead.` : 'No vague wording.'),
+    ck(!SECRET.test(text), 'This looks like a real secret. Remove it: this file is committed.', 'bad'),
+    ck(n <= 200, `Length: ${n} lines. Keep it under 200 so every line gets read.`)
+  ];
+}
+function checkDesign() {
+  const d = D.design, v = vagueIn([d.overview, d.typeRule, d.layoutRule, d.shapeRule, d.components, d.dos, d.donts, ...d.colors.map(c => c.use)].join('\n')).filter(x => !['modern', 'simple', 'clean'].includes(x) || true);
+  const ct = contrast(col('text'), col('surface')), cp = contrast(col('primary'), col('surface')), noUse = d.colors.filter(c => !c.use.trim()).map(c => c.role);
+  return [
+    ck(d.overview.trim().length > 40, 'Overview: who uses the product and the feeling it should give, in a sentence or two.'),
+    ck(d.colors.every(c => hexOk(c.hex)), 'Colors: every value is a six-digit hex code.'),
+    ck(!noUse.length, noUse.length ? `Colors: say when to use ${noUse.join(', ')}. A value without a rule gets used everywhere.` : 'Colors: every colour has a usage rule.'),
+    ck(ct >= 4.5, `Contrast: text on surface is ${ct.toFixed(1)}:1. Body text needs at least 4.5:1.`, 'bad'),
+    ck(cp >= 3, `Contrast: primary on surface is ${cp.toFixed(1)}:1. Buttons and links need at least 3:1.`, 'bad'),
+    ck(d.bodyFont.trim() && d.bodySize.trim(), 'Typography: a body font and size.'),
+    ck(d.headFont.trim() && d.headSize.trim(), 'Typography: a heading font and size.'),
+    ck(lines(d.typeRule).length >= 1, 'Typography: at least one rule for using type.'),
+    ck([d.spSm, d.spMd, d.spLg].filter(x => String(x).trim()).length >= 2, 'Layout: at least two spacing steps.'),
+    ck(lines(d.layoutRule).length >= 1, 'Layout: at least one layout rule.'),
+    ck([d.rSm, d.rMd, d.rLg].filter(x => String(x).trim()).length >= 1, 'Shapes: at least one corner radius.'),
+    ck(lines(d.components).length >= 2, 'Components: rules for at least two components.'),
+    ck(lines(d.dos).length >= 1 && lines(d.donts).length >= 1, "Do's and Don'ts: at least one of each."),
+    ck(!v.length, v.length ? `Vague wording: ${v.map(x => '"' + x + '"').join(', ')}. Replace with something a reviewer could check.` : 'No vague wording.', 'tip')
+  ];
+}
+function checkTokens() {
+  let ok = true, n = 0; try { const t = JSON.parse(genTokens()); const walk = o => Object.keys(o).forEach(k => { if (o[k] && typeof o[k] === 'object') { if ('$value' in o[k]) n++; else walk(o[k]); } }); walk(t); } catch (e) { ok = false; }
+  return [
+    ck(ok, 'The file is valid JSON.', 'bad'),
+    ck(n >= 6, `${n} tokens so far. A useful starter set has colours, spacing, radius and type.`),
+    ck(D.design.colors.every(c => c.use.trim()), 'Each colour carries its usage rule as a description.', 'tip'),
+    ck(true, 'Generated from your DESIGN.md answers, so the two files cannot disagree.')
+  ];
+}
+function checkSpec() {
+  const s = D.spec, cr = lines(s.criteria), v = vagueIn(s.criteria + '\n' + s.goal);
+  const weak = cr.filter(l => !/[\d"'`{}/]|\b(returns?|responds?|shows?|displays?|rejects?|accepts?|saves?|sends?|creates?|deletes?|redirects?|passes|contains?|is|are|equals?|appears?|exists?)\b/i.test(l));
+  return [
+    ck(s.title.trim(), 'A short title. It becomes the file name.'),
+    ck(s.goal.trim().length > 50, 'Goal: who needs this, what they will be able to do, and why.'),
+    ck(cr.length >= 3, `Acceptance criteria: ${cr.length} so far. Aim for at least three, one per line.`),
+    ck(!weak.length, weak.length ? `Hard to check: "${weak[0]}". State an observable result.` : 'Every criterion states an observable result.'),
+    ck(!v.length, v.length ? `Vague wording: ${v.map(x => '"' + x + '"').join(', ')}. Use a number or an exact outcome.` : 'No vague wording.'),
+    ck(lines(s.out).length >= 1, 'Out of scope: at least one thing the agent must not build.'),
+    ck(lines(s.verify).length >= 1, 'How to verify: a command or action that proves it works.'),
+    ck(s.context.trim(), 'Context: which files or parts of the product are involved.', 'tip'),
+    ck(lines(s.constraints).length >= 1, 'Constraints: anything that must not change.', 'tip'),
+    ck(!SECRET.test(genSpec()), 'This looks like a real secret. Remove it.', 'bad')
+  ];
+}
+const required = list => list.filter(c => c.kind !== 'tip');
+const complete = list => required(list).every(c => c.ok);
+
+/* ---------- chapter content ---------- */
+const field = (path, label, sub, ph) => `<label class="f">${label}${sub ? `<span class="sub">${sub}</span>` : ''}<input type="text" data-k="${path}" value="${esc(get(path))}" placeholder="${esc(ph || '')}" autocomplete="off" spellcheck="false"></label>`;
+const area = (path, label, sub, ph, rows) => `<label class="f">${label}${sub ? `<span class="sub">${sub}</span>` : ''}<textarea data-k="${path}" rows="${rows || 3}" placeholder="${esc(ph || '')}" spellcheck="false">${esc(get(path))}</textarea></label>`;
+const guide = (put, skip, weak, strong) => `<div class="cols"><div class="put"><b>Put here</b><ul>${put.map(x => `<li>${x}</li>`).join('')}</ul></div><div class="skip"><b>Leave out</b><ul>${skip.map(x => `<li>${x}</li>`).join('')}</ul></div></div>
+  <div class="ex"><span class="t weak">Weak</span><span class="v">${esc(weak)}</span><span class="t strong">Strong</span><span class="v">${esc(strong)}</span></div>`;
+const card = (title, tag, why, body) => `<section class="card"><h3>${title}${tag ? `<span>${tag}</span>` : ''}</h3><p>${why}</p>${body}</section>`;
+
+const CH = [
+  { short: 'Start', file: null, render: () => `
+    <p class="eyebrow">Before you begin</p><h1>Write the files an AI agent reads</h1>
+    <div class="prose">
+      <p>A coding agent starts every session knowing nothing about your project. Whatever it needs, it has to read from files in the repository. This tutor helps you write those files for <strong>your own project</strong>. Each chapter asks a few questions, explains what belongs in each part and what does not, and assembles your answers into a complete file on the right.</p>
+      <p>You finish with files you can copy straight into your repository:</p>
+    </div>
+    <div class="sheet-table"><table><thead><tr><th>File</th><th>The question it answers for the agent</th></tr></thead><tbody>
+      <tr><td><span class="mono">AGENTS.md</span></td><td><strong>How do I work here?</strong> Commands, structure, conventions and limits.</td></tr>
+      <tr><td><span class="mono">DESIGN.md</span></td><td><strong>What should it look like?</strong> Design values and the rules for using them.</td></tr>
+      <tr><td><span class="mono">tokens.json</span></td><td><strong>What are the exact values?</strong> The same design decisions as data.</td></tr>
+      <tr><td><span class="mono">specs/&lt;feature&gt;.md</span></td><td><strong>What do you want built?</strong> One feature, with the tests for "done".</td></tr>
+    </tbody></table></div>
+    <h2>How to use it</h2>
+    <div class="prose"><ul>
+      <li>The tutor opens filled in with an example project, <span class="mono">hello-api</span>, so you can see a finished file at every step.</li>
+      <li>Replace each answer with your own. The file on the right rewrites itself as you type.</li>
+      <li>The <strong>Coach</strong> panel checks your file against the habits that make these files work, and tells you what is still missing.</li>
+    </ul></div>
+    <div class="banner"><span>${U.mode === 'example' ? 'You are looking at the <strong>example project</strong>.' : 'You are writing for <strong>your own project</strong>.'}</span><span class="row"><button type="button" class="btn small" data-act="blank">Start blank for my project</button><button type="button" class="btn small" data-act="example">Load the example</button></span></div>
+    <h2>Three rules that apply to every file</h2>
+    <div class="prose"><ul>
+      <li><strong>Specific and checkable.</strong> Write things a reviewer could verify. "Run <span class="mono">pytest -q</span> before committing" can be checked. "Write good tests" cannot.</li>
+      <li><strong>Only what the agent cannot work out.</strong> It can read your code and list your folders. It cannot guess your conventions, your limits, or what you want.</li>
+      <li><strong>Short.</strong> These files are read at the start of every session. Every line that is not earning its place makes the others less likely to be followed.</li>
+    </ul></div>
+    <div class="row"><button type="button" class="btn primary" data-go="1">Start with AGENTS.md</button></div>` },
+
+  { short: 'AGENTS.md', file: 'AGENTS.md', check: checkAgents, render: () => `
+    <p class="eyebrow">Chapter 1 of 4</p><h1>AGENTS.md: how to work here</h1>
+    <div class="prose"><p>This is the file most coding agents look for first. Think of it as the briefing you would give a capable contractor on their first morning: what the project is, how to run it, where things go, how you like the work done, and what they must not touch. It is plain Markdown, at the top of the repository, with any headings you like.</p>
+    <p>Seven sections cover almost every project. Fill in each one below.</p></div>
+    ${card('Project', 'section 1', 'One short paragraph so the agent knows what it is working on. The exact stack matters: an agent that knows the versions writes code that runs.',
+      guide(['What the project does, in one sentence', 'Languages and frameworks <em>with versions</em>', 'The file where the program starts'], ['History, roadmap, marketing copy', 'Anything already in the README'], 'This is our backend.', 'hello-api: A small web service that returns product data for the online shop.\nStack: Python 3.12, FastAPI 0.115, pytest')
+      + `<div class="grid2">${field('project.name', 'Project name', '', 'my-project')}${field('project.entry', 'Entry point', 'the file where it starts', 'main.py')}</div>${field('project.what', 'What it does', 'one sentence', 'A service that...')}${field('project.stack', 'Stack', 'with version numbers', 'Python 3.12, FastAPI 0.115')}`)}
+    ${card('Commands', 'section 2', 'The most valuable section. Put it near the top. An agent that can run your tests will check its own work and fix what it broke before you ever see it.',
+      guide(['The exact text you would type, flags included', 'One command per job: install, run, test, lint'], ['Descriptions of commands ("run the tests")', 'Commands that need secrets or a production login'], 'Make sure the tests pass.', 'Test: `pytest -q`')
+      + `<div class="grid2">${field('agents.install', 'Install', '', 'npm install')}${field('agents.run', 'Run locally', '', 'npm run dev')}${field('agents.test', 'Test', '', 'npm test')}${field('agents.lint', 'Lint or format', '', 'npm run lint')}</div>`)}
+    ${card('Project structure', 'section 3', 'Not a full listing: the agent can list files itself. Tell it the handful of places that matter and, above all, where new things should go.',
+      guide(['Three to eight folders or files and what each holds', 'Where a new feature, test or component belongs'], ['Every file in the repository', 'Generated or vendor folders, except to say "do not edit"'], 'Keep files organized.', 'main.py: every endpoint, one function each\ntests/: one test file per endpoint')
+      + area('agents.structure', 'Places that matter', 'one per line, as <span class="mono">path: what lives there</span>', 'src/api/: request handlers\ntests/: one file per handler', 4))}
+    ${card('Code style', 'section 4', 'Only the conventions that are yours. A formatter already handles spacing and quotes. What it cannot know is how you name things and which patterns you prefer.',
+      guide(['Rules that differ from the language defaults', 'Naming and patterns you want repeated', 'One short, real snippet of code done your way'], ['Generic advice ("write clean code")', 'Anything your linter already enforces'], 'Write clean, readable code.', 'Type hints on every function.\nEndpoints return plain dicts, not custom classes.')
+      + area('agents.style', 'Your rules', 'one per line', '', 3) + area('agents.styleExample', 'A snippet in the expected style', 'optional, but one example beats three sentences', '', 4))}
+    ${card('Testing', 'section 5', 'Say what must be tested and what "finished" means. Without this, an agent decides for itself when to stop.',
+      guide(['Where tests live and how they are named', 'What every change must have a test for', 'The condition for "done"'], ['How testing works in general', 'Coverage targets nobody enforces'], 'Test your changes.', 'Every endpoint has a test in tests/.\nA change is finished when pytest -q passes with no warnings.')
+      + area('agents.testing', 'Testing rules', 'one per line', '', 3))}
+    ${card('Git workflow', 'section 6', 'How work should arrive: the branch, the commit message, the pull request. This is what keeps an agent\'s work reviewable.',
+      guide(['Branch naming', 'Commit message style, with an example', 'That work arrives as a pull request'], ['A Git tutorial', 'Rules you do not follow yourself'], 'Use git properly.', 'Branch from main as feature/<short-name>.\nOpen a pull request. Never push to main.')
+      + area('agents.git', 'Git rules', 'one per line', '', 3))}
+    ${card('Boundaries', 'section 7', 'Three short lists. They tell the agent what it may do freely, what needs your approval, and what is off limits. The most useful line in any of these files is a "never" about secrets.',
+      guide(['<strong>Always:</strong> routine steps to do without asking', '<strong>Ask first:</strong> risky changes, such as dependencies or data schemas', '<strong>Never:</strong> hard limits, such as secrets and files not to edit'], ['Warnings without an action ("be careful")', 'Long lists: three or four lines each is plenty'], 'Be careful with important files.', 'Never: Commit .env or any other secret.')
+      + area('agents.always', 'Always', 'one per line', '', 2) + area('agents.ask', 'Ask first', 'one per line', '', 2) + area('agents.never', 'Never', 'one per line', '', 2))}
+    ${card('Tool pointer', 'CLAUDE.md', 'Some tools look for their own file name. Claude Code reads <span class="mono">CLAUDE.md</span>. Rather than keep two copies, the pointer file imports the shared one with a single line. It is written for you: see the <strong>CLAUDE.md</strong> tab on the right.',
+      area('claudeExtra', 'Anything for Claude Code only', 'optional, one per line', 'Use plan mode for changes to main.py.', 2))}
+    <div class="row"><button type="button" class="btn primary" data-go="2">Next: DESIGN.md</button><span class="hint">Your complete AGENTS.md is on the right. The Coach lists anything still missing.</span></div>` },
+
+  { short: 'DESIGN.md', file: 'DESIGN.md', check: checkDesign, render: () => `
+    <p class="eyebrow">Chapter 2 of 4</p><h1>DESIGN.md: what it should look like</h1>
+    <div class="prose"><p>Without design guidance an agent produces the average of every interface it has seen. <span class="mono">DESIGN.md</span> is your design system in text. It has two layers: a block of exact values at the top, between two <span class="mono">---</span> lines, and prose underneath explaining how to use them. The values stop the agent inventing colours. The prose is where your judgement goes, and it is the part only you can write.</p>
+    <p>The format comes from Google Labs and is still marked alpha, so key names may change. The method does not: exact values, then rules.</p></div>
+    <label class="check"><input type="checkbox" data-k="project.hasUI"${D.project.hasUI ? ' checked' : ''}><span><strong>My project has a user interface.</strong> Untick this for a pure API, script or library, and the two design files are left out.</span></label>
+    ${!D.project.hasUI ? '<div class="banner"><span>No user interface, so no <span class="mono">DESIGN.md</span> or <span class="mono">tokens.json</span>. Skip to the spec.</span><button type="button" class="btn small" data-go="4">Go to the spec</button></div>' : `
+    ${card('Overview', 'section 1', 'Two sentences that set the character. Name who uses the product and in what situation: that single fact settles a hundred small decisions.',
+      guide(['Who uses it and when', 'The feeling, in plain adjectives backed by a consequence'], ['Adjectives alone ("modern, clean")', 'Brand history'], 'Modern and clean.', 'Calm and technical. Used by shop staff during long sessions, so contrast is high and nothing is decorative.')
+      + area('design.overview', 'Overview', '', '', 3))}
+    ${card('Colors', 'section 2', 'Five roles are enough to start. The value is the easy half. The rule beside it, saying when the colour may be used, is what stops an agent painting everything in your brand colour.',
+      guide(['A hex value for each role', 'When each colour is used, and when it is not'], ['Colours with no stated purpose', 'Every tint and shade you have ever used'], 'primary: #C93A16', 'primary (#C93A16): The single most important action on a screen. Nothing else.')
+      + D.design.colors.map((c, i) => `<div class="color-row"><span class="role">${c.role}</span><input type="color" data-k="design.colors.${i}.hex" value="${hexOk(c.hex) ? c.hex : '#000000'}" aria-label="${c.role} colour"><input type="text" data-k="design.colors.${i}.hex" value="${esc(c.hex)}" aria-label="${c.role} hex value" maxlength="7"><input class="use" type="text" data-k="design.colors.${i}.use" value="${esc(c.use)}" placeholder="When is ${c.role} used?" aria-label="When ${c.role} is used"></div>`).join(''))}
+    ${card('Typography', 'section 3', 'Fonts and sizes as values, then the rules for using them.',
+      guide(['Heading and body font, size and weight', 'Rules: case, minimum size, how numbers are set'], ['A full type scale you do not use', '"Use readable fonts"'], 'Use nice fonts.', 'Headings in sentence case.\nBody text never below 14px.')
+      + `<div class="grid2">${field('design.headFont', 'Heading font', '', 'Inter')}${field('design.headSize', 'Heading size (px)', '', '28')}${field('design.headWeight', 'Heading weight', '', '700')}${field('design.bodyFont', 'Body font', '', 'Inter')}${field('design.bodySize', 'Body size (px)', '', '16')}</div>` + area('design.typeRule', 'Type rules', 'one per line', '', 3))}
+    ${card('Layout', 'section 4', 'A small spacing scale and the rules for arranging things. Consistent spacing is what makes generated screens look designed.',
+      guide(['Two or three spacing steps', 'Gutters, maximum widths, what happens on a phone'], ['Pixel positions for individual screens'], 'Use consistent spacing.', 'Page gutter is spacing.md.\nOne column on phones.')
+      + `<div class="grid2">${field('design.spSm', 'Spacing small (px)', '', '8')}${field('design.spMd', 'Spacing medium (px)', '', '16')}${field('design.spLg', 'Spacing large (px)', '', '24')}</div>` + area('design.layoutRule', 'Layout rules', 'one per line', '', 3))}
+    ${card('Shapes', 'section 5', 'Corner radius, and where each size applies.',
+      guide(['One to three radius values', 'Which elements use which'], ['Decorative shapes with no rule'], 'Rounded corners.', 'Cards and inputs use rounded.md.')
+      + `<div class="grid2">${field('design.rSm', 'Radius small (px)', '', '4')}${field('design.rMd', 'Radius medium (px)', '', '8')}${field('design.rLg', 'Radius large (px)', '', '12')}</div>` + area('design.shapeRule', 'Shape rules', 'one per line', '', 2))}
+    ${card('Components', 'section 6', 'The behaviour rules a designer carries in their head. Write the ones a newcomer would get wrong.',
+      guide(['One line per component, as <span class="mono">Name: rule</span>', 'Counts and limits ("one primary button per screen")'], ['Full specifications of every state', 'Components you have not built'], 'Buttons should look good.', 'Buttons: one primary button per screen; the label is a verb.')
+      + area('design.components', 'Component rules', 'one per line', '', 4))}
+    ${card("Do's and Don'ts", 'section 7', 'The short list an agent will reread most. Put your firmest preferences here.',
+      guide(['Two or three of each', 'The mistakes you correct most often'], ['Restating the sections above word for word'], "Don't make it ugly.", "Don't: Use gradients, shadows or emoji.")
+      + area('design.dos', 'Do', 'one per line', '', 2) + area('design.donts', "Don't", 'one per line', '', 2))}`}
+    <div class="row"><button type="button" class="btn primary" data-go="${D.project.hasUI ? 3 : 4}">Next: ${D.project.hasUI ? 'tokens.json' : 'the spec'}</button><span class="hint">The preview above the file is drawn with your values.</span></div>` },
+
+  { short: 'tokens.json', file: 'tokens.json', check: checkTokens, render: () => `
+    <p class="eyebrow">Chapter 3 of 4</p><h1>tokens.json: the exact values, as data</h1>
+    <div class="prose"><p>A <strong>design token</strong> is one named design decision: <span class="mono">color.primary</span>, <span class="mono">spacing.md</span>. <span class="mono">tokens.json</span> holds those decisions in a standard format, so design tools, build tools and agents all read the same numbers instead of each keeping a copy.</p>
+    <p>You have already made every decision this file needs. It has been written from your <span class="mono">DESIGN.md</span> answers, and it is on the right. This chapter explains how to read it and what belongs in it.</p></div>
+    ${!D.project.hasUI ? '<div class="banner"><span>You said the project has no user interface, so this file is left out.</span><button type="button" class="btn small" data-go="4">Go to the spec</button></div>' : `
+    ${card('How to read it', '', 'The format is the W3C Design Tokens format. Every token is an object with two required parts.',
+      `<div class="sheet-table"><table><thead><tr><th>Part</th><th>Meaning</th></tr></thead><tbody>
+        <tr><td><span class="mono">$type</span></td><td>What kind of value it is: <span class="mono">color</span>, <span class="mono">dimension</span>, <span class="mono">fontFamily</span>, <span class="mono">fontWeight</span>.</td></tr>
+        <tr><td><span class="mono">$value</span></td><td>The value. A colour is a colour space plus components, with the hex alongside. A dimension is a number and a unit.</td></tr>
+        <tr><td><span class="mono">$description</span></td><td>Optional. Your usage rule travels with the value.</td></tr>
+        <tr><td>Groups</td><td>Any object without a <span class="mono">$value</span> is a group: <span class="mono">color</span>, <span class="mono">spacing</span>, <span class="mono">radius</span>, <span class="mono">font</span>.</td></tr>
+      </tbody></table></div>`)}
+    ${card('What belongs in it', '', 'Decisions, named by purpose.',
+      guide(['Values you reuse: colours, spacing, radius, type', 'Names that say what a value is <em>for</em> (<span class="mono">primary</span>, <span class="mono">error</span>)', 'A description where the use is not obvious'], ['One-off values used in a single place', 'Names that describe the value (<span class="mono">red-500</span>, <span class="mono">blue</span>): they break when the brand changes', 'Prose rules. Those stay in <span class="mono">DESIGN.md</span>'], '"red": "#C93A16"', '"primary": { "$type": "color", "$value": { ... } }'))}
+    ${card('One source of truth', '', 'The same value now exists in two files. That is safe only if one is generated from the other. Decide which is the source and say so in <span class="mono">AGENTS.md</span>.',
+      `<div class="prose"><ul>
+        <li><strong>If you design in a design tool,</strong> export tokens from it and treat <span class="mono">tokens.json</span> as the source.</li>
+        <li><strong>If <span class="mono">DESIGN.md</span> is the source,</strong> regenerate <span class="mono">tokens.json</span> whenever it changes. The DESIGN.md command-line tool can do this: <span class="mono">npx @google/design.md export --format dtcg DESIGN.md &gt; tokens.json</span></li>
+        <li><strong>Either way,</strong> never edit both by hand.</li>
+      </ul></div>`)}
+    <p class="hint">To change a value here, go back to the DESIGN.md chapter. This file follows it.</p>`}
+    <div class="row"><button type="button" class="btn" data-go="2">Back to DESIGN.md</button><button type="button" class="btn primary" data-go="4">Next: the spec</button></div>` },
+
+  { short: 'Spec', file: 'spec', check: checkSpec, render: () => `
+    <p class="eyebrow">Chapter 4 of 4</p><h1>The spec: what you want built</h1>
+    <div class="prose"><p>The other files describe the project. A spec describes <strong>one piece of work</strong>. It is what you hand the agent in place of a one-line prompt, and it is what you hold the result against in the pull request. Whatever you leave out, the agent fills in with a guess.</p>
+    <p>Keep one spec per feature, each in its own file under <span class="mono">specs/</span>. Write one now for the next thing you want built.</p></div>
+    ${card('Title and goal', 'section 1', 'State the outcome and who it is for. A goal written as an outcome lets the agent make sensible small decisions. A goal written as a feature name does not.',
+      guide(['Who needs it', 'What they will be able to do afterwards', 'Why it matters'], ['The solution ("add a button that...")', 'A feature name on its own'], 'Add version endpoint.', 'Support staff need to know which release is running when they report a problem. Add an endpoint that returns the service version.')
+      + field('spec.title', 'Title', 'short; becomes the file name', 'Password reset') + area('spec.goal', 'Goal', '', '', 3))}
+    ${card('Context', 'section 2', 'Point at the parts of the project involved, so the agent starts in the right place.',
+      guide(['Files, screens or endpoints it touches', 'Existing things it must fit in with'], ['A tour of the whole codebase'], 'See the code.', 'Endpoints live in main.py. The version string is the VERSION constant in main.py.')
+      + area('spec.context', 'Context', 'optional but useful', '', 2))}
+    ${card('Acceptance criteria', 'section 3', 'The heart of the spec. Each line is a test you could run or a thing you could see. If a criterion cannot fail, it is not a criterion.',
+      guide(['One observable result per line', 'Exact values: status codes, text, limits, timings', 'What happens when things go wrong'], ['Qualities with no measure ("fast", "easy to use")', 'Implementation steps'], 'The endpoint should be fast and return the version.', 'GET /version responds with status 200.\nThe body is exactly {"version": "<VERSION>"}.')
+      + area('spec.criteria', 'Criteria', 'one per line', '', 5))}
+    ${card('Out of scope', 'section 4', 'Agents are helpful to a fault: left alone they add pagination, logging and a settings page. This list closes those doors.',
+      guide(['Related things you do <em>not</em> want yet', 'Anything a keen builder might add unprompted'], ['Things nobody would have built anyway'], '(left empty)', 'Authentication.\nReturning the build date or commit hash.')
+      + area('spec.out', 'Out of scope', 'one per line', '', 2))}
+    ${card('Constraints', 'section 5', 'What must stay as it is while the work is done.',
+      guide(['Things not to change', 'Things that must be reused', 'Limits such as "no new dependencies"'], ['Rules already in AGENTS.md'], 'Do not break anything.', 'No new dependencies.\nDo not change existing endpoints.')
+      + area('spec.constraints', 'Constraints', 'optional, one per line', '', 2))}
+    ${card('How to verify', 'section 6', 'The commands or actions that prove the criteria are met. The agent will run them. So will you, in review.',
+      guide(['Commands to run', 'A page to open or request to send'], ['"Check that it works"'], 'Test it.', 'pytest -q\ncurl localhost:8000/version')
+      + area('spec.verify', 'Verification', 'one command or action per line', '', 2))}
+    ${card('Open questions', 'section 7', 'If you have not decided something, say so. A written question gets asked. An unwritten one gets guessed.',
+      area('spec.questions', 'Open questions', 'optional, one per line', 'Should the version include the build number?', 2))}
+    <div class="row"><button type="button" class="btn primary" data-go="5">Finish: collect the files</button></div>` },
+
+  { short: 'Finish', file: null, render: () => {
+    const st = [['AGENTS.md', checkAgents(), 1], ['CLAUDE.md', [ck(true, '')], 1]];
+    if (D.project.hasUI) st.push(['DESIGN.md', checkDesign(), 2], ['tokens.json', checkTokens(), 3]);
+    st.push([specPath(), checkSpec(), 4]);
+    const names = FILES().map(f => f[0]).join(' ');
+    return `
+    <p class="eyebrow">Your files</p><h1>Review, copy and commit</h1>
+    <div class="prose"><p>${U.mode === 'example' ? 'These are the example files. Go back and replace the answers with your own to produce files for your project.' : 'These files were written from your answers.'} Use the tabs on the right to read each one in full, and <strong>Copy file</strong> to take it into your editor.</p></div>
+    <div class="sheet-table"><table><thead><tr><th>File</th><th>Status</th><th></th></tr></thead><tbody>
+      ${st.map(s => { const left = required(s[1]).filter(c => !c.ok).length; return `<tr><td><span class="mono">${esc(s[0])}</span></td><td>${left ? `<span class="pill todo">${left} to fix</span>` : '<span class="pill ok">Complete</span>'}</td><td><button type="button" class="btn small" data-show="${esc(s[0])}">View</button> ${left ? `<button type="button" class="btn small" data-go="${s[2]}">Finish it</button>` : ''}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div class="row"><button type="button" class="btn primary" data-act="copyall">Copy all files as one bundle</button><span class="hint">Each file is marked with its path, ready to split up or to paste to an agent.</span></div>
+    <h2>Put them in your repository</h2>
+    <div class="prose"><p>Save each file at the top of your project folder under its exact name (the spec goes in a <span class="mono">specs</span> folder). Then commit them on a branch and open a pull request, as for any other change:</p></div>
+    <pre class="cmdblock">git switch -c agent-setup
+git add ${esc(names)}
+git commit -m "Add agent briefing files"
+git push -u origin agent-setup</pre>
+    <p class="hint">Lesson 8 of the <a href="https://claude.ai/artifact/QWTZ8vDk6joQC9NoJdjchA" target="_blank" rel="noopener">Git Basics Sandbox</a> walks through these commands.</p>
+    <h2>Then use them</h2>
+    <div class="prose"><ul>
+      <li><strong>First task:</strong> start your agent in the repository and say: "Implement <span class="mono">${esc(specPath())}</span>. Follow AGENTS.md${D.project.hasUI ? ' and DESIGN.md' : ''}."</li>
+      <li><strong>Review against the spec.</strong> Open the pull request and tick off the acceptance criteria one by one.</li>
+      <li><strong>Improve the files, not the prompt.</strong> When the agent gets something wrong twice, add one line to the right file. When a line stops being true, delete it.</li>
+      <li><strong>Check them yourself now and then.</strong> Ask the agent: "What do your project instructions say about testing?" If the answer surprises you, the file needs work.</li>
+    </ul></div>
+    <h2>Further reading</h2>
+    <div class="prose"><ul>
+      <li><a href="https://agents.md/" target="_blank" rel="noopener">AGENTS.md</a>, the open format and examples</li>
+      <li><a href="https://github.blog/ai-and-ml/github-copilot/how-to-write-a-great-agents-md-lessons-from-over-2500-repositories/" target="_blank" rel="noopener">GitHub: lessons from over 2,500 agent files</a></li>
+      <li><a href="https://code.claude.com/docs/en/memory" target="_blank" rel="noopener">Claude Code: how CLAUDE.md works</a></li>
+      <li><a href="https://github.com/google-labs-code/design.md" target="_blank" rel="noopener">DESIGN.md specification</a> (Google Labs)</li>
+      <li><a href="https://www.designtokens.org/" target="_blank" rel="noopener">Design Tokens format</a> (W3C community group)</li>
+      <li><a href="https://addyosmani.com/blog/good-spec/" target="_blank" rel="noopener">How to write a good spec for AI agents</a></li>
+    </ul></div>`; } }
+];
+
+/* ---------- rendering ---------- */
+function tabsFor() {
+  if (U.ch === 1) return ['AGENTS.md', 'CLAUDE.md'];
+  if (U.ch === 2) return ['DESIGN.md'];
+  if (U.ch === 3) return ['tokens.json'];
+  if (U.ch === 4) return [specPath()];
+  return FILES().map(f => f[0]);
+}
+function renderNav() {
+  const done = [null, complete(checkAgents()), !D.project.hasUI || complete(checkDesign()), !D.project.hasUI || complete(checkTokens()), complete(checkSpec()), null];
+  $('nav').innerHTML = CH.map((c, i) => `<button type="button" data-go="${i}" class="${done[i] ? 'done' : ''}" aria-current="${U.ch === i}"><span class="n">${done[i] ? '✓' : (i === 0 ? '·' : i === 5 ? '★' : i)}</span>${esc(c.short)}</button>`).join('');
+}
+function renderBench() {
+  const tabs = tabsFor(); if (!tabs.includes(U.tab)) U.tab = tabs[0];
+  $('ftabs').innerHTML = tabs.map(t => `<button type="button" role="tab" data-tab="${esc(t)}" aria-selected="${t === U.tab}">${esc(t)}</button>`).join('');
+  const f = FILES().find(x => x[0] === U.tab), text = f ? f[1]() : '';
+  $('fout').textContent = text;
+  $('fmeta').textContent = `${U.tab} · ${text.split('\n').length - 1} lines`;
+  const list = U.tab === 'AGENTS.md' ? checkAgents() : U.tab === 'DESIGN.md' ? checkDesign() : U.tab === 'tokens.json' ? checkTokens() : U.tab === 'CLAUDE.md' ? [ck(true, 'One line that imports AGENTS.md, so both files always agree.'), ck(D.claudeExtra.trim(), 'Optional: instructions that apply to Claude Code only.', 'tip')] : checkSpec();
+  const left = required(list).filter(c => !c.ok).length, order = { bad: 0, todo: 1, tip: 2, ok: 3 };
+  $('coach').innerHTML = `<div class="coach-head"><b>Coach: ${esc(U.tab)}</b>${left ? `<span class="pill todo">${left} to fix</span>` : '<span class="pill ok">Complete</span>'}</div><ul>${list.slice().sort((a, b) => order[a.kind] - order[b.kind]).map(c => `<li class="${c.kind}"><i>${{ ok: '✓', todo: '!', bad: '×', tip: '+' }[c.kind]}</i><span>${esc(c.msg)}</span></li>`).join('')}</ul>`;
+  const sp = $('specimen'), show = (U.ch === 2 || U.ch === 3) && D.project.hasUI; sp.hidden = !show;
+  if (show) {
+    const d = D.design, c = r => (hexOk(col(r)) ? col(r) : '#888888'), n = (v, f) => (String(v).trim() && !isNaN(parseFloat(v)) ? parseFloat(v) : f);
+    const on = h => (contrast(h, '#FFFFFF') >= contrast(h, '#000000') ? '#FFFFFF' : '#000000');
+    sp.innerHTML = `<div class="specimen-head">Preview drawn with your values</div>
+      <div class="spec-body" style="background:${c('surface')};color:${c('text')};padding:${n(d.spMd, 16)}px;gap:${n(d.spSm, 8)}px;font-family:'${esc(d.bodyFont)}',var(--font-body);font-size:${n(d.bodySize, 16)}px">
+        <h4 style="font-family:'${esc(d.headFont)}',var(--font-display);font-size:${Math.min(n(d.headSize, 24), 34)}px;font-weight:${esc(d.headWeight || 700)};line-height:1.15">${esc(D.project.name || 'Your product')}</h4>
+        <p>${esc(D.project.what || 'Body text is set in your body font and size.')}</p>
+        <div style="display:flex;flex-wrap:wrap;gap:${n(d.spSm, 8)}px;align-items:center">
+          <span style="background:${c('primary')};color:${on(c('primary'))};padding:${n(d.spSm, 8)}px ${n(d.spMd, 16)}px;border-radius:${n(d.rMd, 8)}px;font-weight:600">Save changes</span>
+          <span style="border:1px solid ${c('border')};padding:${n(d.spSm, 8)}px ${n(d.spMd, 16)}px;border-radius:${n(d.rMd, 8)}px">Cancel</span>
+          <span style="color:${c('error')};font-size:.9em">Name is required</span>
+        </div>
+      </div>
+      <div class="swatches">${d.colors.map(x => `<span style="background:${c(x.role)};color:${on(c(x.role))}">${x.role}<br>${esc((x.hex || '').toUpperCase())}</span>`).join('')}</div>`;
+  }
+}
+function render() {
+  renderNav();
+  $('guide').innerHTML = `<div class="guide-in">${CH[U.ch].render()}</div>`;
+  renderBench();
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify({ D, U })); } catch (e) {} }
+function go(i) { U.ch = i; U.tab = tabsFor()[0]; save(); render(); $('guide').scrollTop = 0; if (!window.matchMedia('(min-width:1040px)').matches) window.scrollTo(0, 0); }
+function say(t) { $('fmsg').textContent = t; clearTimeout(say.t); say.t = setTimeout(() => { $('fmsg').textContent = ''; }, 2600); }
+function copy(text, okMsg) {
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents($('fout')); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); say('Selected. Press Ctrl+C or Cmd+C to copy.'); };
+  try { navigator.clipboard.writeText(text).then(() => say(okMsg), fallback); } catch (e) { fallback(); }
+}
+
+/* ---------- events ---------- */
+$('guide').addEventListener('input', e => {
+  const k = e.target.dataset.k; if (!k) return;
+  set(k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+  if (U.mode === 'example') U.mode = 'own';
+  if (/colors\.\d+\.hex$/.test(k)) document.querySelectorAll(`[data-k="${k}"]`).forEach(el => { if (el !== e.target && (el.type !== 'color' || hexOk(e.target.value))) el.value = e.target.value; });
+  save();
+  if (e.target.type === 'checkbox') render(); else { renderNav(); renderBench(); }
+});
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]'); if (g) { go(+g.dataset.go); return; }
+  const t = e.target.closest('[data-tab]'); if (t) { U.tab = t.dataset.tab; renderBench(); return; }
+  const s = e.target.closest('[data-show]'); if (s) { U.tab = s.dataset.show; renderBench(); $('fout').scrollTop = 0; if (!window.matchMedia('(min-width:1040px)').matches) $('fout').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  const a = e.target.closest('[data-act]');
+  if (a) {
+    if (a.dataset.act === 'blank') { D = clone(BLANK); U.mode = 'own'; save(); go(1); }
+    if (a.dataset.act === 'example') { D = clone(EXAMPLE); U.mode = 'example'; save(); render(); }
+    if (a.dataset.act === 'copyall') copy(FILES().map(f => `===== ${f[0]} =====\n${f[1]()}`).join('\n'), 'All files copied.');
+    return;
+  }
+  if (e.target.closest('#copy')) { const f = FILES().find(x => x[0] === U.tab); if (f) copy(f[1](), `${U.tab} copied.`); }
+});
+
+/* ---------- boot ---------- */
+function start(data) {
+  let d = data && data.D ? data : null;
+  if (!d) try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+  if (d && d.D && d.D.project && d.D.agents && d.D.design && d.D.spec) { D = d.D; U = Object.assign(U, d.U || {}); } else D = clone(EXAMPLE);
+  render();
+}
+const hot = window.claude && window.claude.hot;
+if (hot && hot.snapshot) hot.snapshot(() => ({ D, U }));
+if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>

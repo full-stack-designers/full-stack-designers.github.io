@@ -1,0 +1,1969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes from Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: lesson on the left; on the right a live schematic of the cluster, above a terminal that changes it. One dark terminal world; on phones the map-and-terminal bench sits inside the lesson, under the steps. */
+:root{
+  --bg:#0a0e13; --surface:#10161c; --sunk:#172029; --ink:#d6dfe6; --muted:#8696a3; --line:#222e38;
+  --accent:#4aa3ff; --accent-ink:#04121f; --accent-soft:#12283f;
+  --good:#3ddc97; --good-soft:#0f2e22; --warn:#f2b84b; --warn-soft:#33270d; --bad:#ff7b72; --bad-soft:#3b1716;
+  --term:#05080b; --term-ink:#cfdae2; --term-dim:#7d8d99; --term-line:#1a242d;
+  --display:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+a{color:var(--accent)}
+code,pre{font-family:var(--mono);font-size:.9em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 16px 12px;position:sticky;top:0;z-index:5}
+.top-in{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.brand{font:700 1.25rem/1.2 var(--display);letter-spacing:-.01em;margin:0}
+.brand span{color:var(--accent)}
+#progress-text{font-size:.85rem;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.bar{flex-basis:100%;height:4px;background:var(--sunk);border-radius:2px;overflow:hidden;margin-top:6px}
+#progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s}
+.shell{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr)}
+#nav{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;scrollbar-width:thin}
+.nav-item{display:flex;align-items:center;gap:8px;flex:none;padding:6px 12px 6px 6px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);text-decoration:none;font-size:.9rem;white-space:nowrap}
+.nav-item .num{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--sunk);font:500 .8rem var(--mono)}
+.nav-item.done .num{background:var(--good-soft);color:var(--good)}
+.nav-item.active{border-color:var(--accent);background:var(--accent-soft)}
+.nav-item.active .num{background:var(--accent);color:var(--accent-ink)}
+main{padding:8px 16px 64px;min-width:0}
+article{max-width:760px}
+.eyebrow{font:500 .8rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+h1{font:700 clamp(1.9rem,6vw,2.7rem)/1.1 var(--display);letter-spacing:-.02em;margin:0 0 16px;text-wrap:balance}
+h2{font:600 1.35rem/1.25 var(--display);margin:40px 0 8px;text-wrap:balance}
+h3{font:600 1rem/1.3 var(--body);margin:20px 0 6px}
+h4{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+p{margin:0 0 12px}
+.prose ul,.prose ol{padding-left:22px;margin:0 0 12px}
+.prose li{margin-bottom:6px}
+.prose code,.task code,.explain code,.saw code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+dl.terms{margin:16px 0;display:grid;gap:10px}
+dl.terms dt{font-weight:600}
+dl.terms dd{margin:0;padding-left:14px;border-left:3px solid var(--accent-soft);color:var(--ink)}
+pre.file{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px 14px;overflow-x:auto;margin:0 0 12px}
+.widget{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.caption{font-size:.92rem;color:var(--muted);margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:.85rem;color:var(--muted)}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:4px;padding:9px 14px;font-weight:600;text-decoration:none;align-self:flex-start}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.mini{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:4px 10px;font-size:.85rem}
+.mini.dark{background:transparent;border-color:var(--term-line);color:var(--term-ink)}
+.segs{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;align-self:flex-start}
+.seg{background:var(--surface);border:0;padding:8px 14px;font-weight:500}
+.seg+.seg{border-left:1px solid var(--line)}
+.seg[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.pill{display:inline-block;font:500 .72rem var(--mono);padding:2px 8px;border-radius:3px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.re{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.empty{color:var(--muted);font-size:.9rem;margin:0}
+/* stack diagram */
+.stack{display:flex;flex-direction:column;gap:6px}
+.stack-row{display:flex;gap:6px}
+.blk{flex:1;text-align:center;padding:10px 6px;border-radius:4px;font-size:.88rem;font-weight:500;border:1px solid var(--line);background:var(--sunk)}
+.blk.app{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.blk.lib{background:var(--accent-soft)}
+.blk.os{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.blk.eng{background:var(--good-soft);color:var(--good);border-color:transparent}
+/* layers */
+.layers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:end}
+.col-h{font:500 .75rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.layer{border:1px solid var(--line);background:var(--sunk);border-radius:4px;padding:8px 10px;margin-bottom:4px;display:flex;flex-direction:column}
+.layer span{font:400 .75rem var(--mono);color:var(--muted)}
+.layer.rw{background:var(--good-soft);border-color:transparent}
+.cons{display:flex;flex-wrap:wrap;gap:10px}
+.con{flex:1 1 130px;border:1px dashed var(--line);border-radius:4px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.uses{font-size:.75rem;color:var(--muted);text-align:center}
+/* annotated code */
+.scroll-x{overflow-x:auto;border-radius:4px;background:var(--term)}
+.code-lines{display:inline-flex;flex-direction:column;min-width:100%;padding:10px 0}
+.cl{font:400 .84rem/1.5 var(--mono);white-space:pre;text-align:left;background:none;border:0;border-left:3px solid transparent;color:var(--term-ink);padding:3px 14px 3px 11px}
+.cl.plain{color:var(--term-dim)}
+button.cl:hover{background:var(--term-line)}
+.cl[aria-pressed="true"]{background:var(--term-line);border-left-color:var(--accent)}
+.explain{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.explain code{display:inline-block;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
+.explain p{margin:0}
+.cache{border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:12px}
+.cache h3,.cache p{margin:0}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.steps li{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:4px;padding:6px 10px}
+.steps code{overflow-wrap:anywhere;font-size:.82rem}
+/* ports */
+.port-form{display:flex;align-items:flex-end;gap:8px}
+.port-form label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:4px}
+.port-form input,#cheat-filter{font:500 16px var(--mono);padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);width:118px}
+.colon{font:600 1.4rem var(--mono);padding-bottom:6px}
+.cmdline{background:var(--term);color:var(--term-ink);padding:10px 12px;border-radius:4px;overflow-x:auto;white-space:nowrap;display:block}
+.path{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hop{flex:1 1 130px;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:.82rem;color:var(--muted);background:var(--sunk)}
+.hop b{color:var(--ink);font-family:var(--mono);font-weight:500}
+.arrow{font-size:1.2rem;color:var(--good)}
+.arrow.broken{color:var(--bad)}
+.verdict{margin:0;padding:10px 12px;border-radius:4px;font-size:.95rem}
+.verdict.good,.fb.good{background:var(--good-soft);color:var(--good)}
+.verdict.bad,.fb.bad{background:var(--bad-soft);color:var(--bad)}
+/* tasks */
+.tasks{list-style:none;margin:16px 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.task{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--surface)}
+.task.todo{opacity:.6;background:transparent}
+.task.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.task-h{display:flex;gap:10px;align-items:flex-start}
+.mark{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sunk);font:500 .78rem var(--mono);margin-top:1px}
+.task.done .mark{background:var(--good-soft);color:var(--good)}
+.task.now .mark{background:var(--accent);color:var(--accent-ink)}
+.what{font-weight:600}
+.ran{display:block;margin:8px 0 6px 34px;overflow-wrap:anywhere}
+.saw{margin:0 0 0 34px;font-size:.92rem;color:var(--muted)}
+.cmd{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;margin:10px 0;background:var(--term);color:var(--term-ink);border:0;border-radius:4px;padding:10px 12px}
+.task .cmd code{background:none;padding:0;overflow-wrap:anywhere;font-size:.9rem}
+.tap{font:500 .72rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+dl.parts{margin:0;display:grid;gap:6px}
+dl.parts dt code{font-weight:500}
+dl.parts dd{margin:0 0 4px;font-size:.92rem;color:var(--muted)}
+.banner{background:var(--good-soft);color:var(--good);border-radius:4px;padding:10px 12px;margin-bottom:12px;font-size:.95rem}
+.banner .mini{color:var(--ink);margin-top:6px}
+/* terminal */
+.term{background:var(--term);border-radius:4px;overflow:hidden;border:1px solid var(--term-line)}
+.term-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--term-line);font:500 .75rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+.term-out{height:260px;overflow:auto;padding:10px 12px;font:400 .8rem/1.5 var(--mono);color:var(--term-ink)}
+.tl{white-space:pre;min-height:1.2em}
+.tl.in{color:#fff;font-weight:500;margin-top:6px}
+.tl.err{color:#ffb4a8}
+.tl.note{color:var(--term-dim);white-space:pre-wrap}
+.term-in{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--term-line)}
+.prompt{font:500 1rem var(--mono);color:#7fd1a6}
+.term-in input{flex:1;min-width:0;background:transparent;border:0;color:#fff;font:400 16px var(--mono);padding:6px 0}
+.term-in input::placeholder{color:var(--term-dim)}
+.term-in input:focus{outline:none}
+.term-in:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
+.run{background:#7fd1a6;color:#06231a;border:0;border-radius:4px;padding:8px 16px;font-weight:600}
+.world-wrap{margin-top:14px}
+.world{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.wg{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.wg ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wg li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:.9rem}
+.wg b{font-family:var(--mono);font-weight:500;overflow-wrap:anywhere}
+.sub{flex-basis:100%;font:400 .75rem var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.pill.off{background:var(--sunk)}
+/* quiz */
+.q{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:12px}
+.qt{font-weight:600}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fb{margin:10px 0 0;border-radius:4px;font-size:.93rem}
+.fb.good,.fb.bad{padding:9px 12px}
+.reading{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.reading li{display:flex;flex-direction:column}
+.reading a{font-weight:600}
+.reading span{font-size:.92rem;color:var(--muted)}
+.pager{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+.cheats h3{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
+dl.cheat{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+dl.cheat dt code{font-weight:500;overflow-wrap:anywhere}
+dl.cheat dd{margin:0 0 8px;font-size:.9rem;color:var(--muted)}
+#cheat-filter{width:100%;font-family:var(--body)}
+@media (min-width:640px){dl.cheat{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:6px 16px}dl.cheat dd{margin:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* terminal / dashboard chrome */
+header.top{background:var(--surface);padding:10px 16px 0}
+.top-in{align-items:center;gap:6px 12px}
+.dots{display:inline-flex;gap:6px}
+.dots i{width:11px;height:11px;border-radius:50%;background:var(--bad)}
+.dots i:nth-child(2){background:var(--warn)}
+.dots i:nth-child(3){background:var(--good)}
+.brand{font:500 .95rem/1.2 var(--mono);letter-spacing:0;color:var(--ink)}
+.brand span{color:var(--good)}
+.cur{display:inline-block;width:.55em;height:1.05em;background:var(--good);vertical-align:-.15em;margin-left:3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#progress-text{font:400 .78rem var(--mono)}
+.bar{height:2px;border-radius:0;margin-top:10px;background:var(--line)}
+#progress-bar{background:var(--good)}
+.nav-item{font:400 .82rem var(--mono);padding:5px 10px 5px 5px}
+.nav-item .num{border-radius:3px;width:28px;height:24px;font-size:.75rem}
+.nav-item.active{background:var(--accent-soft)}
+.eyebrow{color:var(--good);text-transform:none;letter-spacing:0}
+.eyebrow::before{content:"$ ";color:var(--muted)}
+h1{font:700 clamp(1.5rem,5.4vw,2.1rem)/1.2 var(--mono);letter-spacing:-.01em}
+h1::before{content:"> ";color:var(--accent)}
+h2{font:700 1.08rem/1.3 var(--mono);padding-top:20px;border-top:1px solid var(--line)}
+h2::before{content:"## ";color:var(--muted);font-weight:400}
+.cache h3,.world-wrap h3,.cheats h3{font-family:var(--mono)}
+.btn,.mini,.seg,.what,.qt,.col-h,dl.terms dt{font-family:var(--mono)}
+.btn,.what,.qt,dl.terms dt{font-size:.92rem}
+.btn{font-weight:500}
+.btn::before{content:"[ "}.btn::after{content:" ]"}
+.mini{background:var(--sunk)}
+.seg{font-size:.85rem}
+dl.terms dt::before{content:"\25B8  ";color:var(--good)}
+dl.terms dd{border-left-color:var(--line)}
+.prose code,.task code,.explain code,.saw code{color:#9fd0ff}
+.task .cmd code{color:var(--good)}
+.cmd{border:1px solid var(--term-line)}
+.cmd code::before{content:"$ ";color:var(--term-dim)}
+.ran::before{content:"$ ";color:var(--muted)}
+.widget,.q,.wg,.task{background:var(--surface)}
+.task.now{box-shadow:none;border-color:var(--accent);background:var(--accent-soft)}
+.mark{border-radius:3px}
+.term,.scroll-x{border:1px solid var(--line)}
+.term-bar{background:var(--surface);color:var(--muted)}
+.term-bar>span:first-child::before{content:"\25CF \25CF \25CF  ";color:var(--line);letter-spacing:1px}
+.prompt{color:var(--good)}
+.run{background:var(--good);color:#04121f;font-family:var(--mono)}
+.wg{padding:0;overflow:hidden}
+.wg h4{padding:8px 12px;margin:0;border-bottom:1px solid var(--line);background:var(--sunk)}
+.wg ul{gap:0}
+.wg li{padding:8px 12px;border-bottom:1px solid var(--line)}
+.wg li:last-child{border-bottom:0}
+.wg .empty{padding:8px 12px;font-family:var(--mono);font-size:.8rem}
+.pill.ok::before,.pill.bad::before,.pill.off::before{content:"\25CF  "}
+.opt{background:var(--sunk)}
+.opt::before{content:"( )  ";font-family:var(--mono);color:var(--muted)}
+.opt.right::before{content:"(\2713)  ";color:var(--good)}
+.opt.wrong::before{content:"(\00D7)  ";color:var(--bad)}
+.reading a{font-family:var(--mono);font-size:.9rem;font-weight:500}
+.blk.app{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.cur{animation:none}}
+
+/* split layout: lesson | bench (map above terminal) */
+html,body{height:100%}
+.app{display:flex;flex-direction:column;min-height:100%}
+header.top{position:static;padding:10px 16px 0}
+#nav{padding:10px 0 10px;flex:1 1 100%;order:3}
+.bar{order:4;margin-top:0}
+.work{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+main.lesson{padding:8px 16px 56px;min-width:0}
+article{max-width:70ch;margin:0 auto}
+.bench{display:none}
+.bench-in{display:flex;flex-direction:column;gap:12px;min-width:0}
+.slot{margin-top:16px}
+.map{border:1px solid var(--line);border-radius:4px;background:var(--surface);overflow:auto}
+.map-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);font:400 .75rem var(--mono);color:var(--muted)}
+.map-head b{font:700 .78rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.zones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.zone{display:flex;flex-direction:column;gap:8px;padding:10px 12px 8px;border-top:3px solid var(--muted);border-right:1px solid var(--line);min-width:0;transition:background-color .7s}
+.zone.wide{grid-column:span 2}
+.zone.flash{background:var(--accent-soft);transition:none}
+.z-containers{border-top-color:var(--good)}.z-images{border-top-color:var(--accent)}.z-volumes{border-top-color:var(--warn)}.z-networks{border-top-color:#b392f0}
+.zone h3{font:700 .82rem var(--mono);letter-spacing:.06em;text-transform:uppercase;margin:0}
+.zsub{font-size:.75rem;color:var(--muted);margin-top:-6px}
+.zlist{display:flex;flex-direction:column;gap:8px;flex:1}
+.z-containers .zlist{flex-direction:row;flex-wrap:wrap}
+.zone .exit{font:500 .72rem var(--mono);color:var(--muted);border-top:1px dashed var(--line);padding-top:6px}
+.zone .exit::before{content:"$ ";color:var(--good)}
+.card{flex:1 1 132px;border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;padding:8px 10px;background:var(--sunk);display:flex;flex-direction:column;gap:5px;min-width:0}
+.card.up{border-left-color:var(--good)}
+.card-h{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.card b,.rowi b{font:500 .85rem var(--mono);overflow-wrap:anywhere}
+.rowi{display:flex;flex-direction:column}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:500 .68rem/1.3 var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);overflow-wrap:anywhere}
+.chip.port{border-color:var(--accent);color:var(--accent)}
+.chip.vol{border-color:var(--warn);color:var(--warn)}
+.chip.net{border-color:#b392f0;color:#b392f0}
+.stepbar{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.sb-h{font:700 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.sb-w{font:500 .9rem var(--mono)}
+.stepbar .cmd{margin:6px 0 0}
+.stepbar .cmd code{color:var(--good);overflow-wrap:anywhere;font-size:.88rem}
+.term{display:flex;flex-direction:column}
+.tl.ok{color:var(--good);white-space:pre-wrap;margin:4px 0}
+.term-in input{font-size:16px}
+@media (min-width:720px){
+  .zones{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1.1fr)}
+  .zone.wide{grid-column:auto}
+  .zone:last-child{border-right:0}
+}
+@media (min-width:1040px){
+  .app{height:100%}
+  .work{grid-template-columns:minmax(0,5fr) minmax(0,7fr);min-height:0}
+  main.lesson{overflow:auto;border-right:1px solid var(--line);padding:8px 28px 72px}
+  .bench{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:16px}
+  .bench-in{flex:1;min-height:0}
+  .map{flex:0 1 auto;max-height:56%}
+  .term{flex:1 1 0;min-height:210px}
+  .term-out{height:auto;flex:1 1 0;min-height:0}
+  .stepbar,.slot-sec,.slot{display:none}
+  #nav{flex:1 1 420px;order:0;padding:0 0 10px}
+  #progress-text{order:2}
+}
+.term-in.busy .run{opacity:.45}
+.term-in.busy .prompt{color:var(--term-dim)}
+/* layers on the map */
+.lstack{display:flex;flex-direction:column-reverse;gap:2px;margin:4px 0 3px;max-width:150px}
+.lb{display:block;height:5px;border-radius:1px;background:var(--line);transition:background-color .25s}
+.lb.on{background:var(--accent)}
+.rowi.pulling b{color:var(--muted)}
+.cstack{display:flex;flex-direction:column;gap:3px}
+.cl-rw,.cl-ro{border:1px solid var(--line);border-radius:3px;padding:4px 7px;font:400 .7rem/1.35 var(--mono);color:var(--muted);display:flex;flex-direction:column;overflow-wrap:anywhere}
+.cl-rw{border-color:var(--good);background:var(--good-soft)}
+.cl-rw span{color:var(--good);font-weight:500}
+.cl-rw em{font-style:normal;color:var(--ink)}
+.cl-ro .lstack{max-width:none;margin:1px 0 4px}
+.cl-ro .lb{height:3px}
+.task.todo{opacity:.72}
+.task.todo .ran{margin-bottom:0}
+button.ran{display:block;text-align:left;background:none;border:0;padding:0;max-width:calc(100% - 34px)}
+button.ran code{display:inline-block;border:1px solid transparent}
+button.ran:hover code,button.ran:focus-visible code{border-color:var(--accent);color:var(--good)}
+.task.skip{background:transparent;border-style:dashed}
+.task.skip .what{color:var(--muted)}
+/* guided cache experiment */
+.rules{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.coach{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.coach b{font:700 .95rem var(--mono)}
+.files{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.steps li{flex-direction:column;align-items:stretch;gap:3px;border-left:3px solid var(--line)}
+.steps li.hit{border-left-color:var(--good)}
+.steps li.redo{border-left-color:var(--warn);background:var(--warn-soft)}
+.st-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.steps .why{font-size:.82rem;color:var(--muted)}
+.steps li.redo .why{color:var(--ink)}
+.btn.next,.seg.next,.cmd.next{outline:2px solid var(--good);outline-offset:3px;animation:nudge 1.4s ease-in-out infinite}
+.seg.next{outline-offset:-2px}
+@keyframes nudge{50%{outline-color:transparent}}
+.btn:disabled,.seg:disabled{opacity:.5;cursor:default}
+.result{margin:0;padding:10px 12px;border-radius:4px;background:var(--sunk);font-size:.95rem;min-height:1.2em}
+.result:empty{display:none}
+.result.fast{background:var(--good-soft)}
+.result.slow{background:var(--warn-soft)}
+.score{display:flex;flex-direction:column;gap:6px}
+.score:empty{display:none}
+.score h4{margin:0}
+.sc-row{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:4px;padding:6px 10px;font-size:.9rem}
+.sc-row b{font-family:var(--mono)}
+.sc-row b.ok{color:var(--good)}.sc-row b.re{color:var(--warn)}
+.score p{margin:0;font-size:.92rem}
+.cache>.mini{align-self:flex-start}
+.cache .cmd{margin:0}
+.cache .cmd code{color:var(--good)}
+@media (prefers-reduced-motion:reduce){.btn.next,.seg.next,.cmd.next{animation:none}}
+/* ----- Kubernetes guide: schematic of the frame ----- */
+.bp{background:
+  linear-gradient(rgba(74,163,255,.07) 1px,transparent 1px) 0 0/100% 16px,
+  linear-gradient(90deg,rgba(74,163,255,.07) 1px,transparent 1px) 0 0/16px 100%,
+  var(--term);border:1px solid var(--line);border-radius:4px}
+.fig{padding:10px}
+.fig.small{max-width:300px;width:100%;margin:0 auto}
+.mech{display:block;width:100%;height:auto;max-height:420px}
+.mech .pl{fill:var(--sunk);stroke:var(--muted);stroke-width:1.2;stroke-linejoin:round;transition:stroke .25s,fill .25s}
+.mech .ln{fill:none;stroke:#34444f;stroke-width:1}
+.mech .eq{fill:var(--bg);stroke:#3a4a56;stroke-width:1.3;stroke-linejoin:round;stroke-linecap:round;transition:stroke .25s,fill .25s}
+.mech .eq.on{fill:var(--accent-soft);stroke:var(--accent)}
+.mech .eq.pend{fill:var(--warn-soft);stroke:var(--warn)}
+.mech .eq.opt.off,.mech .sh.off{display:none}
+.mech .sh{stroke:var(--accent)}
+.mech .sh.pend{stroke:var(--warn)}
+.mech .core{fill:#26323b}
+.mech .core.on{fill:var(--good)}
+.mech .core.pend{fill:var(--warn)}
+.mech .cordon .pl{stroke:var(--warn);stroke-dasharray:4 3;fill:var(--warn-soft)}
+.mech .lead{fill:none;stroke:var(--muted);stroke-width:.7}
+.mech .dot{fill:var(--muted)}
+.mech .call{font:500 9px var(--mono);fill:var(--ink)}
+.hl-cluster .pl{stroke:var(--accent)}
+.hl-cp .n-cp .pl{stroke:var(--good);fill:var(--good-soft)}
+.hl-nodes .n-torso .pl,.hl-nodes .n-arms .pl,.hl-nodes .n-legs .pl{stroke:var(--warn);fill:var(--warn-soft)}
+.hl-pods .eq.on{stroke:var(--good);fill:var(--good-soft)}
+.hl-deploy .eq.on{stroke:#3a4a56;fill:var(--bg)}
+.hl-deploy .e-thrusters.on{stroke:var(--good);fill:var(--good-soft)}
+.segs.wrap{flex-wrap:wrap;max-width:100%}
+.m-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+.m-side{display:flex;flex-direction:column;gap:8px}
+@media (min-width:560px){.m-grid{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}}
+/* live map */
+.mech .det{stroke:#3a4a56}
+.mech .det.on{stroke:var(--accent)}
+.mech .det.pend{stroke:var(--warn)}
+.mech .det.off{display:none}
+.mech .ttl{font:700 13px var(--mono);fill:var(--accent);letter-spacing:.08em}
+.mech .ttl.sub{font-weight:400;font-size:9px;fill:var(--muted)}
+.mech .call{font-size:11.5px}
+.z-frame{border-top-color:var(--accent)}.z-deps{border-top-color:var(--good)}.z-svcs{border-top-color:#b392f0}.z-config{border-top-color:var(--warn)}
+.zones{grid-template-columns:minmax(0,1fr)}
+.zone.wide{grid-column:1/-1}
+.zone{border-bottom:1px solid var(--line)}
+.frame-row{display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;align-items:start}
+.fig.live{padding:4px}
+.nodes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.node{border:1px solid var(--line);border-left:3px solid var(--good);border-radius:4px;background:var(--sunk);padding:6px 8px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.node:first-child{border-left-color:var(--muted)}
+.node.off{border-left-color:var(--warn);border-style:dashed;border-left-style:solid}
+.node-h{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;justify-content:space-between}
+.node-h b{font:700 .78rem var(--mono)}
+.node .empty{font:400 .72rem var(--mono)}
+.chip.pod.ok{border-color:var(--good);color:var(--good)}
+.chip.pod.re{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.chip.pod.bad{border-color:var(--bad);color:var(--bad);background:var(--bad-soft)}
+.chip.pod.gone{text-decoration:line-through;opacity:.6}
+.zone .zlist{flex-direction:row;flex-wrap:wrap;gap:6px}
+.zone .rowi{border:1px solid var(--line);border-radius:4px;background:var(--sunk);padding:4px 8px;flex:0 1 auto;min-width:0}
+.zone .rowi b{font-size:.78rem}
+.zone .rowi .sub{flex-basis:auto;font-size:.7rem}
+.dep-h{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.z-deps .rowi{flex-direction:row;align-items:center;gap:8px}
+.z-deps .rowi b{white-space:nowrap}
+.map-head .pill{text-transform:none}
+@media (min-width:720px){.zones{grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)}.frame-row{grid-template-columns:150px minmax(0,1fr)}.nodes{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (min-width:1040px){.map{max-height:62%}}
+@media (min-width:1040px) and (max-width:1279px){.nodes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){.frame-row{grid-template-columns:116px minmax(0,1fr)}.nodes{grid-template-columns:minmax(0,1fr)}}
+.fig.small{max-width:340px}
+@media (min-width:1040px){.bench .zsub{display:none}.bench .zone{padding:8px 12px 6px;gap:6px}}
+.m-side h4{text-transform:none;letter-spacing:0;overflow-wrap:anywhere}
+table.key{width:100%;border-collapse:collapse;font-size:.92rem;margin:0 0 12px}
+table.key th{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+table.key td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.key td:first-child{font-family:var(--mono);font-size:.85rem;color:#9fd0ff;width:42%}
+@media (min-width:1040px){.bench .z-frame .zsub{display:block}}
+
+/* ----- schematic in motion: parts deploy, lock in, idle and retract ----- */
+.mech [data-k],.mech .half,.mech .nd{transform-box:fill-box;transform-origin:50% 50%}
+.mech [data-a=boost]{transform-origin:50% 100%}
+.mech [data-a=mast],.mech [data-a=swing]{transform-origin:0% 100%}
+.mech [data-a=dish]{transform-origin:50% 100%}
+.mech [data-a=slide]{transform-origin:0% 50%}
+.mech [data-a=shield]{transform-origin:100% 12%}
+.mech .ring{stroke:#34444f}
+.mech .ring.on{stroke:var(--accent);stroke-dasharray:10 6.5;animation:m-spin 5s linear infinite}
+.mech .ring.pend{stroke:var(--warn);stroke-dasharray:3 5;animation:m-spin 1.2s linear infinite}
+.mech .flame{fill:var(--good);stroke:none;display:none;transform-origin:50% 100%}
+.mech .flame.on{display:inline;animation:m-flame .32s ease-in-out infinite alternate}
+.mech .core.on{animation:m-pulse 1.6s ease-in-out infinite}
+.mech .eq.pend,.mech .det.pend,.mech .core.pend{animation:m-blink .55s steps(2,jump-none) infinite}
+.mech .gyro.on{animation:m-rot 6s linear infinite}
+.mech .e-sensors.on[data-a=dish]{animation:m-sweep 3.2s ease-in-out infinite alternate}
+.mech .e-sensors.on[data-a=tip],.mech .e-comms.on[data-a=tip]{animation:m-ping 1.8s ease-out infinite}
+.mech .e-targeting.on[data-a=core]{animation:m-visor 2.6s ease-in-out infinite}
+.mech .e-life-support.on{animation:m-march 1.4s linear infinite}
+.mech .e-thrusters.det.on,.mech .e-railgun.det.on,.mech .det.on[data-k=railgun],.mech .det.on[data-k=shield]{animation:m-glow 1.3s ease-in-out infinite alternate}
+.mech .cordon .pl{animation:m-march 1s linear infinite}
+/* deploy (in) and retract (out) share one set of moves; out plays them backwards */
+.mech .in[data-a=boost],.mech .out[data-a=boost]{animation:d-boost .9s cubic-bezier(.3,1.3,.5,1) both}
+.mech .in[data-a=mast],.mech .out[data-a=mast]{animation:d-grow .6s cubic-bezier(.3,1.3,.5,1) both}
+.mech .in[data-a=tip],.mech .out[data-a=tip]{animation:d-pop .9s cubic-bezier(.3,1.5,.5,1) both}
+.mech .in[data-a=dish],.mech .out[data-a=dish]{animation:d-dish .9s cubic-bezier(.3,1.3,.5,1) both}
+.mech .in[data-a=slide],.mech .out[data-a=slide]{animation:d-slide .9s cubic-bezier(.3,1.2,.5,1) both}
+.mech .in[data-a=swing],.mech .out[data-a=swing]{animation:d-swing 1s cubic-bezier(.3,1.3,.5,1) both}
+.mech .in[data-a=shield],.mech .out[data-a=shield]{animation:d-shield 1.1s cubic-bezier(.3,1.25,.5,1) both}
+.mech .in[data-a=seal],.mech .out[data-a=seal]{animation:d-seal .9s ease-out both}
+.mech .in[data-a=core]{animation:d-pop .7s cubic-bezier(.3,1.5,.5,1) both}
+.mech .in[data-a=fade],.mech .out[data-a=fade],.mech .ring.in,.mech .core.in{animation:d-fade .9s ease-out both}
+.mech .out{display:inline!important;animation-direction:reverse!important;animation-duration:.6s!important;animation-delay:0s!important;stroke:var(--muted)!important}
+.mech .flame.out,.mech .flame.in{display:none!important}
+.mech .eq.lock{animation:d-lock .9s ease-out}
+@keyframes m-spin{to{stroke-dashoffset:-132}}
+@keyframes m-march{to{stroke-dashoffset:-22}}
+@keyframes m-pulse{50%{transform:scale(1.3);fill:#b9ffe1}}
+@keyframes m-blink{50%{opacity:.35}}
+@keyframes m-rot{to{transform:rotate(360deg)}}
+@keyframes m-sweep{from{transform:rotate(-9deg)}to{transform:rotate(9deg)}}
+@keyframes m-ping{0%{filter:drop-shadow(0 0 0 var(--accent))}60%{filter:drop-shadow(0 0 7px var(--accent))}100%{filter:drop-shadow(0 0 0 transparent)}}
+@keyframes m-visor{50%{fill:var(--accent)}}
+@keyframes m-glow{to{stroke:#d6ecff}}
+@keyframes m-flame{from{transform:scaleY(.55);opacity:.55}to{transform:scaleY(1.15);opacity:1}}
+@keyframes d-boost{0%{transform:rotate(42deg) scaleY(.08);opacity:0}25%{opacity:1}70%{transform:rotate(-7deg) scaleY(1.06)}100%{transform:none}}
+@keyframes d-grow{0%{transform:scale(0)}100%{transform:none}}
+@keyframes d-pop{0%,45%{transform:scale(0)}80%{transform:scale(1.5)}100%{transform:none}}
+@keyframes d-dish{0%{transform:rotate(-130deg) scale(.25);opacity:0}30%{opacity:1}100%{transform:none}}
+@keyframes d-slide{0%{transform:scaleX(0)}75%{transform:scaleX(1.05)}100%{transform:none}}
+@keyframes d-swing{0%{transform:rotate(60deg) scaleX(.15);opacity:0}30%{opacity:1}75%{transform:rotate(-5deg)}100%{transform:none}}
+@keyframes d-shield{0%{transform:rotate(-75deg) scale(.12);opacity:0}25%{opacity:1}75%{transform:rotate(6deg) scale(1.03)}100%{transform:none}}
+@keyframes d-seal{0%{transform:scale(1.3);opacity:0}100%{transform:none}}
+@keyframes d-fade{0%,55%{opacity:0}100%{opacity:1}}
+@keyframes d-lock{0%{stroke:#fff;fill:var(--accent);filter:drop-shadow(0 0 9px var(--accent))}100%{filter:drop-shadow(0 0 0 transparent)}}
+/* refit sequence: the frame opens up, a scan passes, and it closes again */
+.mech .scan{fill:var(--accent);opacity:0}
+.mech.refit .scan{animation:r-scan 1.5s linear}
+.mech.refit .n-arms .half{animation:r-arms 1.5s cubic-bezier(.5,0,.3,1)}
+.mech.refit .n-legs .half{animation:r-legs 1.5s cubic-bezier(.5,0,.3,1)}
+.mech.refit .n-cp{animation:r-head 1.5s cubic-bezier(.5,0,.3,1)}
+.mech.refit .n-torso{animation:r-torso 1.5s cubic-bezier(.5,0,.3,1)}
+.mech.refit .pl{animation:r-plate 1.5s ease-in-out}
+.mech.refit .cordon .pl{animation:m-march 1s linear infinite}
+@keyframes r-scan{0%{transform:translateY(0);opacity:.9}100%{transform:translateY(370px);opacity:.2}}
+@keyframes r-arms{22%,68%{transform:translate(-8px,-3px)}}
+@keyframes r-legs{22%,68%{transform:translate(-5px,2px)}}
+@keyframes r-head{22%,68%{transform:translateY(-7px)}}
+@keyframes r-torso{22%,68%{transform:translateY(-2px)}}
+@keyframes r-plate{30%,60%{stroke:var(--accent)}}
+@media (prefers-reduced-motion:reduce){.mech *,.mech .scan{animation:none!important}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="app">
+<header class="top"><div class="top-in">
+  <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+  <p class="brand"><span>~/</span>kubernetes-from-zero<b class="cur" aria-hidden="true"></b></p>
+  <nav id="nav" aria-label="Lessons"></nav>
+  <span id="progress-text"></span>
+  <div class="bar" aria-hidden="true"><div id="progress-bar"></div></div>
+</div></header>
+<div class="work">
+  <main id="main" class="lesson" tabindex="-1"></main>
+  <aside id="bench" class="bench" aria-label="Sandbox"></aside>
+</div>
+</div>
+<script>
+/* ---------- Kubernetes simulator: pure logic, no DOM ---------- */
+const APPS={
+  reactor:{x:{output_mw:1380},log:['[reactor] ignition sequence complete','[reactor] core temperature nominal, output 1380 MW','[reactor] listening on :8080']},
+  balancer:{x:{tilt_deg:0.4},log:['[balancer] gyros spun up','[balancer] stance locked, tilt 0.4 deg','[balancer] listening on :8080']},
+  comms:{x:{channel:'hangar-control'},log:['[comms] antenna deployed','[comms] channel hangar-control open','[comms] listening on :8080']},
+  sensors:{x:{contacts:2},log:['[sensors] array calibrated','[sensors] sweep started, 2 contacts','[sensors] listening on :8080']},
+  thrusters:{x:{thrust_pct:12},log:['[thrusters] nozzle check passed','[thrusters] idle at 12 percent','[thrusters] listening on :8080']},
+  targeting:{x:{lock:'none'},log:['[targeting] solver loaded','[targeting] waiting for sensor feed','[targeting] listening on :8080']},
+  railgun:{x:{charge_pct:100},log:['[railgun] capacitors charged','[railgun] safety on','[railgun] listening on :8080']},
+  shield:{x:{integrity_pct:100},log:['[shield] plate locked to forearm mount','[shield] integrity 100 percent','[shield] listening on :8080']},
+  'life-support':{x:{cabin_kpa:101},log:['[life-support] cabin sealed','[life-support] pressure 101 kPa','[life-support] listening on :8080']}
+};
+const dep1=(name,replicas,ver)=>({kind:'Deployment',name,image:'hangar/'+name+':'+(ver||'1.0'),replicas});
+const svc1=name=>({kind:'Service',name,port:80,target:8080});
+const mission=data=>({kind:'ConfigMap',name:'mission',data});
+const FS={
+  'frame/kustomization.yaml':{kust:true,resources:['reactor.yaml','balancer.yaml','comms.yaml','sensors.yaml','thrusters.yaml','targeting.yaml','hardpoints.yaml']},
+  'frame/reactor.yaml':[dep1('reactor',1),svc1('reactor')],
+  'frame/balancer.yaml':[dep1('balancer',1)],
+  'frame/comms.yaml':[dep1('comms',1),svc1('comms')],
+  'frame/sensors.yaml':[dep1('sensors',1),svc1('sensors')],
+  'frame/thrusters.yaml':[dep1('thrusters',2)],
+  'frame/targeting.yaml':[dep1('targeting',1),svc1('targeting')],
+  'frame/hardpoints.yaml':[dep1('railgun',0),dep1('shield',0),dep1('life-support',0)],
+  'missions/recon/kustomization.yaml':{kust:true,resources:['../../frame','mission.yaml'],replicas:{sensors:3}},
+  'missions/recon/mission.yaml':[mission({PROFILE:'recon',SENSOR_RANGE_KM:'120',POWER_MODE:'silent'})],
+  'missions/assault/kustomization.yaml':{kust:true,resources:['../../frame','mission.yaml'],replicas:{thrusters:3,targeting:2,railgun:2,shield:1}},
+  'missions/assault/mission.yaml':[mission({PROFILE:'assault',SENSOR_RANGE_KM:'40',POWER_MODE:'full'})],
+  'missions/orbital/kustomization.yaml':{kust:true,resources:['../../frame','mission.yaml'],replicas:{sensors:2,thrusters:4,'life-support':1}},
+  'missions/orbital/mission.yaml':[mission({PROFILE:'orbital',SENSOR_RANGE_KM:'400',POWER_MODE:'cruise'})]
+};
+const yq=v=>/^[A-Za-z][\w.\/:-]*$/.test(String(v))?String(v):'"'+v+'"';
+function toYaml(o){
+  if(o.kust){
+    const L=['apiVersion: kustomize.config.k8s.io/v1beta1','kind: Kustomization','resources:'].concat(o.resources.map(r=>'  - '+r));
+    if(o.replicas){L.push('replicas:');for(const k in o.replicas)L.push('  - name: '+k,'    count: '+o.replicas[k]);}
+    return L.join('\n');
+  }
+  if(o.kind==='Deployment'){
+    const L=['apiVersion: apps/v1','kind: Deployment','metadata:','  name: '+o.name,'spec:','  replicas: '+o.replicas,'  selector:','    matchLabels:','      app: '+o.name,'  template:','    metadata:','      labels:','        app: '+o.name,'    spec:','      containers:','        - name: '+o.name,'          image: '+o.image,'          ports:','            - containerPort: 8080'];
+    (o.envFrom||[]).forEach((r,i)=>{if(!i)L.push('          envFrom:');const p=r.split('/');L.push('            - '+(p[0]==='secret'?'secretRef':'configMapRef')+':','                name: '+p[1]);});
+    const ek=Object.keys(o.env||{});if(ek.length){L.push('          env:');ek.forEach(k=>L.push('            - name: '+k,'              value: '+yq(o.env[k])));}
+    return L.join('\n');
+  }
+  if(o.kind==='Service')return ['apiVersion: v1','kind: Service','metadata:','  name: '+o.name,'spec:','  selector:','    app: '+(o.selector||o.name),'  ports:','    - port: '+o.port,'      targetPort: '+o.target].join('\n');
+  if(o.kind==='ConfigMap'||o.kind==='Secret'){
+    const b64=s=>typeof btoa!=='undefined'?btoa(s):Buffer.from(s).toString('base64');
+    return ['apiVersion: v1','kind: '+o.kind,'metadata:','  name: '+o.name].concat(o.kind==='Secret'?['type: Opaque']:[],['data:'],Object.keys(o.data).map(k=>'  '+k+': '+(o.kind==='Secret'?b64(o.data[k]):yq(o.data[k])))).join('\n');
+  }
+  return '';
+}
+const fileText=p=>{const f=FS[p];return f.kust?toYaml(f):f.map(toYaml).join('\n---\n');};
+
+function createSim(clock){
+  clock=clock||(()=>Date.now());
+  let skew=0;const now=()=>clock()+skew;
+  let seed=20261113;
+  const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+  const AB='bcdfghjklmnpqrstvwxz2456789';
+  const sfx=n=>{let s='';while(s.length<n)s+=AB[Math.floor(rnd()*AB.length)];return s;};
+  const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}h>>>=0;let o='';for(let i=0;i<9;i++){o+=AB[h%AB.length];h=Math.floor(h/3)+i*7919;}return o;};
+  const START=now();
+  const w={nodes:[
+    {name:'cockpit',role:'control-plane',cordoned:false,ip:'172.18.0.2',images:{}},
+    {name:'torso',role:'',cordoned:false,ip:'172.18.0.3',images:{}},
+    {name:'arms',role:'',cordoned:false,ip:'172.18.0.4',images:{}},
+    {name:'legs',role:'',cordoned:false,ip:'172.18.0.5',images:{}}],
+    pods:[],deps:[],svcs:[],cms:[],secrets:[],fwd:{},ipn:0,svcn:40};
+  const CAP=6;
+  let meta={};
+  const tok=s=>{const out=[];const re=/"([^"]*)"|'([^']*)'|(\S+)/g;let m;while((m=re.exec(s)))out.push(m[1]!==undefined?m[1]:m[2]!==undefined?m[2]:m[3]);return out;};
+  const table=rows=>{const wd=rows[0].map((_,i)=>Math.max(...rows.map(r=>String(r[i]).length)));return rows.map(r=>r.map((c,i)=>i===r.length-1?String(c):String(c).padEnd(wd[i]+3)).join('')).join('\n');};
+  const age=t=>{const s=Math.max(0,Math.round((now()-t)/1000));return s<60?s+'s':s<600?Math.floor(s/60)+'m'+(s%60)+'s':Math.floor(s/60)+'m';};
+  const E=(m)=>{throw new Error(m);};
+
+  /* ----- images ----- */
+  const imgState=image=>{const i=image.lastIndexOf(':'),repo=i>0?image.slice(0,i):image,tag=i>0?image.slice(i+1):'latest';
+    const known=['nginx','redis','postgres'].includes(repo)||(repo.startsWith('hangar/')&&APPS[repo.slice(7)]);
+    if(!known)return 'pull';if(/beta|rc|broken/.test(tag))return 'crash';
+    if(repo.startsWith('hangar/')&&!/^(\d+\.\d+(\.\d+)?|latest)$/.test(tag))return 'pull';return '';};
+  const tagOf=image=>{const i=image.lastIndexOf(':');return i>0?image.slice(i+1):'latest';};
+
+  /* ----- pods ----- */
+  const alive=p=>!p.killAt;
+  const pick=()=>{const c=w.nodes.filter(n=>!n.role&&!n.cordoned).map(n=>[n,w.pods.filter(p=>p.node===n.name&&alive(p)).length]).filter(x=>x[1]<CAP);
+    c.sort((a,b)=>a[1]-b[1]);return c.length?c[0][0]:null;};
+  function place(p){const n=pick();if(!n)return;const t=now();p.node=n.name;p.ip='10.244.'+w.nodes.indexOf(n)+'.'+(++w.ipn+1);
+    p.cached=!!n.images[p.image];p.schedAt=t;p.readyAt=t+(p.cached?900:2400);if(p.bad!=='pull')n.images[p.image]=true;}
+  function envFor(d){const e={};(d.envFrom||[]).forEach(r=>{const p=r.split('/');const src=(p[0]==='secret'?w.secrets:w.cms).find(x=>x.name===p[1]);if(src)Object.assign(e,src.data);});return Object.assign(e,d.env||{});}
+  function mkPod(name,app,image,d,h){
+    const p={name,app,image,owner:d?d.name:null,hash:h||'',labels:d?{app,'pod-template-hash':h}:{run:name},created:now(),node:null,ip:'<none>',readyAt:0,killAt:0,bad:imgState(image),env:d?envFor(d):{}};
+    place(p);w.pods.push(p);return p;}
+  const status=p=>{const t=now();
+    if(p.killAt&&t>=p.killAt)return 'Terminating';if(!p.node)return 'Pending';
+    if(p.bad==='pull')return t-p.schedAt<1200?'ContainerCreating':t-p.schedAt<5000?'ErrImagePull':'ImagePullBackOff';
+    if(t<p.readyAt)return 'ContainerCreating';return p.bad==='crash'?'CrashLoopBackOff':'Running';};
+  const restarts=p=>p.bad==='crash'&&now()>=p.readyAt?Math.min(6,1+Math.floor((now()-p.readyAt)/9000)):0;
+  function gc(){const t=now();for(let i=w.pods.length-1;i>=0;i--)if(w.pods[i].killAt&&t>=w.pods[i].killAt+700)w.pods.splice(i,1);
+    w.pods.forEach(p=>{if(!p.node&&alive(p))place(p);});}
+  const busy=()=>{gc();return w.pods.some(p=>p.killAt||(p.node&&now()<p.readyAt)||(p.bad==='pull'&&now()-p.schedAt<5200));};
+
+  /* ----- deployments ----- */
+  const tplHash=d=>hash(d.name+'|'+d.image+'|'+JSON.stringify(d.env)+'|'+d.envFrom.join()+'|'+d.restartedAt);
+  const tpl=d=>({image:d.image,env:Object.assign({},d.env),envFrom:d.envFrom.slice(),restartedAt:d.restartedAt});
+  const dep=n=>w.deps.find(d=>d.name===n);
+  const owned=d=>w.pods.filter(p=>p.owner===d.name);
+  function reconcile(d){
+    const cur=tplHash(d),t=now(),live=owned(d).filter(alive),mine=live.filter(p=>p.hash===cur),old=live.filter(p=>p.hash!==cur);
+    const add=()=>mkPod(d.name+'-'+cur+'-'+sfx(5),d.name,d.image,d,cur);
+    if(old.length){
+      if(imgState(d.image)){old.filter(p=>p.bad).forEach(p=>p.killAt=t);if(!mine.length&&d.replicas>0)add();return;}
+      const STEP=1500,need=Math.max(0,d.replicas-mine.length);
+      for(let i=0;i<need;i++){const p=add();if(p.node)p.readyAt=Math.max(p.readyAt,t+STEP*(i+1));}
+      let k=0;old.forEach(p=>{if(p.bad||status(p)!=='Running')p.killAt=t;else{p.killAt=t+STEP*(Math.min(k,Math.max(need,1)-1)+1)+300;k++;}});
+      d.rollEnd=t+STEP*Math.max(need,1)+1000;return;
+    }
+    const diff=d.replicas-mine.length;
+    for(let i=0;i<diff;i++)add();
+    if(diff<0)mine.slice().sort((a,b)=>b.created-a.created).slice(0,-diff).forEach(p=>p.killAt=t);
+  }
+  function changed(d,why){d.rev++;d.history.push({rev:d.rev,tpl:tpl(d)});d.events.push([now(),why||'template changed']);reconcile(d);}
+  function mkDep(name,image,replicas){
+    if(dep(name))E('Error from server (AlreadyExists): deployments.apps "'+name+'" already exists');
+    const d={name,image,replicas,env:{},envFrom:[],restartedAt:0,rev:1,history:[],created:now(),events:[],rollEnd:0};
+    d.history.push({rev:1,tpl:tpl(d)});w.deps.push(d);reconcile(d);return d;}
+  const depReady=d=>owned(d).filter(p=>status(p)==='Running').length;
+  const depUpToDate=d=>{const h=tplHash(d);return owned(d).filter(p=>alive(p)&&p.hash===h).length;};
+  const rollingOut=d=>{const h=tplHash(d);return owned(d).some(p=>p.hash!==h)||owned(d).filter(p=>p.hash===h&&status(p)==='Running').length<d.replicas;};
+
+  /* ----- services ----- */
+  const endpoints=s=>w.pods.filter(p=>p.labels.app===s.selector&&status(p)==='Running');
+  function mkSvc(name,selector,port,target,type){
+    if(w.svcs.find(s=>s.name===name))E('Error from server (AlreadyExists): services "'+name+'" already exists');
+    const s={name,selector,port,target,type:type||'ClusterIP',ip:'10.96.'+(++w.svcn)+'.'+(17+w.svcn*3%200),created:now(),rr:0};w.svcs.push(s);return s;}
+  const answer=p=>{const a=APPS[p.app]||{x:{}};const o=Object.assign({subsystem:p.app,pod:p.name,node:p.node,version:tagOf(p.image),status:'nominal'},a.x);
+    if(p.app==='sensors')o.range_km=+(p.env.SENSOR_RANGE_KM||40);if(p.env.PROFILE)o.profile=p.env.PROFILE;return JSON.stringify(o);};
+  function curl(a,out,from){
+    const url=a.filter(x=>!x.startsWith('-'))[0];if(!url){out.push('curl: try a URL, for example: curl localhost:8080');return false;}
+    const m=/^(?:https?:\/\/)?([^\/:]+)(?::(\d+))?(\/.*)?$/.exec(url);const host=m[1],port=+(m[2]||80);
+    const reply=p=>{if(p.app==='nginx'||!APPS[p.app]){out.push('<!DOCTYPE html><html><head><title>Welcome to nginx!</title></head>...</html>');}else out.push(answer(p));return true;};
+    if(!from){
+      if(host==='localhost'||host==='127.0.0.1'){const f=w.fwd[port];if(!f){out.push('curl: (7) Failed to connect to localhost port '+port+': Connection refused');out.push('(Nothing on your computer forwards port '+port+' into the cluster. kubectl port-forward does that.)');return false;}
+        const s=w.svcs.find(x=>x.name===f.svc);const ep=s?endpoints(s):[];if(!ep.length){out.push('curl: (52) Empty reply from server');return false;}return reply(ep[s.rr++%ep.length]);}
+      out.push('curl: (6) Could not resolve host: '+host);out.push('(Service names only resolve inside the cluster. Use kubectl exec ... -- curl, or kubectl port-forward.)');return false;}
+    const sn=host.split('.')[0];const s=w.svcs.find(x=>x.name===sn);
+    if(s){if(port!==s.port){out.push('curl: (7) Failed to connect to '+host+' port '+port+': Connection refused');return false;}
+      const ep=endpoints(s);if(!ep.length){out.push('curl: (7) Failed to connect to '+host+' port '+port+': Connection refused');return false;}return reply(ep[s.rr++%ep.length]);}
+    const byIp=w.pods.find(p=>p.ip===host&&status(p)==='Running');
+    if(byIp){if(port!==8080){out.push('curl: (7) Failed to connect to '+host+' port '+port+': Connection refused');return false;}return reply(byIp);}
+    out.push('curl: (6) Could not resolve host: '+host);return false;
+  }
+
+  /* ----- argument parsing ----- */
+  const VAL=['image','replicas','port','target-port','type','from-literal','from','namespace','selector','output','filename','kustomize','patch','to-revision','name'];
+  const SHORT={n:'namespace',o:'output',l:'selector',f:'filename',k:'kustomize',p:'patch'};
+  function parse(a){const pos=[],fl={},rest=[];
+    for(let i=0;i<a.length;i++){const x=a[i];
+      if(x==='--'){rest.push(...a.slice(i+1));break;}
+      if(x.startsWith('--')){const e=x.indexOf('=');let k=e>0?x.slice(2,e):x.slice(2),v=e>0?x.slice(e+1):true;
+        if(v===true&&VAL.includes(k)&&i+1<a.length)v=a[++i];
+        if(k==='from-literal')(fl[k]=fl[k]||[]).push(v);else fl[k]=v;}
+      else if(/^-[a-zA-Z]/.test(x)){const k=SHORT[x[1]];
+        if(k){fl[k]=x.length>2?x.slice(2).replace(/^=/,''):a[++i];}else fl[x.slice(1)]=true;}
+      else pos.push(x);}
+    return {pos,fl,rest};}
+  const KIND={po:'pod',pod:'pod',pods:'pod',deploy:'deployment',deployment:'deployment',deployments:'deployment','deployments.apps':'deployment','deployment.apps':'deployment',
+    svc:'service',service:'service',services:'service',cm:'configmap',configmap:'configmap',configmaps:'configmap',secret:'secret',secrets:'secret',
+    rs:'replicaset',replicaset:'replicaset',replicasets:'replicaset',no:'node',node:'node',nodes:'node',ns:'namespace',namespace:'namespace',namespaces:'namespace',all:'all'};
+  const kind=k=>KIND[k]||E('error: the server doesn\'t have a resource type "'+k+'"');
+  /* "deployment/x" or "deployment x" -> [kind, names] */
+  function target(pos){if(!pos.length)E('error: you must specify the type of resource');
+    if(pos[0].includes('/')){return pos.map(x=>{const p=x.split('/');return [kind(p[0]),p[1]];});}
+    const k=kind(pos[0]);return pos.slice(1).map(n=>[k,n]);}
+  const nf=(k,n)=>E('Error from server (NotFound): '+k+' "'+n+'" not found');
+  const getDep=n=>dep(n)||nf('deployments.apps',n);
+  const getPod=n=>w.pods.find(p=>p.name===n)||nf('pods',n);
+  const sel=s=>{const o={};String(s).split(',').forEach(x=>{const i=x.indexOf('=');if(i<1)E('error: invalid label selector "'+s+'". Use key=value');o[x.slice(0,i)]=x.slice(i+1);});return o;};
+  const match=(p,s)=>Object.keys(s).every(k=>p.labels[k]===s[k]);
+  const podOf=(ref,any)=>{if(ref.includes('/')){const p=ref.split('/');if(kind(p[0])!=='deployment')E('error: use a pod name or deploy/NAME');const d=getDep(p[1]),h=tplHash(d);
+      const ps=owned(d).filter(alive);return (any&&ps.find(x=>x.hash===h&&x.bad))||ps.find(x=>x.hash===h&&status(x)==='Running')||ps.find(x=>status(x)==='Running')||ps[0]||E('error: deployment "'+d.name+'" has no pods');}
+    return getPod(ref);};
+
+  /* ----- kubectl get ----- */
+  const SYS=[['coredns-76f75df574-4kx2p','1/1'],['coredns-76f75df574-wq9zl','1/1'],['etcd-cockpit','1/1'],['kube-apiserver-cockpit','1/1'],['kube-controller-manager-cockpit','1/1'],['kube-proxy-7xk2d','1/1'],['kube-proxy-b8mnq','1/1'],['kube-proxy-hv4zs','1/1'],['kube-proxy-ptl6c','1/1'],['kube-scheduler-cockpit','1/1']];
+  const rsList=()=>{const o=[];w.deps.forEach(d=>{const cur=tplHash(d);const hs=new Set(owned(d).map(p=>p.hash));hs.add(cur);
+    [...hs].forEach(h=>{const ps=owned(d).filter(p=>p.hash===h&&alive(p));o.push({name:d.name+'-'+h,desired:h===cur?d.replicas:ps.length,current:ps.length,ready:ps.filter(p=>status(p)==='Running').length,created:h===cur?(d.events.length?d.events[d.events.length-1][0]:d.created):d.created});});});return o;};
+  function get(a,out){
+    const {pos,fl}=parse(a);if(!pos.length)E('error: you must specify the type of resource to get, for example: kubectl get pods');
+    const wide=fl.output==='wide',ns=fl.namespace||'default',pref=pos[0].split(',').length>1;
+    const kinds=pos[0].includes('/')?[kind(pos[0].split('/')[0])]:pos[0].split(',').map(kind);
+    const names=pos[0].includes('/')?[pos[0].split('/')[1]]:pos.slice(1);
+    const want=(n)=>!names.length||names.includes(n);
+    if(fl.output==='yaml'){
+      if(!names.length)E('error: in this sandbox -o yaml needs one named object, for example: kubectl get configmap mission -o yaml');
+      const k=kinds[0],n=names[0];
+      if(k==='configmap'){const c=w.cms.find(x=>x.name===n)||nf('configmaps',n);out.push(toYaml({kind:'ConfigMap',name:n,data:c.data}));}
+      else if(k==='secret'){const c=w.secrets.find(x=>x.name===n)||nf('secrets',n);out.push(toYaml({kind:'Secret',name:n,data:c.data}));}
+      else if(k==='deployment'){const d=getDep(n);out.push(toYaml({kind:'Deployment',name:n,image:d.image,replicas:d.replicas,env:d.env,envFrom:d.envFrom}));}
+      else if(k==='service'){const s=w.svcs.find(x=>x.name===n)||nf('services',n);out.push(toYaml({kind:'Service',name:n,selector:s.selector,port:s.port,target:s.target}));}
+      else E('error: in this sandbox -o yaml works for deployments, services, configmaps and secrets');
+      return true;}
+    if(fl.output&&!wide)E('error: unable to match a printer suitable for the output format "'+fl.output+'". This sandbox knows wide and yaml');
+    const blocks=[];const all=kinds[0]==='all';
+    const doK=(k,px)=>{
+      if(k==='node'){const r=[['NAME','STATUS','ROLES','AGE','VERSION'].concat(wide?['INTERNAL-IP']:[])];
+        w.nodes.filter(n=>want(n.name)).forEach(n=>r.push([n.name,'Ready'+(n.cordoned?',SchedulingDisabled':''),n.role||'<none>','12d','v1.34.2'].concat(wide?[n.ip]:[])));
+        if(names.length&&r.length===1)nf('nodes',names[0]);return r;}
+      if(k==='namespace')return [['NAME','STATUS','AGE'],['default','Active','12d'],['kube-node-lease','Active','12d'],['kube-public','Active','12d'],['kube-system','Active','12d']];
+      if(ns==='kube-system'&&!fl.A){if(k==='pod'){const r=[['NAME','READY','STATUS','RESTARTS','AGE']];SYS.forEach(s=>r.push([s[0],s[1],'Running','0','12d']));return r;}return null;}
+      if(ns!=='default'&&!fl.A)return null;
+      if(k==='pod'){const s=fl.selector?sel(fl.selector):null;const ps=w.pods.filter(p=>want(p.name)&&(!s||match(p,s)));
+        if(names.length&&!ps.length)nf('pods',names[0]);if(!ps.length)return null;
+        const r=[['NAME','READY','STATUS','RESTARTS','AGE'].concat(wide?['IP','NODE']:[])];
+        ps.forEach(p=>{const st=status(p);r.push([px+p.name,st==='Running'?'1/1':'0/1',st,String(restarts(p)),age(p.created)].concat(wide?[p.ip,p.node||'<none>']:[]));});return r;}
+      if(k==='deployment'){const ds=w.deps.filter(d=>want(d.name));if(names.length&&!ds.length)nf('deployments.apps',names[0]);if(!ds.length)return null;
+        const r=[['NAME','READY','UP-TO-DATE','AVAILABLE','AGE']];ds.forEach(d=>r.push([px+d.name,depReady(d)+'/'+d.replicas,String(depUpToDate(d)),String(depReady(d)),age(d.created)]));return r;}
+      if(k==='replicaset'){const rs=rsList().filter(x=>want(x.name));if(!rs.length)return null;const r=[['NAME','DESIRED','CURRENT','READY','AGE']];rs.forEach(x=>r.push([px+x.name,String(x.desired),String(x.current),String(x.ready),age(x.created)]));return r;}
+      if(k==='service'){const r=[['NAME','TYPE','CLUSTER-IP','EXTERNAL-IP','PORT(S)','AGE']];
+        if(want('kubernetes'))r.push([px+'kubernetes','ClusterIP','10.96.0.1','<none>','443/TCP','12d']);
+        w.svcs.filter(s=>want(s.name)).forEach(s=>r.push([px+s.name,s.type,s.ip,'<none>',s.port+'/TCP',age(s.created)]));
+        if(names.length&&r.length===1)nf('services',names[0]);return r;}
+      if(k==='configmap'){const r=[['NAME','DATA','AGE']];if(want('kube-root-ca.crt'))r.push(['kube-root-ca.crt','1','12d']);w.cms.filter(c=>want(c.name)).forEach(c=>r.push([c.name,String(Object.keys(c.data).length),age(c.created)]));
+        if(names.length&&r.length===1)nf('configmaps',names[0]);return r;}
+      if(k==='secret'){const cs=w.secrets.filter(c=>want(c.name));if(names.length&&!cs.length)nf('secrets',names[0]);if(!cs.length)return null;
+        const r=[['NAME','TYPE','DATA','AGE']];cs.forEach(c=>r.push([c.name,'Opaque',String(Object.keys(c.data).length),age(c.created)]));return r;}
+      return null;};
+    if(all){[['pod','pod/'],['service','service/'],['deployment','deployment.apps/'],['replicaset','replicaset.apps/']].forEach(x=>{const r=doK(x[0],x[1]);if(r)blocks.push(table(r));});}
+    else kinds.forEach(k=>{const r=doK(k,pref?(k==='deployment'?'deployment.apps/':k+'/'):'');if(r)blocks.push(table(r));});
+    if(!blocks.length)out.push('No resources found in '+ns+' namespace.');else out.push(blocks.join('\n\n'));
+    return true;
+  }
+
+  /* ----- describe / logs / exec ----- */
+  function describe(a,out){
+    const {pos}=parse(a);const t=target(pos);if(!t.length)E('error: name the object, for example: kubectl describe pod reactor');
+    const [k,n]=t[0];const ev=rows=>['Events:','  Type     Reason     Age   Message','  ----     ------     ---   -------'].concat(rows.map(r=>'  '+r[0].padEnd(9)+r[1].padEnd(11)+r[2].padEnd(6)+r[3]));
+    if(k==='pod'){const p=getPod(n),st=status(p),a2=age(p.created);
+      const L=['Name:             '+p.name,'Namespace:        default','Node:             '+(p.node?p.node+'/'+w.nodes.find(x=>x.name===p.node).ip:'<none>'),'Labels:           '+Object.keys(p.labels).map(k=>k+'='+p.labels[k]).join('\n                  '),
+        'Status:           '+(st==='Running'?'Running':'Pending'),'IP:               '+p.ip].concat(p.owner?['Controlled By:    ReplicaSet/'+p.owner+'-'+p.hash]:[],
+        ['Containers:','  '+p.app+':','    Image:          '+p.image,'    Port:           8080/TCP','    State:          '+(st==='Running'?'Running':st==='Terminating'?'Terminating':'Waiting ('+st+')'),'    Ready:          '+(st==='Running'?'True':'False'),'    Restart Count:  '+restarts(p)]);
+      const es=[];
+      if(!p.node)es.push(['Warning','FailedScheduling',a2,'0/4 nodes are available: 1 node(s) had untolerated taint {node-role.kubernetes.io/control-plane: }, 3 node(s) were unschedulable or full.']);
+      else{es.push(['Normal','Scheduled',a2,'Successfully assigned default/'+p.name+' to '+p.node]);
+        if(p.bad==='pull'){es.push(['Normal','Pulling',a2,'Pulling image "'+p.image+'"']);if(st!=='ContainerCreating')es.push(['Warning','Failed',a2,'Failed to pull image "'+p.image+'": not found'],['Warning','Failed',a2,'Error: ErrImagePull'],['Normal','BackOff',a2,'Back-off pulling image "'+p.image+'"']);}
+        else{es.push(p.cached?['Normal','Pulled',a2,'Container image "'+p.image+'" already present on machine']:['Normal','Pulling',a2,'Pulling image "'+p.image+'"']);
+          if(now()>=p.readyAt){if(!p.cached)es.push(['Normal','Pulled',a2,'Successfully pulled image "'+p.image+'"']);es.push(['Normal','Created',a2,'Created container '+p.app],['Normal','Started',a2,'Started container '+p.app]);
+            if(p.bad==='crash')es.push(['Warning','BackOff',a2,'Back-off restarting failed container '+p.app+' in pod '+p.name]);}}}
+      out.push(L.concat(ev(es)).join('\n'));return true;}
+    if(k==='deployment'){const d=getDep(n);
+      out.push(['Name:               '+d.name,'Namespace:          default','Selector:           app='+d.name,'Replicas:           '+d.replicas+' desired | '+depUpToDate(d)+' updated | '+owned(d).filter(alive).length+' total | '+depReady(d)+' available','StrategyType:       RollingUpdate','RollingUpdateStrategy:  25% max unavailable, 25% max surge',
+        'Pod Template:','  Labels:  app='+d.name,'  Containers:','   '+d.name+':','    Image:      '+d.image,'    Port:       8080/TCP'].concat(d.envFrom.length?['    Environment Variables from:'].concat(d.envFrom.map(r=>'      '+r.split('/')[1]+'  '+(r.startsWith('secret')?'Secret':'ConfigMap'))):[],
+        ['NewReplicaSet:      '+d.name+'-'+tplHash(d)+' ('+depUpToDate(d)+'/'+d.replicas+' replicas created)'],ev([['Normal','ScalingReplicaSet',age(d.created),'Scaled up replica set '+d.name+'-'+tplHash(d)+' to '+d.replicas]])).join('\n'));return true;}
+    if(k==='node'){const nd=w.nodes.find(x=>x.name===n)||nf('nodes',n);const ps=w.pods.filter(p=>p.node===nd.name&&alive(p));
+      out.push(['Name:               '+nd.name,'Roles:              '+(nd.role||'<none>'),'Taints:             '+(nd.role?'node-role.kubernetes.io/control-plane:NoSchedule':nd.cordoned?'node.kubernetes.io/unschedulable:NoSchedule':'<none>'),'Unschedulable:      '+nd.cordoned,'Conditions:         Ready=True','Addresses:          InternalIP '+nd.ip,
+        'Capacity:           pods '+(nd.role?'110':CAP+'  (this sandbox keeps each section small)'),'Non-terminated Pods: ('+ps.length+' in total)'].concat(ps.map(p=>'  default/'+p.name)).join('\n'));return true;}
+    if(k==='service'){const s=w.svcs.find(x=>x.name===n)||nf('services',n);const ep=endpoints(s);
+      out.push(['Name:              '+s.name,'Namespace:         default','Selector:          app='+s.selector,'Type:              '+s.type,'IP:                '+s.ip,'Port:              '+s.port+'/TCP','TargetPort:        '+s.target+'/TCP','Endpoints:         '+(ep.length?ep.map(p=>p.ip+':'+s.target).join(','):'<none>')].join('\n'));return true;}
+    if(k==='configmap'){const c=w.cms.find(x=>x.name===n)||nf('configmaps',n);out.push(['Name:         '+c.name,'Namespace:    default','','Data','===='].concat(Object.keys(c.data).map(k=>k+':\n----\n'+c.data[k])).join('\n'));return true;}
+    E('error: this sandbox can describe pods, deployments, nodes, services and configmaps');
+  }
+  function logs(a,out){const {pos}=parse(a);if(!pos.length)E('error: expected a pod name, for example: kubectl logs reactor');
+    const p=podOf(pos[0],true),st=status(p);
+    if(st==='ContainerCreating'||st==='Pending'||st==='ErrImagePull'||st==='ImagePullBackOff')E('Error from server (BadRequest): container "'+p.app+'" in pod "'+p.name+'" is waiting to start: '+st);
+    if(p.bad==='crash'){out.push('['+p.app+'] firmware '+tagOf(p.image)+' starting\npanic: '+p.app+' solver: calibration table missing\n\ngoroutine 1 [running]:\nmain.main()\n\t/src/main.go:42 +0x1d\nexit status 2');return true;}
+    out.push((APPS[p.app]?APPS[p.app].log:['/docker-entrypoint.sh: Configuration complete; ready for start up']).join('\n'));return true;}
+  function exec(a,out){const {pos,rest}=parse(a);if(!pos.length||!rest.length)E('error: usage is kubectl exec POD -- COMMAND, for example: kubectl exec deploy/targeting -- env');
+    const p=podOf(pos[0]);if(status(p)!=='Running')E('error: unable to upgrade connection: container not found ("'+p.app+'")');
+    const c=rest[0];
+    if(c==='env'||c==='printenv'){const e=Object.assign({HOSTNAME:p.name,KUBERNETES_SERVICE_HOST:'10.96.0.1',KUBERNETES_SERVICE_PORT:'443'},p.env);
+      if(rest[1]){if(e[rest[1]]===undefined){out.push('command terminated with exit code 1');return false;}out.push(e[rest[1]]);return true;}
+      out.push(['PATH=/usr/local/bin:/usr/bin:/bin'].concat(Object.keys(e).map(k=>k+'='+e[k])).join('\n'));return true;}
+    if(c==='hostname'){out.push(p.name);return true;}
+    if(c==='curl'){const ok=curl(rest.slice(1),out,p);if(!ok)out.push('command terminated with exit code '+(/\((\d+)\)/.exec(out[out.length-1])||[0,7])[1]);return ok;}
+    if(c==='ls'){out.push('app  bin  etc  lib  proc  tmp  usr  var');return true;}
+    out.push('sh: '+c+': not found\ncommand terminated with exit code 127');return false;}
+
+  /* ----- apply ----- */
+  const norm=p=>{const o=[];String(p).split('/').forEach(s=>{if(s==='..')o.pop();else if(s&&s!=='.')o.push(s);});return o.join('/');};
+  const isDir=p=>Object.keys(FS).some(k=>k.startsWith(p+'/'));
+  function build(dir){const k=FS[dir+'/kustomization.yaml'];if(!k)E('error: unable to find one of \'kustomization.yaml\', \'kustomization.yml\' or \'Kustomization\' in directory \''+dir+'\'');
+    let docs=[];k.resources.forEach(r=>{const p=norm(dir+'/'+r);if(FS[p]&&!FS[p].kust)docs=docs.concat(FS[p].map(o=>Object.assign({},o)));else docs=docs.concat(build(p));});
+    if(k.replicas)docs.forEach(o=>{if(o.kind==='Deployment'&&k.replicas[o.name]!==undefined)o.replicas=k.replicas[o.name];});return docs;}
+  const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  function applyDoc(o,out){
+    if(o.kind==='Deployment'){const d=dep(o.name);const env=o.env||{},ef=o.envFrom||[];
+      if(!d){const n=mkDep(o.name,o.image,o.replicas);if(Object.keys(env).length||ef.length){n.env=env;n.envFrom=ef;n.history[0].tpl=tpl(n);owned(n).forEach(p=>p.killAt=now());w.pods=w.pods;reconcile(n);}out.push('deployment.apps/'+o.name+' created');return;}
+      const t=d.image!==o.image,r=d.replicas!==o.replicas;
+      if(!t&&!r){out.push('deployment.apps/'+o.name+' unchanged');return;}
+      d.replicas=o.replicas;if(t){d.image=o.image;changed(d,'image '+o.image);}else reconcile(d);out.push('deployment.apps/'+o.name+' configured');return;}
+    if(o.kind==='Service'){const s=w.svcs.find(x=>x.name===o.name);if(!s){mkSvc(o.name,o.selector||o.name,o.port,o.target);out.push('service/'+o.name+' created');return;}
+      if(s.port===o.port&&s.target===o.target){out.push('service/'+o.name+' unchanged');return;}s.port=o.port;s.target=o.target;out.push('service/'+o.name+' configured');return;}
+    if(o.kind==='ConfigMap'){const c=w.cms.find(x=>x.name===o.name);if(!c){w.cms.push({name:o.name,data:Object.assign({},o.data),created:now()});out.push('configmap/'+o.name+' created');return;}
+      if(same(c.data,o.data)){out.push('configmap/'+o.name+' unchanged');return;}c.data=Object.assign({},o.data);out.push('configmap/'+o.name+' configured');return;}
+  }
+  function docsFor(fl){
+    if(fl.kustomize){const d=norm(fl.kustomize);if(!isDir(d))E('error: the path "'+fl.kustomize+'" does not exist');return {docs:build(d)};}
+    if(!fl.filename||fl.filename===true)E('error: must specify one of -f and -k');
+    const p=norm(fl.filename);
+    if(FS[p]){if(FS[p].kust)E('error: unable to recognize "'+p+'": no matches for kind "Kustomization" in version "kustomize.config.k8s.io/v1beta1"\n(A kustomization file is read with -k and the folder name, not -f.)');return {docs:FS[p]};}
+    if(isDir(p)){let docs=[],kust=null;Object.keys(FS).filter(k=>k.startsWith(p+'/')&&!k.slice(p.length+1).includes('/')).sort().forEach(k=>{if(FS[k].kust)kust=k;else docs=docs.concat(FS[k]);});return {docs,kust};}
+    E('error: the path "'+fl.filename+'" does not exist');}
+  function apply(a,out){const {fl}=parse(a);const r=docsFor(fl);r.docs.forEach(o=>applyDoc(o,out));
+    if(r.kust){out.push('error: unable to recognize "'+r.kust+'": no matches for kind "Kustomization" in version "kustomize.config.k8s.io/v1beta1"');out.push('(The other files were applied. A folder with a kustomization.yaml is meant for: kubectl apply -k '+norm(fl.filename)+'/)');return false;}
+    return true;}
+
+  /* ----- delete ----- */
+  function delPod(p){p.killAt=now();const d=p.owner&&dep(p.owner);if(d)reconcile(d);}
+  function delObj(k,n,out,quiet){
+    if(k==='pod'){const p=w.pods.find(x=>x.name===n&&alive(x));if(!p){if(quiet)return;nf('pods',n);}delPod(p);out.push('pod "'+n+'" deleted');}
+    else if(k==='deployment'){const d=dep(n);if(!d){if(quiet)return;nf('deployments.apps',n);}owned(d).forEach(p=>{if(alive(p))p.killAt=now();});w.deps.splice(w.deps.indexOf(d),1);w.pods.forEach(p=>{if(p.owner===n)p.owner=null;});out.push('deployment.apps "'+n+'" deleted');}
+    else if(k==='service'){const i=w.svcs.findIndex(x=>x.name===n);if(i<0){if(quiet)return;nf('services',n);}w.svcs.splice(i,1);for(const f in w.fwd)if(w.fwd[f].svc===n)delete w.fwd[f];out.push('service "'+n+'" deleted');}
+    else if(k==='configmap'){const i=w.cms.findIndex(x=>x.name===n);if(i<0){if(quiet)return;nf('configmaps',n);}w.cms.splice(i,1);out.push('configmap "'+n+'" deleted');}
+    else if(k==='secret'){const i=w.secrets.findIndex(x=>x.name===n);if(i<0){if(quiet)return;nf('secrets',n);}w.secrets.splice(i,1);out.push('secret "'+n+'" deleted');}
+    else E('error: this sandbox can delete pods, deployments, services, configmaps and secrets');}
+  function del(a,out){const {pos,fl}=parse(a);
+    if(fl.filename||fl.kustomize){const r=docsFor(fl);r.docs.forEach(o=>delObj(o.kind.toLowerCase(),o.name,out,true));if(!out.length)out.push('No resources found');return true;}
+    if(fl.selector){const k=kind(pos[0]||'pod');if(k!=='pod')E('error: in this sandbox -l works with pods');const s=sel(fl.selector);const ps=w.pods.filter(p=>alive(p)&&match(p,s));
+      if(!ps.length){out.push('No resources found');return true;}ps.forEach(p=>{p.killAt=now();out.push('pod "'+p.name+'" deleted');});new Set(ps.map(p=>p.owner)).forEach(o=>{const d=o&&dep(o);if(d)reconcile(d);});return true;}
+    const t=target(pos);if(!t.length)E('error: resource(s) were provided, but no name was specified');t.forEach(x=>delObj(x[0],x[1],out));return true;}
+
+  /* ----- rollout / set / scale ----- */
+  const one=(pos,what)=>{const t=target(pos);if(!t.length||t[0][0]!=='deployment')E('error: name a deployment, for example: kubectl '+what+' deployment/targeting');return getDep(t[0][1]);};
+  function rollout(a,out){const sub=a[0];const {pos,fl}=parse(a.slice(1));
+    if(!['status','undo','history','restart'].includes(sub))E('error: this sandbox knows rollout status, history, undo and restart');
+    const d=one(pos,'rollout '+sub);
+    if(sub==='history'){out.push('deployment.apps/'+d.name+'\nREVISION  CHANGE-CAUSE\n'+d.history.map(h=>String(h.rev).padEnd(10)+'<none>').join('\n'));return true;}
+    if(sub==='restart'){d.restartedAt=now();changed(d,'restart');out.push('deployment.apps/'+d.name+' restarted');return true;}
+    if(sub==='undo'){if(d.history.length<2)E('error: no rollout history found for deployment "'+d.name+'"');
+      const h=d.history.splice(d.history.length-2,1)[0];Object.assign(d,{image:h.tpl.image,env:h.tpl.env,envFrom:h.tpl.envFrom,restartedAt:h.tpl.restartedAt});d.rev++;d.history.push({rev:d.rev,tpl:tpl(d)});reconcile(d);out.push('deployment.apps/'+d.name+' rolled back');return true;}
+    /* status */
+    const W='Waiting for deployment "'+d.name+'" rollout to finish: ';
+    if(imgState(d.image)&&d.replicas>0){out.push(W+depUpToDate(d)+' out of '+d.replicas+' new replicas have been updated...');out.push('\u0002900');out.push('(Still waiting. The new pod never becomes ready, so a real terminal would sit here until the rollout times out or you press Ctrl+C. Look at kubectl get pods.)');meta.stalled=true;return false;}
+    if(rollingOut(d)){const left=Math.max(600,(d.rollEnd||now()+1500)-now()),n=d.replicas,gap=Math.round(left/(n+1));
+      for(let i=1;i<n;i++){out.push(W+i+' out of '+n+' new replicas have been updated...');out.push('\u0002'+gap);}
+      out.push(W+'1 old replicas are pending termination...');out.push('\u0002'+gap);
+      out.push(W+Math.max(0,n-1)+' of '+n+' updated replicas are available...');out.push('\u0002'+(gap+400));}
+    out.push('deployment "'+d.name+'" successfully rolled out');return true;}
+  function set(a,out){const sub=a[0];const {pos,fl}=parse(a.slice(1));
+    if(sub==='image'){const d=one(pos.slice(0,pos[0].includes('/')?1:2),'set image');const pair=pos[pos[0].includes('/')?1:2];if(!pair||!pair.includes('='))E('error: usage is kubectl set image deployment/NAME CONTAINER=IMAGE');
+      const c=pair.slice(0,pair.indexOf('=')),im=pair.slice(pair.indexOf('=')+1);if(c!==d.name)E('error: unable to find container named "'+c+'". The container in this deployment is called "'+d.name+'"');
+      if(im===d.image){out.push('deployment.apps/'+d.name+' image unchanged');return true;}d.image=im;changed(d,'image '+im);out.push('deployment.apps/'+d.name+' image updated');return true;}
+    if(sub==='env'){const hasSlash=pos[0]&&pos[0].includes('/');const d=one(pos.slice(0,hasSlash?1:2),'set env');const kv=pos.slice(hasSlash?1:2);let ch=false;
+      if(fl.from){const p=String(fl.from).split('/');const k=kind(p[0]);if(k!=='configmap'&&k!=='secret')E('error: --from takes configmap/NAME or secret/NAME');
+        if(!(k==='secret'?w.secrets:w.cms).find(x=>x.name===p[1]))nf(k+'s',p[1]);const ref=k+'/'+p[1];if(!d.envFrom.includes(ref)){d.envFrom.push(ref);ch=true;}}
+      kv.forEach(x=>{const i=x.indexOf('=');if(i<1)E('error: environment variables are written KEY=value');if(d.env[x.slice(0,i)]!==x.slice(i+1)){d.env[x.slice(0,i)]=x.slice(i+1);ch=true;}});
+      if(!fl.from&&!kv.length)E('error: give KEY=value or --from=configmap/NAME');
+      if(ch)changed(d,'env');out.push('deployment.apps/'+d.name+' env updated');return true;}
+    E('error: this sandbox knows set image and set env');}
+  function scale(a,out){const {pos,fl}=parse(a);const d=one(pos,'scale');const n=+fl.replicas;if(fl.replicas===undefined||!(n>=0)||n%1)E('error: required flag(s) "replicas" not set. Example: --replicas=3');
+    if(n>24)E('error: this frame has room for 18 subsystem pods. Try a smaller number');d.replicas=n;reconcile(d);out.push('deployment.apps/'+d.name+' scaled');return true;}
+
+  /* ----- nodes ----- */
+  function nodeCmd(c,a,out){const {pos,fl}=parse(a);const nd=w.nodes.find(x=>x.name===pos[0])||(pos[0]?nf('nodes',pos[0]):E('error: name a node, for example: kubectl '+c+' legs'));
+    if(nd.role&&c!=='uncordon')E('error: this sandbox keeps the control-plane node "cockpit" in service');
+    if(c==='uncordon'){if(!nd.cordoned){out.push('node/'+nd.name+' already uncordoned');return true;}nd.cordoned=false;gc();out.push('node/'+nd.name+' uncordoned');return true;}
+    out.push('node/'+nd.name+(nd.cordoned?' already cordoned':' cordoned'));nd.cordoned=true;if(c==='cordon')return true;
+    const kp='kube-system/kube-proxy-'+({torso:'b8mnq',arms:'hv4zs',legs:'ptl6c'})[nd.name];
+    if(!fl['ignore-daemonsets']){out.push('error: unable to drain node "'+nd.name+'" due to error: cannot delete DaemonSet-managed Pods (use --ignore-daemonsets to ignore): '+kp+', continuing command...');out.push('(The node stays cordoned. Add --ignore-daemonsets and run it again.)');return false;}
+    const ps=w.pods.filter(p=>p.node===nd.name&&alive(p));const bare=ps.filter(p=>!p.owner);
+    if(bare.length&&!fl.force){out.push('error: unable to drain node "'+nd.name+'" due to error: cannot delete Pods that declare no controller (use --force to override): default/'+bare.map(p=>p.name).join(', default/')+', continuing command...');return false;}
+    out.push('Warning: ignoring DaemonSet-managed Pods: '+kp);
+    ps.forEach(p=>out.push('evicting pod default/'+p.name));ps.forEach(p=>{p.killAt=now();out.push('pod/'+p.name+' evicted');});
+    new Set(ps.map(p=>p.owner)).forEach(o=>{const d=o&&dep(o);if(d)reconcile(d);});out.push('node/'+nd.name+' drained');return true;}
+
+  const HELP=['Commands this sandbox understands:','',
+    '  kubectl get nodes|pods|deployments|replicasets|services|configmaps|secrets|all  [-o wide] [-l app=NAME] [-n kube-system]',
+    '  kubectl get configmap|secret|deployment|service NAME -o yaml',
+    '  kubectl run NAME --image=IMAGE',
+    '  kubectl create deployment NAME --image=IMAGE [--replicas=N]',
+    '  kubectl create configmap NAME --from-literal=KEY=value',
+    '  kubectl create secret generic NAME --from-literal=KEY=value',
+    '  kubectl describe pod|deployment|node|service NAME',
+    '  kubectl logs POD            kubectl logs deploy/NAME',
+    '  kubectl exec POD -- env     kubectl exec deploy/NAME -- curl -s SERVICE',
+    '  kubectl scale deployment NAME --replicas=N',
+    '  kubectl expose deployment NAME --port=80 --target-port=8080',
+    '  kubectl port-forward service/NAME 8080:80     curl localhost:8080',
+    '  kubectl apply -f FILE       kubectl apply -k FOLDER       kubectl delete -f FILE',
+    '  kubectl set image deployment/NAME NAME=IMAGE',
+    '  kubectl set env deployment/NAME --from=configmap/NAME',
+    '  kubectl patch configmap NAME -p \'{"data":{"KEY":"value"}}\'',
+    '  kubectl rollout status|history|undo|restart deployment/NAME',
+    '  kubectl cordon|drain|uncordon NODE',
+    '  kubectl delete pod|deployment|service|configmap|secret NAME     kubectl delete pod -l app=NAME',
+    '  ls [FOLDER]   cat FILE   clear   help','',
+    'Images in the hangar registry: hangar/reactor, balancer, comms, sensors, thrusters, targeting, railgun, shield, life-support (tags 1.0, 2.0).'].join('\n');
+
+  function kubectl(a,out){
+    const c=a[0],r=a.slice(1);
+    if(!c||c==='help'||c==='--help'){out.push(HELP);return true;}
+    if(c==='get')return get(r,out);
+    if(c==='describe')return describe(r,out);
+    if(c==='logs')return logs(r,out);
+    if(c==='exec')return exec(r,out);
+    if(c==='apply')return apply(r,out);
+    if(c==='delete')return del(r,out);
+    if(c==='rollout')return rollout(r,out);
+    if(c==='set')return set(r,out);
+    if(c==='scale')return scale(r,out);
+    if(c==='cordon'||c==='uncordon'||c==='drain')return nodeCmd(c,r,out);
+    if(c==='version'){out.push('Client Version: v1.34.2\nKustomize Version: v5.7.1\nServer Version: v1.34.2');return true;}
+    if(c==='cluster-info'){out.push('Kubernetes control plane is running at https://127.0.0.1:6443\nCoreDNS is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy');return true;}
+    if(c==='config'){out.push(r[0]==='current-context'?'kind-kestrel':'CURRENT   NAME           CLUSTER        AUTHINFO\n*         kind-kestrel   kind-kestrel   kind-kestrel');return true;}
+    if(c==='kustomize'){const d=norm(r[0]||'');if(!isDir(d))E('error: the path "'+(r[0]||'')+'" does not exist');out.push(build(d).map(toYaml).join('\n---\n'));return true;}
+    if(c==='run'){const {pos,fl}=parse(r);const n=pos[0];if(!n||!fl.image||fl.image===true)E('error: usage is kubectl run NAME --image=IMAGE');
+      if(w.pods.find(p=>p.name===n&&alive(p)))E('Error from server (AlreadyExists): pods "'+n+'" already exists');
+      const app=String(fl.image).replace(/^hangar\//,'').split(':')[0];mkPod(n,app,String(fl.image),null,'');out.push('pod/'+n+' created');return true;}
+    if(c==='create'){const k=r[0];const {pos,fl}=parse(r.slice(1));
+      if(k==='deployment'||k==='deploy'){const n=pos[0];if(!n||!fl.image||fl.image===true)E('error: usage is kubectl create deployment NAME --image=IMAGE');
+        const rep=fl.replicas===undefined?1:+fl.replicas;if(!(rep>=0)||rep>24)E('error: --replicas must be a number from 0 to 24');mkDep(n,String(fl.image),rep);out.push('deployment.apps/'+n+' created');return true;}
+      if(k==='configmap'||k==='cm'||k==='secret'){const n=k==='secret'?(pos[0]==='generic'?pos[1]:E('error: usage is kubectl create secret generic NAME --from-literal=KEY=value')):pos[0];
+        if(!n)E('error: exactly one NAME is required');const store=k==='secret'?w.secrets:w.cms;if(store.find(x=>x.name===n))E('Error from server (AlreadyExists): '+(k==='secret'?'secrets':'configmaps')+' "'+n+'" already exists');
+        const data={};(fl['from-literal']||[]).forEach(x=>{const i=String(x).indexOf('=');if(i<1)E('error: invalid literal source '+x+', expected key=value');data[x.slice(0,i)]=x.slice(i+1);});
+        store.push({name:n,data,created:now()});out.push((k==='secret'?'secret/':'configmap/')+n+' created');return true;}
+      if(k==='-f'||k==='-k')return apply(r,out);
+      E('error: this sandbox can create deployment, configmap and secret generic');}
+    if(c==='expose'){const {pos,fl}=parse(r);const d=one(pos,'expose');if(fl.port===undefined)E('error: couldn\'t find port via --port flag or introspection');
+      mkSvc(typeof fl.name==='string'?fl.name:d.name,d.name,+fl.port,+(fl['target-port']||fl.port),typeof fl.type==='string'?fl.type:'ClusterIP');out.push('service/'+(typeof fl.name==='string'?fl.name:d.name)+' exposed');return true;}
+    if(c==='port-forward'){const {pos}=parse(r);const t=pos[0]||'';const m=/^(\d+):(\d+)$/.exec(pos[1]||'');if(!t.includes('/')||!m)E('error: usage is kubectl port-forward service/NAME LOCAL:REMOTE, for example 8080:80');
+      const k=kind(t.split('/')[0]);if(k!=='service')E('error: in this sandbox, forward to a service: kubectl port-forward service/NAME 8080:80');
+      const s=w.svcs.find(x=>x.name===t.split('/')[1])||nf('services',t.split('/')[1]);if(+m[2]!==s.port)E('error: Service '+s.name+' does not have a service port '+m[2]);
+      w.fwd[+m[1]]={svc:s.name,port:s.port};out.push('Forwarding from 127.0.0.1:'+m[1]+' -> '+s.target+'\nForwarding from [::1]:'+m[1]+' -> '+s.target);
+      out.push('(On a real machine this command keeps running and holds the terminal until you press Ctrl+C. Here it carries on in the background so you can type the next command.)');return true;}
+    if(c==='patch'){const {pos,fl}=parse(r);const t=target(pos);if(!t.length||t[0][0]!=='configmap')E('error: in this sandbox patch works on a configmap');
+      const cm=w.cms.find(x=>x.name===t[0][1])||nf('configmaps',t[0][1]);let j;try{j=JSON.parse(fl.patch);}catch(e){E('error: unable to parse "'+fl.patch+'": the patch must be JSON, like \'{"data":{"PROFILE":"assault"}}\'');}
+      if(!j||typeof j.data!=='object')E('error: the patch needs a "data" object');for(const k in j.data)cm.data[k]=String(j.data[k]);out.push('configmap/'+cm.name+' patched');return true;}
+    E('error: unknown command "'+c+'" for "kubectl". Type help to see what this sandbox understands');
+  }
+  function run(line){
+    const out=[];let ok=true;meta={};gc();
+    const a=tok(line.trim());
+    if(!a.length)return {out:'',ok:true,meta};
+    try{
+      if(a[0]==='kubectl'||a[0]==='k')ok=kubectl(a.slice(1),out);
+      else if(a[0]==='curl')ok=curl(a.slice(1),out,null);
+      else if(a[0]==='help'){out.push(HELP);}
+      else if(a[0]==='clear'){return {out:'',ok:true,meta,clear:true};}
+      else if(a[0]==='ls'){const p=norm(a[1]||'');const pre=p?p+'/':'';const names=new Set();Object.keys(FS).forEach(k=>{if(k.startsWith(pre)){const r=k.slice(pre.length).split('/');names.add(r.length>1?r[0]+'/':r[0]);}});
+        if(!names.size){out.push('ls: cannot access \''+a[1]+'\': No such file or directory');ok=false;}else out.push([...names].sort().join('  '));}
+      else if(a[0]==='cat'){const p=norm(a[1]||'');if(FS[p])out.push(fileText(p));else{out.push('cat: '+(a[1]||'')+': '+(isDir(p)?'Is a directory':'No such file or directory'));ok=false;}}
+      else if(a[0]==='docker'){out.push('This sandbox has no docker command: on a cluster you do not start containers yourself. You tell Kubernetes what should run, with kubectl, and it starts them.');ok=false;}
+      else{out.push(a[0]+': this sandbox only understands kubectl, curl, ls, cat, help and clear');ok=false;}
+    }catch(e){out.push(e.message);ok=false;}
+    return {out:out.join('\n'),ok:ok!==false,meta};
+  }
+  function seedWith(cmds){skew=-95000;cmds.forEach(c=>run(c));skew=0;gc();}
+  return {exec:run,world:w,busy,status,seed:seedWith,q:{dep,owned,alive,endpoints,depReady,tplHash,rollingOut}};
+}
+
+/* ---------- Lesson content ---------- */
+const livePods=(w,app)=>w.pods.filter(p=>p.app===app&&!p.killAt);
+const depOf=(w,n)=>w.deps.find(d=>d.name===n);
+const reps=(w,n)=>{const d=depOf(w,n);return d?d.replicas:-1;};
+const profile=w=>{const c=w.cms.find(x=>x.name==='mission');return c?c.data.PROFILE:'';};
+
+const KEY_ROWS=[
+['the Kestrel, "the frame"','the cluster: all your servers, managed as one'],
+['cockpit','the control plane'],
+['torso, arms, legs ("sections")','worker nodes: servers or virtual machines'],
+['subsystem','one containerised service of your application'],
+['reactor','the core API that everything else depends on'],
+['targeting','a service that calls other services, such as a web app calling an API'],
+['sensors','a backend service that other services call'],
+['thrusters','stateless workers you scale up and down with load'],
+['comms, balancer','supporting services, such as a gateway or a background job runner'],
+['railgun, shield, life-support ("hardpoints")','optional services, switched on in some environments only'],
+['hangar/','a container registry, such as Docker Hub or your cloud provider\'s'],
+['firmware 1.0, 2.0','image tags: releases of your application'],
+['the frame folder ("blueprint")','the base configuration, kept in Git'],
+['mission: recon, assault, orbital','environment: dev, staging, production'],
+['loadout','an environment\'s overlay: its differences from the base'],
+['mission parameters','application settings (a ConfigMap)'],
+['IFF codes','credentials such as passwords and API keys (a Secret)'],
+['maintenance on a section','patching, upgrading or replacing a server'],
+['systems operator (you)','platform or DevOps engineer']];
+const KEY_HTML='<table class="key"><thead><tr><th>On the Kestrel</th><th>In a real system</th></tr></thead><tbody>'+KEY_ROWS.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('')+'</tbody></table>';
+
+const LESSONS=[
+{id:1,title:'From one container to a whole machine',short:'Why Kubernetes',mins:7,
+idea:`
+<p>In <em>Docker from Zero</em> you packed an app into an image and ran it as a container. With Compose you ran a few containers together on one computer. That is enough for a laptop, and often for one small server.</p>
+<p>It stops being enough when the questions change. What restarts a container that crashes at 3 a.m.? What happens when the one server dies? How do you run five copies and spread visitors across them? How do you ship a new version with nobody noticing? You could answer each with scripts. <strong>Kubernetes</strong> is the standard answer to all of them at once: you describe what should be running, and it works continuously to make that true.</p>
+<p>To make this concrete, this guide gives you a machine to run. You are the systems operator of the <strong>KF-07 Kestrel</strong>, a 17-metre piloted frame. Every subsystem on board (reactor, sensors, thrusters, targeting) is a container. Kubernetes is the control system that keeps them alive and re-arranges them for each mission.</p>
+<p>The machine is only there to make things easier to picture, so the real term always travels with it. Whenever a Kestrel word appears, its real-world name follows in parentheses, and the full translation key is further down this page and on the cheat sheet.</p>
+<dl class="terms">
+<dt>Cluster</dt><dd>A group of computers that Kubernetes manages as one. In real life: your servers or cloud virtual machines. Here: the whole frame.</dd>
+<dt>Node</dt><dd>One computer in the cluster. Containers run on nodes. The Kestrel has three worker nodes, one in each section: <code>torso</code>, <code>arms</code> and <code>legs</code>.</dd>
+<dt>Control plane</dt><dd>The part of the cluster that makes decisions: it stores what you asked for, picks a node for each container, and notices when reality drifts. Here it lives on a fourth node, <code>cockpit</code>.</dd>
+<dt>Pod</dt><dd>The smallest thing Kubernetes runs: a wrapper around one container (occasionally a few that must live together). You will mostly read "pod" as "one running container, plus its own network address".</dd>
+<dt>kubectl</dt><dd>The command-line remote control, pronounced "kube-control" or "kube-cuddle" depending on who you ask. Like <code>docker</code>, it only sends requests. The control plane does the work.</dd>
+</dl>
+<p>The one idea to carry through every lesson: <strong>you declare a desired state, and Kubernetes closes the gap</strong>. You do not say "start a thruster controller" (start a worker). You say "there should be two thruster controllers" (two copies of the worker), and from then on that is a standing order.</p>
+<h2>Translation key</h2>
+<p>Every Kestrel term used in this guide, and what it stands for in an ordinary web system.</p>
+${KEY_HTML}`,
+widget:'anatomy',widgetTitle:'The machine, part by part',
+widgetIntro:'Pick a Kubernetes term to see where it sits on the Kestrel. This schematic comes back in every lab, live, at the top of the sandbox.',
+notes:`
+<h2>How this guide works</h2>
+<p>As in the Docker guide, the cluster here is simulated in the page. Nothing is installed, and the commands are the real ones. On wide screens the sandbox sits on the right: a live schematic of the frame on top, a terminal underneath. On a phone it sits inside each lesson, under the steps.</p>
+<p>Pods take a moment to start, exactly as they do on a real cluster. If you list them straight after creating them you will catch them in <code>ContainerCreating</code>, and the schematic shows it: a part unfolds into place in amber while its pod starts, locks in blue once it is running, and folds away when the pod stops. When one command changes several subsystems at once, the whole frame opens up for a refit.</p>
+<p>Lesson 9 covers how to get a real cluster on your own machine once the ideas have settled.</p>`,
+quiz:[
+{q:'What is the main thing Kubernetes adds on top of running containers with Docker?',opts:['A faster way to build images','It replaces containers with virtual machines','It keeps a declared set of containers running across several machines, and repairs it when something fails','A graphical dashboard for Docker'],a:2,why:'Docker starts a container when you ask. Kubernetes holds a standing description of what should run and keeps working to match it, across many nodes.'},
+{q:'On the Kestrel, which part plays the role of the control plane?',opts:['The reactor','The cockpit node, which stores the desired state and makes scheduling decisions','Each thruster','The kubectl command on your laptop'],a:1,why:'The control plane is the decision-making part of the cluster. kubectl only sends it requests, and worker nodes only run what it assigns to them.'}],
+reading:[
+['Kubernetes overview','https://kubernetes.io/docs/concepts/overview/','The official introduction: what it is, what it does for you, and what it deliberately does not do.'],
+['Cluster architecture','https://kubernetes.io/docs/concepts/architecture/','A diagram and description of the control plane and node components.'],
+['Kubernetes basics tutorial','https://kubernetes.io/docs/tutorials/kubernetes-basics/','The official interactive beginner tutorial, a good second pass after this guide.']]
+},
+
+{id:2,title:'Power up: nodes and pods',short:'Nodes and pods',mins:10,
+idea:`
+<p>Before changing anything, look around. Two questions cover most of what you need to know about any cluster: <strong>which machines are in it</strong>, and <strong>what is running on them</strong>.</p>
+<p>Then you will start one subsystem (one service of an application) by hand: the reactor, which stands for the core API that everything else depends on. In Docker you would write <code>docker run</code>. The closest Kubernetes command is <code>kubectl run</code>, which creates a single <strong>pod</strong>.</p>
+<p>Notice what you do <em>not</em> say: which machine to use. A part of the control plane called the <strong>scheduler</strong> picks a node that has room. The node then pulls the image and starts the container, the same way Docker did on your laptop.</p>
+<p>You will then start two more subsystems the same way, to see where the scheduler puts them. The sandbox accepts any of the Kestrel's images, so you can bring up other parts yourself at any point: <code>hangar/balancer</code>, <code>thrusters</code>, <code>targeting</code>, <code>railgun</code>, <code>shield</code> and <code>life-support</code>, all with the tag <code>1.0</code>.</p>
+<p>A pod created this way is on its own. If you delete it, or its node fails, nothing brings it back. That weakness is the reason the next lesson exists.</p>`,
+labIntro:'Work through the steps in order. Tap a command to load it into the terminal, then press Run. Watch the schematic above the terminal change as you go.',
+tasks:[
+{what:'List the machines in the cluster',cmd:'kubectl get nodes',
+ parts:[['kubectl get','Read and list objects of one type. You will use get for everything.'],['nodes','The type to list: the computers in the cluster.']],
+ saw:'Four nodes, all Ready. cockpit has the role control-plane: it runs the cluster\'s own brain and takes no ordinary workloads. torso, arms and legs are workers, which on a real cluster would be servers with names like node-1 or a cloud provider\'s machine ID.',
+ test:(l,w,r)=>r.ok&&/^(kubectl|k) get (nodes?|no)\b/.test(l)},
+{what:'Look at the control plane\'s own pods',cmd:'kubectl get pods -n kube-system',
+ parts:[['pods','The type to list.'],['-n kube-system','Namespace. A namespace is a folder for objects. Kubernetes keeps its own components in one called kube-system. Without -n you look in the namespace called default.']],
+ saw:'Kubernetes runs itself as pods. kube-apiserver receives every kubectl request. etcd is the database holding the desired state. kube-scheduler picks nodes. kube-controller-manager runs the repair loops. kube-proxy and coredns handle networking, which you will use in lesson 4.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*(-n ?kube-system|--namespace[= ]kube-system|-A)/.test(l)},
+{what:'Start the reactor as a single pod',cmd:'kubectl run reactor --image=hangar/reactor:1.0',
+ parts:[['kubectl run reactor','Create one pod and call it reactor.'],['--image=hangar/reactor:1.0','The image to run, written repository:tag exactly as in Docker. hangar is this guide\'s pretend registry, standing in for a container registry such as Docker Hub.']],
+ saw:'The reply only says the pod object was created. Starting it is now the cluster\'s job: schedule it, pull the image, start the container.',
+ test:(l,w,r)=>r.ok&&w.pods.some(p=>p.name==='reactor')},
+{what:'List your pods',cmd:'kubectl get pods',
+ parts:[['kubectl get pods','List pods in the default namespace: name, how many containers are ready, status, restarts and age.']],
+ saw:'One pod. If you were quick, STATUS said ContainerCreating and READY said 0/1 while the node pulled the image. Run it again to see Running and 1/1.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\s*$/.test(l)},
+{what:'Read the pod\'s full report',cmd:'kubectl describe pod reactor',
+ parts:[['kubectl describe','A long, human-readable report about one object.'],['pod reactor','The type, then the name.']],
+ saw:'The Events list at the bottom is the story of the pod: Scheduled, Pulling, Pulled, Created, Started. When a pod will not start, this list is the first place to look.',
+ test:(l,w,r)=>r.ok&&/describe (pods?|po)[ \/]reactor/.test(l)},
+{what:'Read what the reactor printed',cmd:'kubectl logs reactor',
+ parts:[['kubectl logs','Show the output of the container in a pod, like docker logs.']],
+ saw:'The container\'s own output. describe tells you what Kubernetes did to the pod, and logs tells you what the program inside said.',
+ test:(l,w,r)=>r.ok&&/^(kubectl|k) logs\b/.test(l)},
+{what:'Start the sensors (a backend service) the same way',cmd:'kubectl run sensors --image=hangar/sensors:1.0',
+ parts:[['kubectl run sensors','A second pod, named sensors.'],['--image=hangar/sensors:1.0','A different image. Each subsystem of the Kestrel has its own, just as each service of an application does.']],
+ saw:'A second pod is starting. On the schematic the sensor mast extends from the head. Again, you did not say where it should run.',
+ test:(l,w,r)=>r.ok&&w.pods.some(p=>p.name==='sensors'&&!p.killAt)},
+{what:'Start the comms (a supporting service)',cmd:'kubectl run comms --image=hangar/comms:1.0',
+ parts:[['kubectl run comms','A third pod.'],['--image=hangar/comms:1.0','The comms image.']],
+ saw:'Three pods requested. The antenna on the head comes up.',
+ test:(l,w,r)=>r.ok&&w.pods.some(p=>p.name==='comms'&&!p.killAt)},
+{what:'See which node each pod landed on',cmd:'kubectl get pods -o wide',
+ parts:[['-o wide','Output format "wide": the same table with extra columns, including each pod\'s IP address and its node.']],
+ saw:'Look at the NODE column: the scheduler put the three pods on three different nodes, torso, arms and legs, because it spreads work towards whichever node has the most room. The subsystem a pod runs and the section it runs in are unrelated: sensors do not have to run in the head. IP is each pod\'s own address inside the cluster.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*-o ?wide/.test(l)},
+{what:'Delete the reactor pod',cmd:'kubectl delete pod reactor',
+ parts:[['kubectl delete','Remove an object. For a pod, that stops its container.']],
+ saw:'The reactor is shutting down. Watch the schematic: the chest ring goes dark. The other two pods are untouched.',
+ test:(l,w,r)=>r.ok&&!w.pods.some(p=>p.name==='reactor'&&!p.killAt)},
+{what:'Check whether anything brought it back',cmd:'kubectl get pods',
+ parts:[['kubectl get pods','List pods again.']],
+ saw:'Nothing did. sensors and comms are still running, and the reactor is simply gone. A bare pod has no one watching over it. A frame whose reactor stays off after one fault (an application whose API stays down after one crash) is not much use, so next you will hand that job to a Deployment.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\s*$/.test(l)}],
+quiz:[
+{q:'You ran kubectl run and did not say which node to use. What decided?',opts:['kubectl picked the first node in the list','The scheduler, a control-plane component, picked a node with room','The image has a node name built in','Pods always go to the control-plane node'],a:1,why:'Placing pods is the scheduler\'s job. By default the control-plane node is kept free of ordinary workloads.'},
+{q:'A pod is stuck and never reaches Running. Which command tells you what Kubernetes tried to do with it?',opts:['kubectl logs','kubectl get nodes','kubectl describe pod NAME, and read the Events at the bottom','kubectl run again'],a:2,why:'Events record scheduling, image pulls and start attempts. Logs only exist once the container has actually started.'}],
+reading:[
+['Pods','https://kubernetes.io/docs/concepts/workloads/pods/','What a pod is, and why it is a wrapper rather than just a container.'],
+['Nodes','https://kubernetes.io/docs/concepts/architecture/nodes/','What a node runs and how it reports its status.'],
+['kubectl quick reference','https://kubernetes.io/docs/reference/kubectl/quick-reference/','The official cheat sheet. Worth a bookmark.']]
+},
+
+{id:3,title:'Deployments: subsystems that heal',short:'Deployments',mins:10,
+idea:`
+<p>You almost never create pods directly. You create a <strong>Deployment</strong>, which is a standing order: "keep <em>N</em> copies of this container running".</p>
+<p>A controller in the control plane then runs a loop, forever: count the pods that match, compare with the number you asked for, and create or remove pods to close the gap. This is called <strong>reconciliation</strong>, and it is the heart of Kubernetes.</p>
+<dl class="terms">
+<dt>Replicas</dt><dd>The number of identical pods you want. Two thruster controllers means <code>replicas: 2</code>.</dd>
+<dt>Label</dt><dd>A key=value tag on an object, such as <code>app=thrusters</code>. Labels are how a Deployment knows which pods are its own, and how you select a group of pods in a command.</dd>
+<dt>ReplicaSet</dt><dd>A helper object the Deployment creates. The ReplicaSet does the counting, and the Deployment manages ReplicaSets. You rarely touch one, but you will see its name inside every pod name.</dd>
+</dl>
+<p>The lab uses the thrusters, which stand for any stateless service you run several identical copies of, such as web servers or queue workers.</p>
+<p>Because pods under a Deployment are replaceable, they get throwaway names with a random ending. You stop caring about any single pod, and that is the point.</p>`,
+labIntro:'Give the thrusters a Deployment, then try to break it.',
+tasks:[
+{what:'Create a Deployment with two thruster controllers (two copies of a worker)',cmd:'kubectl create deployment thrusters --image=hangar/thrusters:1.0 --replicas=2',
+ parts:[['kubectl create deployment thrusters','Create a Deployment named thrusters. Its pods are automatically labelled app=thrusters.'],['--image=hangar/thrusters:1.0','The image every pod will run.'],['--replicas=2','The standing order: two pods, always.']],
+ saw:'One object created, and two pods are starting because of it. On the schematic, two thruster units light up behind the shoulders.',
+ test:(l,w,r)=>!!depOf(w,'thrusters')},
+{what:'Check the Deployment',cmd:'kubectl get deployments',
+ parts:[['deployments','The type to list. The short name deploy also works.']],
+ saw:'READY 2/2 means two pods are running out of two wanted. If it showed 0/2 or 1/2, the pods were still starting.',
+ test:(l,w,r)=>r.ok&&/get (deployments?|deploy)\b/.test(l)},
+{what:'List only the thruster pods',cmd:'kubectl get pods -l app=thrusters',
+ parts:[['-l app=thrusters','Label selector. Show only objects carrying the label app=thrusters.']],
+ saw:'Two pods named thrusters-, then the ReplicaSet\'s code, then a random ending. Note the names and ages.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*(-l ?|--selector[= ])app=thrusters/.test(l)},
+{what:'Sabotage (simulate a crash): delete both thruster pods',cmd:'kubectl delete pod -l app=thrusters',
+ parts:[['delete pod -l app=thrusters','Delete every pod with that label. This simulates both controllers crashing at once.']],
+ saw:'Both pods were deleted. Keep your eye on the schematic.',
+ test:(l,w,r)=>r.ok&&/delete (pods?|po)\b/.test(l)&&!!depOf(w,'thrusters')},
+{what:'List the thruster pods again',cmd:'kubectl get pods -l app=thrusters',
+ parts:[['kubectl get pods -l app=thrusters','The same list as before.']],
+ saw:'Two pods again, with new names and a young AGE. The controller saw zero where there should be two and replaced them within a second. You did nothing.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*app=thrusters/.test(l)},
+{what:'Ask for more thrust (more capacity): scale to four',cmd:'kubectl scale deployment thrusters --replicas=4',
+ parts:[['kubectl scale deployment thrusters','Change the wanted count on this Deployment.'],['--replicas=4','The new standing order.']],
+ saw:'You changed one number. The controller is creating two more pods to match it.',
+ test:(l,w,r)=>reps(w,'thrusters')===4},
+{what:'See how the pods are spread over the frame',cmd:'kubectl get pods -o wide',
+ parts:[['-o wide','Adds the IP and NODE columns.']],
+ saw:'The scheduler spread the four pods across torso, arms and legs. If one section (one node, meaning one server) is lost, the others still have thrust.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*-o ?wide/.test(l)},
+{what:'Look at the layer in the middle',cmd:'kubectl get replicasets',
+ parts:[['replicasets','The helper objects that do the counting. Short name: rs.']],
+ saw:'One ReplicaSet, wanting 4 and having 4. Its name is the middle part of each pod name. Lesson 8 shows why the extra layer exists: each new version of a Deployment gets its own ReplicaSet.',
+ test:(l,w,r)=>r.ok&&/get (replicasets?|rs)\b/.test(l)},
+{what:'Power down to one',cmd:'kubectl scale deployment thrusters --replicas=1',
+ parts:[['--replicas=1','Scaling works in both directions. Surplus pods are terminated.']],
+ saw:'Three pods are terminating. Reconciliation closes the gap whichever way it points.',
+ test:(l,w,r)=>reps(w,'thrusters')===1}],
+quiz:[
+{q:'You delete a pod that belongs to a Deployment with replicas set to 3. What happens?',opts:['The Deployment now has 2 pods until you scale it','The Deployment is deleted too','The controller notices 2 where there should be 3 and starts a replacement','The pod restarts with the same name'],a:2,why:'The desired count has not changed, so the controller closes the gap with a brand-new pod. To really remove pods, change the replica count or delete the Deployment.'},
+{q:'How does a Deployment know which pods are its own?',opts:['By the pod\'s IP address','By labels: it selects pods carrying a label such as app=thrusters','By the order they were created','Pods are stored inside the Deployment'],a:1,why:'Labels and selectors are the glue between Kubernetes objects. Services use the same mechanism in the next lesson.'}],
+reading:[
+['Deployments','https://kubernetes.io/docs/concepts/workloads/controllers/deployment/','The reference for the object you will use most.'],
+['Labels and selectors','https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/','How objects are tagged and found.'],
+['Controllers','https://kubernetes.io/docs/concepts/architecture/controller/','The thermostat explanation of control loops, straight from the docs.']]
+},
+
+{id:4,title:'Services: a stable channel',short:'Services',mins:11,
+idea:`
+<p>The targeting computer needs data from the sensor array. In real terms, one service needs to call another, the way a web app calls an API. Each sensor pod has its own IP address, so targeting could call one directly. But you just saw that pods are disposable: when one is replaced, the new pod has a new address. And with three sensor pods, which one should it call?</p>
+<p>A <strong>Service</strong> solves both problems. It is a fixed name and a fixed address that stands in front of a changing set of pods.</p>
+<ul>
+<li>It picks its pods by <strong>label</strong>, the same way a Deployment does.</li>
+<li>Inside the cluster, the Service's name works as a host name. Other pods simply call <code>http://sensors</code>.</li>
+<li>Each request is passed to one of the pods that are currently ready, so traffic is spread across them.</li>
+</ul>
+<p>If you remember Compose, where the service name <code>db</code> worked as a host name, this is the same idea made to work across many machines.</p>
+<p>The default kind of Service, <strong>ClusterIP</strong>, is only reachable from inside the cluster. To reach one from your own computer while developing, <code>kubectl port-forward</code> opens a temporary tunnel.</p>`,
+seed:['kubectl create deployment sensors --image=hangar/sensors:1.0 --replicas=3','kubectl create deployment targeting --image=hangar/targeting:1.0'],
+labIntro:'The sandbox starts with three sensor pods (three copies of a backend service) and one targeting pod (the service that calls it) already running. Connect them.',
+tasks:[
+{what:'See the pods and their addresses',cmd:'kubectl get pods -o wide',
+ parts:[['-o wide','Shows each pod\'s IP address and node.']],
+ saw:'Every pod has its own IP. Those addresses are real, but they last only as long as the pod does.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*-o ?wide/.test(l)},
+{what:'From targeting, try to call the sensors by name',cmd:'kubectl exec deploy/targeting -- curl -s sensors',
+ parts:[['kubectl exec deploy/targeting','Run a command inside a pod of the targeting Deployment, like docker exec.'],['--','Everything after the double dash is the command to run inside the container, not an option for kubectl.'],['curl -s sensors','Fetch http://sensors. The -s only hides curl\'s progress meter.']],
+ saw:'Could not resolve host. The name "sensors" means nothing on the cluster network yet, because no Service has claimed it.',
+ test:(l,w,r)=>!r.ok&&/exec\b.*curl/.test(l)},
+{what:'Create a Service in front of the sensor pods',cmd:'kubectl expose deployment sensors --port=80 --target-port=8080',
+ parts:[['kubectl expose deployment sensors','Create a Service named sensors that selects the same pods as the Deployment.'],['--port=80','The port the Service listens on.'],['--target-port=8080','The port the containers listen on. The Service forwards 80 to 8080, much like -p 80:8080 in Docker.']],
+ saw:'A Service now exists. On the schematic it appears in the Services column with three endpoints.',
+ test:(l,w,r)=>w.svcs.some(s=>s.name==='sensors')},
+{what:'List Services',cmd:'kubectl get services',
+ parts:[['services','The type to list. Short name: svc.']],
+ saw:'sensors has a CLUSTER-IP: one stable address that will not change while the Service exists. The kubernetes Service above it is built in and is how pods reach the control plane.',
+ test:(l,w,r)=>r.ok&&/get (services?|svc)\b/.test(l)},
+{what:'Call the sensors by name again',cmd:'kubectl exec deploy/targeting -- curl -s sensors',
+ parts:[['curl -s sensors','The cluster\'s DNS now answers for the name sensors with the Service\'s address.']],
+ saw:'An answer. Look at the "pod" field in the reply: it names the sensor pod that handled this request.',
+ test:(l,w,r)=>r.ok&&/exec\b.*curl\b.*sensors/.test(l)},
+{what:'Call it once more',cmd:'kubectl exec deploy/targeting -- curl -s sensors',
+ parts:[['curl -s sensors','Exactly the same request.']],
+ saw:'A different pod answered. The Service spreads requests across every ready sensor pod, and targeting never needs to know how many there are.',
+ test:(l,w,r)=>r.ok&&/exec\b.*curl\b.*sensors/.test(l)},
+{what:'See which pods are behind the Service',cmd:'kubectl describe service sensors',
+ parts:[['describe service sensors','The full report for the Service.']],
+ saw:'Endpoints lists three pod addresses on port 8080. Selector shows the label that chose them: app=sensors.',
+ test:(l,w,r)=>r.ok&&/describe (services?|svc)[ \/]sensors/.test(l)},
+{what:'Replace every sensor pod',cmd:'kubectl delete pod -l app=sensors',
+ parts:[['delete pod -l app=sensors','Delete all three. The Deployment will replace them, with new names and new IP addresses.']],
+ saw:'All three sensor pods are being replaced. Their old addresses are gone for good.',
+ test:(l,w,r)=>r.ok&&/delete (pods?|po)\b/.test(l)},
+{what:'Check the replacements are running',cmd:'kubectl get pods -l app=sensors',
+ parts:[['-l app=sensors','Only the sensor pods.']],
+ saw:'Three new pods. If any still say ContainerCreating, give them a second and list again before the next step.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*app=sensors/.test(l)},
+{what:'Call the sensors a third time',cmd:'kubectl exec deploy/targeting -- curl -s sensors',
+ parts:[['curl -s sensors','The same name as before.']],
+ saw:'It still works. Every pod behind the name changed and the caller never noticed. That is the whole purpose of a Service.',
+ test:(l,w,r)=>r.ok&&/exec\b.*curl\b.*sensors/.test(l)},
+{what:'Open a tunnel from your computer to the Service',cmd:'kubectl port-forward service/sensors 8080:80',
+ parts:[['kubectl port-forward service/sensors','Forward a port on your own computer to this Service. A debugging tool, not how real users get in.'],['8080:80','local port : Service port. The order matches Docker: your side first.']],
+ saw:'Port 8080 on your machine now leads to the Service. On a real machine this command keeps running until you press Ctrl+C.',
+ test:(l,w,r)=>r.ok&&Object.keys(w.fwd).length>0},
+{what:'Read the sensors from your own computer',cmd:'curl localhost:8080',
+ parts:[['curl localhost:8080','A request from outside the cluster, through the tunnel.']],
+ saw:'The cockpit display has its sensor feed (your laptop has reached a service inside the cluster). For permanent outside access you would use a Service of type LoadBalancer or an Ingress, covered in lesson 9.',
+ test:(l,w,r)=>r.ok&&/^curl\b.*localhost/.test(l)}],
+quiz:[
+{q:'Why should one pod not call another pod by its IP address?',opts:['Pod IP addresses are secret','Pods are replaced routinely, and a replacement gets a new address','Pods have no IP addresses','It is slower than using a name'],a:1,why:'A Service gives a stable name and address in front of pods that come and go.'},
+{q:'How does a Service decide which pods receive its traffic?',opts:['You list pod names in the Service','It sends to every pod in the cluster','By a label selector, and only pods that are ready are included','It picks the oldest pod'],a:2,why:'The selector matches labels such as app=sensors. Pods that are still starting, or failing, are left out until they are ready.'}],
+reading:[
+['Services','https://kubernetes.io/docs/concepts/services-networking/service/','The types of Service and how each one works.'],
+['DNS for Services and Pods','https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/','Why the name "sensors" resolves, and the longer forms of the name.'],
+['Use port forwarding','https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/','The official walk-through of kubectl port-forward.']]
+},
+
+{id:5,title:'Manifests: the frame, written down',short:'Manifests',mins:11,
+idea:`
+<p>So far you have typed orders one at a time: create this, scale that. Those are <strong>imperative</strong> commands. They are fine for exploring, but nobody can review them, repeat them exactly, or see what changed last Tuesday.</p>
+<p>The way Kubernetes is really used is <strong>declarative</strong>. You write each object in a YAML file called a <strong>manifest</strong>, keep the files in Git, and hand them to the cluster with one command: <code>kubectl apply</code>.</p>
+<p><code>apply</code> means "make the cluster match this file". If the object is missing it is created. If it differs it is changed. If it already matches, nothing happens. You can run it as often as you like, which is what makes it safe to automate.</p>
+<p>The engineers have written the Kestrel's standard configuration this way, in a folder called <code>frame</code>. It is the blueprint of the machine (in a real project, the base configuration: your application's manifests, kept in its Git repository).</p>`,
+widget:'manifest',widgetTitle:'Reading a manifest',
+widgetIntro:'This is frame/sensors.yaml: a Deployment and a Service in one file. Tap any line to see what it does.',
+labIntro:'Build the frame from its files.',
+tasks:[
+{what:'List the blueprint files',cmd:'ls frame',
+ parts:[['ls frame','List the files in the frame folder. This is an ordinary shell command, not kubectl.']],
+ saw:'One YAML file per subsystem, hardpoints.yaml for the optional mounts, and a kustomization.yaml, which you will open in a moment.',
+ test:(l,w,r)=>r.ok&&/^ls frame\/?$/.test(l)},
+{what:'Read the reactor\'s manifest',cmd:'cat frame/reactor.yaml',
+ parts:[['cat frame/reactor.yaml','Print the file.']],
+ saw:'Two objects separated by a line of three dashes: a Deployment (one reactor pod) and a Service (the name "reactor" on port 80). Everything you set with flags earlier is here as text.',
+ test:(l,w,r)=>r.ok&&/^cat frame\/reactor\.yaml$/.test(l)},
+{what:'Apply it',cmd:'kubectl apply -f frame/reactor.yaml',
+ parts:[['kubectl apply','Make the cluster match what the file describes.'],['-f frame/reactor.yaml','The file to read.']],
+ saw:'Both objects say "created", because neither existed. The reactor ring on the schematic comes on.',
+ test:(l,w,r)=>!!depOf(w,'reactor')},
+{what:'Apply the same file again',cmd:'kubectl apply -f frame/reactor.yaml',
+ parts:[['kubectl apply -f','The identical command.']],
+ saw:'"unchanged", twice. The cluster already matches the file, so there is nothing to do. Applying is safe to repeat.',
+ test:(l,w,r)=>r.ok&&/unchanged/.test(r.out)&&/apply\b.*reactor\.yaml/.test(l)},
+{what:'Read the list of what belongs to the frame',cmd:'cat frame/kustomization.yaml',
+ parts:[['kustomization.yaml','A small index file. Its resources list names every manifest that makes up this folder\'s configuration.']],
+ saw:'Seven files listed under resources. A tool built into kubectl, called Kustomize, reads this list. It becomes much more useful in lesson 7.',
+ test:(l,w,r)=>r.ok&&/^cat frame\/kustomization\.yaml$/.test(l)},
+{what:'Apply the whole frame (the complete base configuration)',cmd:'kubectl apply -k frame/',
+ parts:[['-k frame/','Apply a folder through its kustomization.yaml: every file on the list, in one go. Use -f for single files and -k for a folder like this one.']],
+ saw:'The reactor is unchanged and everything else is created. The schematic fills in: sensors, comms, balancer, targeting and two thrusters. The railgun, shield and life-support (optional services) exist as Deployments with zero replicas: defined, but switched off.',
+ test:(l,w,r)=>w.deps.length>=9},
+{what:'Check every subsystem',cmd:'kubectl get deployments',
+ parts:[['kubectl get deployments','List all Deployments with their ready counts.']],
+ saw:'Nine Deployments. The three hardpoints read 0/0: defined, with nothing mounted. That is the standard frame.',
+ test:(l,w,r)=>r.ok&&/get (deployments?|deploy)\b/.test(l)},
+{what:'Make a change by hand',cmd:'kubectl scale deployment thrusters --replicas=5',
+ parts:[['kubectl scale','An imperative change that exists only in the cluster. No file records it.']],
+ saw:'Five thrusters. The cluster now disagrees with the blueprint. This is called drift, and it is how real systems slowly become mysteries.',
+ test:(l,w,r)=>reps(w,'thrusters')===5},
+{what:'Apply the blueprint again',cmd:'kubectl apply -k frame/',
+ parts:[['kubectl apply -k frame/','Make the cluster match the files again.']],
+ saw:'thrusters says "configured" and is back to two. The files are the source of truth. Change the file and apply, and your change survives. Change the cluster by hand, and the next apply undoes it.',
+ test:(l,w,r)=>r.ok&&reps(w,'thrusters')===2&&/apply\b/.test(l)},
+{what:'Remove one subsystem (one service) using its file',cmd:'kubectl delete -f frame/comms.yaml',
+ parts:[['kubectl delete -f','Delete every object the file describes. The file names what to remove, so you do not have to.']],
+ saw:'The comms Deployment and its Service are both gone. Note that removing a file from a folder does not delete anything from the cluster. Deleting is always explicit.',
+ test:(l,w,r)=>!depOf(w,'comms')}],
+quiz:[
+{q:'You run kubectl apply on a file whose objects already exist and match. What happens?',opts:['An AlreadyExists error','The pods are restarted','Nothing changes: each object is reported as unchanged','The objects are deleted and recreated'],a:2,why:'apply compares the file with the cluster and only acts on differences. kubectl create, by contrast, fails if the object exists.'},
+{q:'Someone scaled a Deployment by hand, and later the manifests were applied again. Which replica count wins?',opts:['The one in the manifest','The hand-typed one, permanently','Whichever is larger','The cluster refuses to apply'],a:0,why:'apply sets every field the file specifies. That is why teams change the file, not the cluster.'}],
+reading:[
+['Declarative management with configuration files','https://kubernetes.io/docs/tasks/manage-kubernetes-objects/declarative-config/','How kubectl apply works, including how it merges changes.'],
+['Objects in Kubernetes','https://kubernetes.io/docs/concepts/overview/working-with-objects/','apiVersion, kind, metadata and spec: the four fields every manifest has.'],
+['Deployment v1 API reference','https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/deployment-v1/','Every field a Deployment accepts. Dense, but it is the final authority.']]
+},
+
+{id:6,title:'Mission parameters: ConfigMaps and Secrets',short:'Config and secrets',mins:11,
+idea:`
+<p>In the Docker guide you passed settings with <code>-e KEY=value</code>, so one image could run with different settings. Kubernetes keeps the same principle (settings stay <em>out</em> of the image) and gives the settings their own objects.</p>
+<dl class="terms">
+<dt>ConfigMap</dt><dd>A named set of ordinary key=value settings. On the Kestrel: a mission profile and a sensor range. In a real system: an environment name, a log level, a feature switch, the address of another service.</dd>
+<dt>Secret</dt><dd>The same shape, for sensitive values. On the Kestrel: the identification (IFF) codes. In a real system: database passwords, API keys, signing keys. It is handled a little more carefully by the cluster and can be locked down separately.</dd>
+</dl>
+<p>A Deployment then <em>refers</em> to a ConfigMap or Secret, and its pods receive the values as environment variables when they start.</p>
+<p>Two facts catch nearly everyone, and the lab makes you run into both on purpose:</p>
+<ul>
+<li>A Secret is <strong>encoded, not encrypted</strong>. Anyone who can read the object can read the value.</li>
+<li>Environment variables are read <strong>once, when a pod starts</strong>. Editing a ConfigMap does not reach pods that are already running.</li>
+</ul>`,
+seed:['kubectl create deployment targeting --image=hangar/targeting:1.0 --replicas=2','kubectl create deployment sensors --image=hangar/sensors:1.0'],
+labIntro:'The sandbox starts with two targeting pods and one sensor pod. Give targeting (a service of your app) its mission parameters (its settings).',
+tasks:[
+{what:'Create a ConfigMap with the mission parameters (application settings)',cmd:'kubectl create configmap mission --from-literal=PROFILE=patrol --from-literal=SENSOR_RANGE_KM=40',
+ parts:[['kubectl create configmap mission','Create a ConfigMap named mission.'],['--from-literal=KEY=value','One setting. Repeat the flag for each one. (In real projects you would write this as a manifest, as in lesson 5.)']],
+ saw:'The ConfigMap exists, and it appears in the Config column of the schematic. No pod uses it yet.',
+ test:(l,w,r)=>w.cms.some(c=>c.name==='mission')},
+{what:'Read it back',cmd:'kubectl get configmap mission -o yaml',
+ parts:[['-o yaml','Print the object as YAML, the same shape as a manifest. This works for any object and is a handy way to see how something is written.']],
+ saw:'Plain text under data. Note the quotes around "40": ConfigMap values are always text, so a number has to be quoted in YAML.',
+ test:(l,w,r)=>r.ok&&/get (configmaps?|cm)[ \/]mission\b.*-o ?yaml/.test(l)},
+{what:'Connect the targeting Deployment to the ConfigMap',cmd:'kubectl set env deployment/targeting --from=configmap/mission',
+ parts:[['kubectl set env deployment/targeting','Change the environment variables in this Deployment\'s pod template.'],['--from=configmap/mission','Take every key in the ConfigMap as a variable.']],
+ saw:'You changed the pod template, so the Deployment is replacing its pods with new ones built from the new template. Watch the targeting pods on the schematic turn over.',
+ test:(l,w,r)=>{const d=depOf(w,'targeting');return !!d&&d.envFrom.includes('configmap/mission');}},
+{what:'Wait for the replacement to finish',cmd:'kubectl rollout status deployment/targeting',
+ parts:[['kubectl rollout status','Follow a Deployment while it replaces its pods, and return when it is done.']],
+ saw:'"successfully rolled out": both targeting pods now come from the new template. Lesson 8 looks at rollouts properly.',
+ test:(l,w,r)=>r.ok&&/rollout status\b.*targeting/.test(l)},
+{what:'Look at the environment inside a targeting pod',cmd:'kubectl exec deploy/targeting -- env',
+ parts:[['-- env','Run env inside the container to print its environment variables.']],
+ saw:'PROFILE=patrol and SENSOR_RANGE_KM=40 are there, delivered from the ConfigMap. The image did not change.',
+ test:(l,w,r)=>r.ok&&/PROFILE=/.test(r.out)},
+{what:'Store the identification code (a credential) as a Secret',cmd:'kubectl create secret generic iff-codes --from-literal=IFF_KEY=kestrel-7-amber',
+ parts:[['kubectl create secret generic iff-codes','Create a Secret named iff-codes. "generic" means plain key=value pairs, as opposed to special kinds such as registry logins.'],['--from-literal=IFF_KEY=...','The sensitive value.']],
+ saw:'Created. Typing a secret on the command line leaves it in your shell history, so real projects load Secrets from a file or a secrets manager.',
+ test:(l,w,r)=>w.secrets.some(c=>c.name==='iff-codes')},
+{what:'Read the Secret back',cmd:'kubectl get secret iff-codes -o yaml',
+ parts:[['get secret iff-codes -o yaml','Print the Secret as YAML.']],
+ saw:'IFF_KEY looks scrambled, but it is only base64, an encoding anyone can reverse in one command. A Secret is not encrypted by being a Secret. Never commit a Secret manifest to Git as it is.',
+ test:(l,w,r)=>r.ok&&/get secrets?[ \/]iff-codes\b.*-o ?yaml/.test(l)},
+{what:'Change the mission profile (edit a setting)',cmd:'kubectl patch configmap mission -p \'{"data":{"PROFILE":"assault"}}\'',
+ parts:[['kubectl patch configmap mission','Change part of an existing object in place.'],['-p \'{"data":{"PROFILE":"assault"}}\'','The patch, written as JSON: set the PROFILE key under data. (With manifests you would edit the file and apply it instead.)']],
+ saw:'The ConfigMap now says assault. The schematic header changes, because it reads the ConfigMap.',
+ test:(l,w,r)=>profile(w)==='assault'},
+{what:'Ask a running pod which profile it has',cmd:'kubectl exec deploy/targeting -- printenv PROFILE',
+ parts:[['printenv PROFILE','Print one environment variable.']],
+ saw:'Still patrol. The pod read its environment when it started and has no way to notice the ConfigMap changed. This catches everyone once.',
+ test:(l,w,r)=>r.ok&&/printenv PROFILE/.test(l)&&/patrol/.test(r.out)},
+{what:'Restart the pods so they read the new value',cmd:'kubectl rollout restart deployment/targeting',
+ parts:[['kubectl rollout restart','Replace every pod of a Deployment with a fresh one, gradually, without changing anything else.']],
+ saw:'The Deployment is replacing its pods one after another. No downtime: old pods stay until new ones are ready.',
+ test:(l,w,r)=>r.ok&&/rollout restart\b.*targeting/.test(l)},
+{what:'Wait for it',cmd:'kubectl rollout status deployment/targeting',
+ parts:[['kubectl rollout status','Follow the restart until it completes.']],
+ saw:'Rolled out.',
+ test:(l,w,r)=>r.ok&&/rollout status\b.*targeting/.test(l)},
+{what:'Ask again',cmd:'kubectl exec deploy/targeting -- printenv PROFILE',
+ parts:[['printenv PROFILE','The same question, to a fresh pod.']],
+ saw:'assault. New pods, new environment. The rule to remember: after changing a ConfigMap or Secret that pods read as environment variables, restart those pods.',
+ test:(l,w,r)=>r.ok&&/assault/.test(r.out)}],
+quiz:[
+{q:'What protection does storing a value in a Secret give you by default?',opts:['It is encrypted with a key only you hold','It is base64-encoded, which is not encryption. Protection comes from limiting who can read Secrets','It cannot be read by kubectl','It is deleted after first use'],a:1,why:'Base64 is a reversible encoding. Real protection comes from access rules, encryption at rest in the cluster, or an external secrets manager.'},
+{q:'You edit a ConfigMap that a Deployment loads as environment variables. When do the running pods see the change?',opts:['Immediately','Within a minute','Only after the pods are replaced, for example with kubectl rollout restart','Never, the Deployment must be deleted'],a:2,why:'Environment variables are fixed when a container starts. A restart creates new pods, which read the current values.'}],
+reading:[
+['ConfigMaps','https://kubernetes.io/docs/concepts/configuration/configmap/','All the ways a pod can consume a ConfigMap, including as files.'],
+['Secrets','https://kubernetes.io/docs/concepts/configuration/secret/','What Secrets are, their types, and their limits.'],
+['Good practices for Kubernetes Secrets','https://kubernetes.io/docs/concepts/security/secrets-good-practices/','Encryption at rest, access control, and external stores.']]
+},
+
+{id:7,title:'Mission loadouts',short:'Mission loadouts',mins:12,
+idea:`
+<p>The Kestrel flies different missions (environments), and each needs the machine set up differently. Reconnaissance wants more sensors and nothing heavy. An assault wants the railgun and shield mounted. Orbital work wants every thruster and a sealed cabin.</p>
+<p>You could keep three complete copies of the blueprint, one per mission. But then every fix has to be made three times, and the copies drift apart. This is exactly the problem real teams have with <strong>development, staging and production</strong>: nearly the same system, with a few deliberate differences.</p>
+<p>The standard solution is built into kubectl and is called <strong>Kustomize</strong>:</p>
+<dl class="terms">
+<dt>Base</dt><dd>The shared configuration, written once. Here: the <code>frame</code> folder from lesson 5. In a real project it is usually a folder called <code>base</code>.</dd>
+<dt>Overlay</dt><dd>A small folder that says "start from the base, then change these few things". Here: one folder per mission under <code>missions</code>, and each mission's result is called a loadout. In a real project: one folder per environment under <code>overlays</code>, such as <code>dev</code>, <code>staging</code> and <code>production</code>.</dd>
+</dl>
+<p>An overlay's <code>kustomization.yaml</code> is only a few lines long, and <code>kubectl apply -k</code> combines it with the base and applies the result. Reconfiguring the whole machine becomes one command, and the difference between two missions is a file you can read in ten seconds.</p>`,
+widget:'missions',widgetTitle:'Three loadouts, one frame',
+widgetIntro:'Pick a mission to see what its overlay changes. Everything not listed stays as the base frame defines it.',
+seed:['kubectl apply -k frame/'],
+labIntro:'The sandbox starts with the standard frame (the base) from lesson 5 already applied. Refit it three times. Read each mission as an environment: recon, assault and orbital are this guide\'s dev, staging and production.',
+tasks:[
+{what:'Check the standard frame',cmd:'kubectl get deployments',
+ parts:[['kubectl get deployments','List every subsystem and its ready count.']],
+ saw:'The base: one of each core subsystem, two thrusters, and the three hardpoints at 0/0.',
+ test:(l,w,r)=>r.ok&&/get (deployments?|deploy)\b/.test(l)},
+{what:'See what a mission folder contains',cmd:'ls missions/recon',
+ parts:[['ls missions/recon','List the recon overlay\'s files.']],
+ saw:'Only two files: the overlay\'s kustomization.yaml, and mission.yaml, which holds this mission\'s ConfigMap.',
+ test:(l,w,r)=>r.ok&&/^ls missions\/recon\/?$/.test(l)},
+{what:'Read the recon overlay',cmd:'cat missions/recon/kustomization.yaml',
+ parts:[['resources','What to start from: the whole frame folder (two levels up), plus this mission\'s own mission.yaml.'],['replicas','Kustomize\'s shortcut for changing replica counts: for the Deployment with this name, use this count instead of the base\'s.']],
+ saw:'The entire difference between the standard frame and a recon mission: three sensors instead of one, and a ConfigMap. Nothing is copied from the base.',
+ test:(l,w,r)=>r.ok&&/^cat missions\/recon\/kustomization\.yaml$/.test(l)},
+{what:'Refit for reconnaissance (apply one environment\'s overlay)',cmd:'kubectl apply -k missions/recon',
+ parts:[['kubectl apply -k missions/recon','Build the base plus this overlay, then make the cluster match the result.']],
+ saw:'Almost everything is "unchanged". sensors is "configured" and the mission ConfigMap is "created". Two more sensor units appear on the schematic, and the header shows the mission.',
+ test:(l,w,r)=>profile(w)==='recon'&&reps(w,'sensors')===3},
+{what:'Confirm the loadout',cmd:'kubectl get deployments',
+ parts:[['kubectl get deployments','The same list as step 1.']],
+ saw:'sensors reads 3/3 once the new pods are up. Every other line is as it was.',
+ test:(l,w,r)=>r.ok&&/get (deployments?|deploy)\b/.test(l)},
+{what:'Refit for assault (switch to another environment\'s overlay)',cmd:'kubectl apply -k missions/assault',
+ parts:[['missions/assault','A different overlay on the same base: three thrusters, two targeting computers, two railgun controllers and the shield.']],
+ saw:'Read the reply line by line. sensors went back to one without anyone mentioning it, because the assault overlay does not override it and the base says one. The railgun and shield mount on the schematic.',
+ test:(l,w,r)=>profile(w)==='assault'&&reps(w,'railgun')===2},
+{what:'See where the scheduler put everything',cmd:'kubectl get pods -o wide',
+ parts:[['-o wide','Shows the node for each pod.']],
+ saw:'Twelve pods, spread across torso, arms and legs. You described a loadout and never chose a node.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*-o ?wide/.test(l)},
+{what:'Refit for orbit (a third environment)',cmd:'kubectl apply -k missions/orbital',
+ parts:[['missions/orbital','Four thrusters, two sensors, life-support on, and nothing on the weapon mounts.']],
+ saw:'The railgun and shield scale to zero and come off the schematic. Life-support seals the cabin and two more thrusters come online.',
+ test:(l,w,r)=>profile(w)==='orbital'&&reps(w,'thrusters')===4},
+{what:'Read the active mission parameters (this environment\'s settings)',cmd:'kubectl get configmap mission -o yaml',
+ parts:[['get configmap mission -o yaml','The ConfigMap each overlay supplies.']],
+ saw:'PROFILE is orbital and the sensor range is 400 km. Each overlay carries its own copy of this one object. (As lesson 6 showed, pods that read it as environment variables would need a restart to see the change.)',
+ test:(l,w,r)=>r.ok&&/get (configmaps?|cm)[ \/]mission\b.*-o ?yaml/.test(l)}],
+notes:`
+<h2>The same idea at work</h2>
+<p>With the words swapped back, this is an everyday project layout: a <code>base</code> folder with the app's Deployment and Service, and overlays called <code>dev</code>, <code>staging</code> and <code>production</code>. Dev runs one replica with debug settings. Production runs five with real ones. One fix to the base reaches all three.</p>
+<p>Two things worth knowing before you use Kustomize for real:</p>
+<ul>
+<li><code>kubectl kustomize missions/recon</code> prints the combined YAML without applying it. Use it to check what an overlay really produces. It works in this sandbox too.</li>
+<li>Overlays can change much more than replica counts: image tags, labels, name prefixes, and arbitrary fields through patches. Kustomize can also generate ConfigMaps whose names change when their contents change, which makes pods restart automatically and removes the gotcha from lesson 6.</li>
+</ul>
+<p>The other common tool for this job is <strong>Helm</strong>, which uses templates with fill-in values instead of overlays. Many teams use Helm to install other people's software and Kustomize for their own.</p>`,
+quiz:[
+{q:'The assault overlay does not mention sensors. After applying it, how many sensor pods run?',opts:['Three, left over from recon','One, because the base says one and the overlay does not override it','Zero','It depends on which mission was applied before'],a:1,why:'Every apply -k builds the complete configuration from base plus overlay. The result does not depend on what was applied before, which is what makes it predictable.'},
+{q:'What real-world problem do base-plus-overlay layouts solve?',opts:['They make pods start faster','They encrypt manifests','They let near-identical environments (dev, staging, production) share one definition and differ only where intended','They replace the need for Deployments'],a:2,why:'One base, small overlays. A change to the base reaches every environment, and each overlay shows its differences at a glance.'}],
+reading:[
+['Declarative management with Kustomize','https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/','The official guide to bases, overlays, patches and generators.'],
+['Kustomize reference: replicas','https://kubectl.docs.kubernetes.io/references/kustomize/kustomization/replicas/','The field used in this lesson\'s overlays.'],
+['Helm','https://helm.sh/docs/intro/using_helm/','The template-based alternative, and how charts are installed.']]
+},
+
+{id:8,title:'Refits and repairs: rollouts and drains',short:'Rollouts and drains',mins:12,
+idea:`
+<p>Two things happen to every running system. The software gets a new version, and the hardware needs work. On the Kestrel that is a firmware update to a subsystem (a new release of one of your services, shipped as a new image tag) and maintenance on a section (a server being patched, upgraded or replaced). Kubernetes can handle both while the system keeps running.</p>
+<dl class="terms">
+<dt>Rolling update</dt><dd>When you change a Deployment's image, it does not stop everything and start again. It starts a pod with the new version, waits until that pod is ready, then retires an old one, and repeats. There is always something to answer requests.</dd>
+<dt>Rollback</dt><dd>The Deployment keeps its previous versions. If a new version is bad, one command returns to the last one.</dd>
+<dt>Drain</dt><dd>Before working on a node, you ask Kubernetes to move its pods elsewhere and stop sending new ones. The node empties without any subsystem going offline.</dd>
+</dl>
+<p>The rolling update has a safety property that matters more than its speed: <strong>it will not retire old pods until new ones are ready</strong>. If the new version cannot start, the rollout stalls and the old version keeps serving. You are about to rely on that.</p>`,
+seed:['kubectl apply -k frame/','kubectl scale deployment targeting --replicas=3'],
+labIntro:'The sandbox starts with the standard frame, with targeting (one service of the app) scaled to three pods on firmware 1.0 (image tag 1.0). Update it mid-flight, which is to say without downtime.',
+tasks:[
+{what:'Check the targeting pods before the update',cmd:'kubectl get pods -l app=targeting',
+ parts:[['-l app=targeting','Only the targeting pods.']],
+ saw:'Three pods, all with the same code in the middle of their names. That code identifies the ReplicaSet for firmware 1.0.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*app=targeting/.test(l)},
+{what:'Roll out firmware 2.0 (a new release, as a new image tag)',cmd:'kubectl set image deployment/targeting targeting=hangar/targeting:2.0',
+ parts:[['kubectl set image deployment/targeting','Change an image in this Deployment\'s pod template.'],['targeting=hangar/targeting:2.0','container name = new image. The container in this Deployment is called targeting.']],
+ saw:'The rollout has started. Watch the targeting pods on the schematic: new ones appear in amber, and old ones leave only as new ones turn green.',
+ test:(l,w,r)=>{const d=depOf(w,'targeting');return !!d&&/:2\.0$/.test(d.image);}},
+{what:'Follow the rollout',cmd:'kubectl rollout status deployment/targeting',
+ parts:[['kubectl rollout status','Report progress until the rollout finishes.']],
+ saw:'"successfully rolled out". Three pods on 2.0, and at no moment were there fewer than the frame needed.',
+ test:(l,w,r)=>r.ok&&/rollout status\b.*targeting/.test(l)},
+{what:'Now roll out an untested build (a bad release)',cmd:'kubectl set image deployment/targeting targeting=hangar/targeting:2.1-beta',
+ parts:[['hangar/targeting:2.1-beta','A build with a fault: it crashes a moment after starting.']],
+ saw:'The Deployment accepted it, as it would accept any image name. Whether that build works is about to become clear.',
+ test:(l,w,r)=>{const d=depOf(w,'targeting');return !!d&&/2\.1-beta$/.test(d.image);}},
+{what:'Check the pods',cmd:'kubectl get pods -l app=targeting',
+ parts:[['kubectl get pods -l app=targeting','The same list as step 1.']],
+ saw:'One new pod in CrashLoopBackOff (starting, crashing, waiting, trying again) and three 2.0 pods still Running. The rollout stalled at the first failure, so targeting never went down.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*app=targeting/.test(l)},
+{what:'Read why the new pod is crashing',cmd:'kubectl logs deploy/targeting',
+ parts:[['kubectl logs deploy/targeting','Logs from a pod of this Deployment. Here that is the newest, failing one.']],
+ saw:'A panic about a missing calibration table. The logs of a crashing pod are where the reason is. Kubernetes can only tell you that it crashed.',
+ test:(l,w,r)=>r.ok&&/^(kubectl|k) logs\b/.test(l)},
+{what:'List the versions the Deployment remembers',cmd:'kubectl rollout history deployment/targeting',
+ parts:[['kubectl rollout history','Show the numbered revisions of a Deployment. Each is a ReplicaSet kept in reserve.']],
+ saw:'Three revisions: 1.0, 2.0 and the broken 2.1-beta.',
+ test:(l,w,r)=>r.ok&&/rollout history\b/.test(l)},
+{what:'Go back to the last good version',cmd:'kubectl rollout undo deployment/targeting',
+ parts:[['kubectl rollout undo','Return the Deployment to its previous revision.']],
+ saw:'Rolled back. The crashing pod is removed and the three 2.0 pods carry on. In a team, you would also revert the image tag in the manifest, or the next apply would bring 2.1-beta straight back.',
+ test:(l,w,r)=>{const d=depOf(w,'targeting');return r.ok&&!!d&&/:2\.0$/.test(d.image);}},
+{what:'Take the legs (one node) offline for maintenance',cmd:'kubectl drain legs --ignore-daemonsets',
+ parts:[['kubectl drain legs','Mark the node unschedulable (cordon it), then evict every pod running on it.'],['--ignore-daemonsets','Leave alone the per-node system pods such as kube-proxy. Drain refuses to run without this flag on almost every cluster.']],
+ saw:'Each pod on legs was evicted, and its Deployment immediately started a replacement on another node. The legs section on the schematic is marked as out of service.',
+ test:(l,w,r)=>r.ok&&w.nodes.find(n=>n.name==='legs').cordoned&&/drain\b/.test(l)},
+{what:'See where the pods went',cmd:'kubectl get pods -o wide',
+ parts:[['-o wide','Shows the node for each pod.']],
+ saw:'Everything now runs on torso and arms. Nothing was lost, because every pod belonged to a Deployment. A bare pod like the one in lesson 2 would simply have been deleted.',
+ test:(l,w,r)=>r.ok&&/get (pods?|po)\b.*-o ?wide/.test(l)},
+{what:'Bring the legs (the node) back into service',cmd:'kubectl uncordon legs',
+ parts:[['kubectl uncordon legs','Allow the scheduler to place pods on this node again.']],
+ saw:'legs is schedulable again. Existing pods do not move back on their own, because Kubernetes does not disturb healthy pods. New pods will land there as they are created.',
+ test:(l,w,r)=>r.ok&&!w.nodes.find(n=>n.name==='legs').cordoned}],
+quiz:[
+{q:'A rolling update\'s new pods keep crashing. What happens to the old version?',opts:['It was already removed, so there is an outage','Its pods keep running, because old pods are retired only as new ones become ready','It is deleted after five minutes','Kubernetes automatically rolls back'],a:1,why:'The rollout stalls rather than proceeding. Kubernetes does not roll back on its own by default: that is your decision, with kubectl rollout undo.'},
+{q:'What does kubectl drain do to a node?',opts:['Deletes the node from the cluster','Restarts the node','Stops new pods being scheduled there and evicts the ones on it, so their controllers recreate them elsewhere','Removes all its images'],a:2,why:'Drain is cordon plus evict. The node stays in the cluster, empty, until you uncordon it.'}],
+reading:[
+['Performing a rolling update','https://kubernetes.io/docs/tutorials/kubernetes-basics/update/update-intro/','The official tutorial, with diagrams of each stage.'],
+['Rolling back a Deployment','https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-back-a-deployment','History, undo, and returning to a specific revision.'],
+['Safely drain a node','https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/','Drain in detail, including how to protect apps with disruption budgets.']]
+},
+
+{id:9,title:'Back on Earth: running it for real',short:'For real',mins:8,
+idea:`
+<p>The Kestrel was a stand-in, and the parentheses along the way said what for. Put together: the frame was a cluster, its sections were servers, each subsystem was one service of an application, the hangar was a container registry, firmware versions were image tags, and missions were environments. Every command you ran is the command you would run on a real system. Only the names change.</p>
+<h2>From Compose to Kubernetes</h2>
+<p>Here is how the pieces you already know from Compose map across.</p>
+<dl class="terms">
+<dt>A service in compose.yaml</dt><dd>Becomes a <strong>Deployment</strong> (to run the containers) plus a <strong>Service</strong> (to give them a name).</dd>
+<dt>ports: "8000:8000"</dt><dd>For visitors from the internet, an <strong>Ingress</strong> or Gateway: one front door that routes web addresses to Services. For a quick look while developing, <code>kubectl port-forward</code>.</dd>
+<dt>environment:</dt><dd>A <strong>ConfigMap</strong> for ordinary settings and a <strong>Secret</strong> for sensitive ones.</dd>
+<dt>volumes:</dt><dd>A <strong>PersistentVolumeClaim</strong>: a request for durable disk that outlives pods. Programs that own data, like Postgres, use a <strong>StatefulSet</strong> instead of a Deployment so that each pod keeps its identity and its disk.</dd>
+<dt>healthcheck:</dt><dd><strong>Probes</strong>. A readiness probe decides whether a pod receives traffic. A liveness probe decides whether it should be restarted.</dd>
+<dt>docker compose up</dt><dd><code>kubectl apply -k</code>, usually run by a pipeline after your tests pass, not by hand.</dd>
+</dl>
+<h2>Translation key</h2>
+<p>The same key as in lesson 1, now that every row has a lab behind it.</p>
+${KEY_HTML}
+<h2>Getting a real cluster on your machine</h2>
+<ol>
+<li><strong>Install kubectl</strong>. Docker Desktop already includes it.</li>
+<li><strong>Start a local cluster.</strong> The simplest choice if you have Docker Desktop is to switch on Kubernetes in its settings. The alternatives are <strong>kind</strong> (runs each node as a Docker container, and is what this guide imitates) and <strong>minikube</strong>. With kind, <code>kind create cluster</code> is the whole setup.</li>
+<li><strong>Run <code>kubectl get nodes</code>.</strong> A node in Ready state means you have a working cluster. Every command from these lessons now works for real, with <code>nginx</code> in place of the hangar images.</li>
+</ol>
+<h2>Things this guide left out</h2>
+<ul>
+<li><strong>Resource requests and limits.</strong> Each container declares how much CPU and memory it needs. The scheduler uses those numbers to decide what fits where. This guide's "six pods per section" stood in for that.</li>
+<li><strong>Namespaces.</strong> Folders that separate teams or environments inside one cluster. You met <code>kube-system</code>.</li>
+<li><strong>Access control (RBAC).</strong> Who may do what. It is the thing that actually protects Secrets.</li>
+<li><strong>Managed clusters.</strong> Cloud providers will run the control plane for you (GKE, EKS, AKS and others), so you only look after the workloads.</li>
+</ul>
+<h2>Do you need Kubernetes at all?</h2>
+<p>Often not, and it is worth saying plainly. One server running Docker Compose is a perfectly good home for a small product. Kubernetes earns its complexity when you need several machines, updates without downtime, automatic recovery, or many services owned by different people. Many teams also meet it without choosing it, because their platform or hosting provider already runs it. In that case what you learned here is the vocabulary: you can now read the manifests, follow a rollout, and ask precise questions.</p>`,
+seed:['kubectl apply -k missions/recon'],
+quiz:[
+{q:'You are moving a Compose service to Kubernetes. Which pair of objects usually replaces it?',opts:['A Node and a Pod','A Deployment to run its containers and a Service to give them a stable name','A ConfigMap and a Secret','An Ingress and a Namespace'],a:1,why:'The Deployment keeps the right number of pods running, and the Service makes them reachable under one name.'},
+{q:'Why does Postgres normally run as a StatefulSet with a PersistentVolumeClaim, and not as a plain Deployment?',opts:['Deployments cannot run databases','Its data must survive pod replacement, and each pod needs a stable identity and its own disk','StatefulSets are faster','Postgres needs more than one container'],a:1,why:'Deployment pods are interchangeable and disposable. A database pod is neither, so it needs durable storage that follows it. Many teams avoid the question by using a managed database outside the cluster.'}],
+reading:[
+['kind quick start','https://kind.sigs.k8s.io/docs/user/quick-start/','Install kind and create a local cluster in a few minutes.'],
+['minikube start','https://minikube.sigs.k8s.io/docs/start/','The other popular local cluster, with a built-in dashboard.'],
+['Configure liveness, readiness and startup probes','https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/','How to tell Kubernetes whether your app is healthy.'],
+['Resource management for pods and containers','https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/','Requests and limits, and how the scheduler uses them.'],
+['Ingress','https://kubernetes.io/docs/concepts/services-networking/ingress/','Routing outside traffic to Services by host name and path.'],
+['Translate a Docker Compose file to Kubernetes','https://kubernetes.io/docs/tasks/configure-pod-container/translate-compose-kubernetes/','The Kompose tool, useful for seeing how your own compose.yaml would map.']]
+}
+];
+
+const MANIFEST_NOTES=[
+['apiVersion: apps/v1','<b>Which part of the Kubernetes API this object belongs to.</b> Deployments live in the group called apps, version v1. You copy this line. Nobody memorises them.'],
+['kind: Deployment','<b>The type of object.</b> Together, apiVersion and kind tell the cluster how to read the rest of the file.'],
+['metadata:','<b>Information that identifies the object.</b> Indentation matters in YAML: two spaces per level, never tabs.'],
+['  name: sensors','<b>The object\'s name.</b> It must be unique among Deployments in the namespace. It is what you type in kubectl get deployment sensors.'],
+['spec:','<b>The desired state.</b> Everything under spec is what you are asking for. The cluster reports what actually exists in a separate section called status, which you never write.'],
+['  replicas: 1','<b>How many pods you want.</b> The base frame runs one sensor controller. The recon mission overrides this to three.'],
+['  selector:','<b>How the Deployment recognises its own pods.</b>'],
+['    matchLabels:',''],
+['      app: sensors','<b>The label to look for.</b> Any pod carrying app=sensors counts toward the replicas. It must match the labels in the template below, or the Deployment is rejected.'],
+['  template:','<b>The pod template.</b> Everything under here describes one pod. The Deployment stamps out copies of it. Changing anything in the template triggers a rolling update.'],
+['    metadata:',''],
+['      labels:',''],
+['        app: sensors','<b>The label each pod is given.</b> This is the other half of the selector above, and it is also what the Service at the bottom of the file selects.'],
+['    spec:','<b>The pod\'s own desired state:</b> which containers it holds.'],
+['      containers:','<b>A list.</b> The dash on the next line starts one entry. Nearly always there is exactly one container per pod.'],
+['        - name: sensors','<b>The container\'s name inside the pod.</b> It is the name you used in kubectl set image deployment/targeting targeting=...'],
+['          image: hangar/sensors:1.0','<b>The image to run,</b> exactly as in docker run. Always give a specific tag. With "latest" you cannot tell what is deployed, and a rollback has nothing to go back to.'],
+['          ports:',''],
+['            - containerPort: 8080','<b>The port the program listens on.</b> Like EXPOSE in a Dockerfile, this is mainly documentation. The Service below is what makes it reachable.'],
+['---','<b>A separator.</b> Three dashes start a new object in the same file. Keeping a Deployment and its Service together is a common habit.'],
+['apiVersion: v1','<b>Services belong to the original core API,</b> which is written simply as v1.'],
+['kind: Service',''],
+['metadata:',''],
+['  name: sensors','<b>The Service\'s name, which is also its host name</b> inside the cluster. Other pods call http://sensors.'],
+['spec:',''],
+['  selector:',''],
+['    app: sensors','<b>Which pods receive the traffic:</b> those labelled app=sensors. This is the same label the Deployment puts on its pods, and that shared label is the only thing connecting the two objects.'],
+['  ports:',''],
+['    - port: 80','<b>The port the Service listens on.</b>'],
+['      targetPort: 8080','<b>The port on the pods to forward to.</b> It matches containerPort above.']
+];
+
+const MISSIONS={
+  frame:{label:'Standard frame',prof:'none',eq:{reactor:[1,0],balancer:[1,0],comms:[1,0],sensors:[1,0],targeting:[1,0],thrusters:[2,0]},diff:[],cap:'The base, with no overlay: one of each core subsystem and two thrusters. The three hardpoints (railgun, shield, life-support) are defined with zero replicas, so they exist but nothing is mounted.'},
+  recon:{label:'Recon',prof:'recon',eq:{reactor:[1,0],balancer:[1,0],comms:[1,0],sensors:[3,0],targeting:[1,0],thrusters:[2,0]},diff:[['sensors','1','3']],cap:'See far, stay light. The overlay changes a single number, taking the sensor array from one controller to three, and supplies a ConfigMap with a 120 km sensor range.'},
+  assault:{label:'Assault',prof:'assault',eq:{reactor:[1,0],balancer:[1,0],comms:[1,0],sensors:[1,0],targeting:[2,0],thrusters:[3,0],railgun:[2,0],shield:[1,0]},diff:[['thrusters','2','3'],['targeting','1','2'],['railgun','0','2'],['shield','0','1']],cap:'Mount the hardpoints. Two railgun controllers and the shield scale up from zero, a second targeting computer comes online, and a third thruster carries the extra mass.'},
+  orbital:{label:'Orbital',prof:'orbital',eq:{reactor:[1,0],balancer:[1,0],comms:[1,0],sensors:[2,0],targeting:[1,0],thrusters:[4,0],'life-support':[1,0]},diff:[['sensors','1','2'],['thrusters','2','4'],['life-support','0','1']],cap:'No ground to stand on. All four thrusters, a second sensor controller for long range, and life-support sealing the cabin. The weapon mounts stay empty.'}
+};
+
+const CHEATS=[
+['Look around','kubectl get nodes','List the machines in the cluster.'],
+['Look around','kubectl get pods','List pods in the default namespace.'],
+['Look around','kubectl get pods -o wide','The same, with each pod\'s IP and node.'],
+['Look around','kubectl get pods -l app=NAME','Only pods carrying a label.'],
+['Look around','kubectl get pods -n kube-system','Pods in another namespace.'],
+['Look around','kubectl get all','Pods, Services, Deployments and ReplicaSets together.'],
+['Look around','kubectl get KIND NAME -o yaml','Print one object as YAML.'],
+['Look around','kubectl describe pod NAME','Full report, with Events at the bottom.'],
+['Look around','kubectl logs NAME','What the container printed. Also: kubectl logs deploy/NAME'],
+['Look around','kubectl exec NAME -- COMMAND','Run a command inside a pod. Also: kubectl exec deploy/NAME -- COMMAND'],
+['Pods','kubectl run NAME --image=IMAGE','Start one bare pod. Nothing restarts it.'],
+['Pods','kubectl delete pod NAME','Delete a pod. Under a Deployment, a replacement appears.'],
+['Pods','kubectl delete pod -l app=NAME','Delete every pod with a label.'],
+['Deployments','kubectl create deployment NAME --image=IMAGE --replicas=N','Keep N copies of an image running.'],
+['Deployments','kubectl get deployments','List Deployments and their ready counts.'],
+['Deployments','kubectl scale deployment NAME --replicas=N','Change the wanted number of pods.'],
+['Deployments','kubectl get replicasets','The helper objects that count pods, one per version.'],
+['Deployments','kubectl delete deployment NAME','Remove a Deployment and its pods.'],
+['Services','kubectl expose deployment NAME --port=80 --target-port=8080','Create a Service in front of a Deployment\'s pods.'],
+['Services','kubectl get services','List Services and their cluster addresses.'],
+['Services','kubectl describe service NAME','See the selector and the endpoints behind it.'],
+['Services','kubectl port-forward service/NAME 8080:80','Tunnel a local port to a Service while developing.'],
+['Manifests','kubectl apply -f FILE','Make the cluster match one manifest file.'],
+['Manifests','kubectl apply -k FOLDER','Apply a folder through its kustomization.yaml (base or overlay).'],
+['Manifests','kubectl kustomize FOLDER','Print what an overlay produces, without applying it.'],
+['Manifests','kubectl delete -f FILE','Delete everything a manifest describes.'],
+['Config','kubectl create configmap NAME --from-literal=KEY=value','Create a ConfigMap from key=value pairs.'],
+['Config','kubectl create secret generic NAME --from-literal=KEY=value','Create a Secret. Encoded, not encrypted.'],
+['Config','kubectl set env deployment/NAME --from=configmap/CONFIG','Load a ConfigMap\'s keys as environment variables.'],
+['Config','kubectl patch configmap NAME -p \'{"data":{"KEY":"value"}}\'','Change one key in place.'],
+['Config','kubectl rollout restart deployment/NAME','Replace pods so they read changed configuration.'],
+['Rollouts','kubectl set image deployment/NAME CONTAINER=IMAGE','Change the image and start a rolling update.'],
+['Rollouts','kubectl rollout status deployment/NAME','Follow a rollout until it finishes.'],
+['Rollouts','kubectl rollout history deployment/NAME','List the revisions a Deployment remembers.'],
+['Rollouts','kubectl rollout undo deployment/NAME','Return to the previous revision.'],
+['Nodes','kubectl cordon NODE','Stop new pods being scheduled on a node.'],
+['Nodes','kubectl drain NODE --ignore-daemonsets','Cordon the node and move its pods elsewhere.'],
+['Nodes','kubectl uncordon NODE','Put the node back into service.'],
+['Nodes','kubectl describe node NODE','Capacity, conditions and the pods on a node.']
+];
+
+/* ---------- UI ---------- */
+(function(){
+const KEY='k8s-guide-v1';
+let saved={done:{},quiz:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.done&&s.quiz)saved=s;}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}};
+const $=(s,r)=>(r||document).querySelector(s);
+function el(tag,attrs,...kids){
+  const n=document.createElement(tag);
+  for(const k in (attrs||{})){const v=attrs[k];
+    if(k==='html')n.innerHTML=v;else if(k==='text')n.textContent=v;else if(k.startsWith('on'))n.addEventListener(k.slice(2),v);
+    else if(v!==false&&v!=null)n.setAttribute(k,v===true?'':v);}
+  kids.flat(Infinity).forEach(c=>{if(c!=null)n.append(c);});
+  return n;
+}
+const quizDone=L=>L.quiz.every((q,i)=>saved.quiz[L.id+'-'+i]===q.a);
+const lessonDone=L=>L.tasks?!!saved.done[L.id]:quizDone(L);
+
+/* ----- the frame: an original schematic, drawn from live state ----- */
+/* o.eq = {app:[running,starting]}, o.nodes = {torso:'cordon'}, o.calls = [[x1,y1,x2,y2,label,anchor]] */
+function mech(o){
+  o=o||{};const eq=o.eq||{},nd=o.nodes||{};
+  const st=(k,i)=>{const e=eq[k]||[0,0];return i<e[0]?'on':i<e[0]+e[1]?'pend':'off';};
+  const d=(k,i,a)=>' data-k="'+k+'" data-i="'+(i||0)+'" data-s="'+st(k,i||0)+'"'+(a?' data-a="'+a+'"':'');
+  const c=(k,i,opt,a)=>'class="eq e-'+k+' '+st(k,i||0)+(opt?' opt':'')+'"'+d(k,i,a);
+  const det=(k,i)=>'class="ln det '+st(k,i||0)+'"'+d(k,i,'fade');
+  const g=n=>'<g class="nd n-'+n+(nd[n]==='cordon'?' cordon':'')+'" data-n="'+n+'">';
+  const both=h=>'<g class="half">'+h+'</g><g transform="translate(300,0) scale(-1,1)"><g class="half">'+h+'</g></g>';
+  const flip=h=>'<g transform="translate(300,0) scale(-1,1)">'+h+'</g>';
+  const calls=(o.calls||[]).map(k=>'<path class="lead" d="M'+k[0]+' '+k[1]+'L'+k[2]+' '+k[3]+'"/><circle class="dot" cx="'+k[0]+'" cy="'+k[1]+'" r="2.4"/><text class="call" x="'+(k[2]+(k[5]==='end'?-5:5))+'" y="'+(k[3]+4)+'" text-anchor="'+(k[5]||'start')+'">'+k[4]+'</text>').join('');
+  const boost=(k,i,x,y,w,h,a,px,py)=>'<g transform="rotate('+a+' '+px+' '+py+')"><rect '+c(k,i,1,'boost')+' x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="5"/><path '+det(k,i)+' d="M'+x+' '+(y+12)+'h'+w+'M'+x+' '+(y+h-10)+'h'+w+'"/><path class="flame '+st(k,i)+'"'+d(k,i)+' d="M'+(x+2)+' '+(y-1)+'l'+(w/2-2)+' -13l'+(w/2-2)+' 13z"/></g>';
+  const title=o.title?'<text class="ttl" x="252" y="350">'+o.title+'</text><text class="ttl sub" x="252" y="364">FRONT ELEVATION · 1:100</text>'+
+    '<path class="lead" d="M-104 30V360M-110 30h12M-110 360h12"/><text class="call" x="-98" y="290">17.4 m</text>':'';
+  return '<svg class="mech" viewBox="'+(o.box||'-34 0 368 372')+'" role="img" aria-label="'+(o.label||'Schematic of the KF-07 Kestrel frame')+'">'+title+
+  /* boosters sit behind the shoulders */
+  boost('thrusters',2,84,30,13,50,-30,90,80)+flip(boost('thrusters',3,84,30,13,50,-30,90,80))+
+  boost('thrusters',0,106,32,14,54,-12,113,86)+flip(boost('thrusters',1,106,32,14,54,-12,113,86))+
+  '<rect '+c('life-support',0,1,'seal')+' x="98" y="22" width="104" height="136" rx="24" style="fill:none;stroke-dasharray:6 5"/>'+
+  g('legs')+both('<path class="pl" d="M118 200l28 8-4 54h-26z"/><path class="pl" d="M112 262h34l2 20h-38z"/><circle class="pl" cx="129" cy="272" r="5"/>'+
+    '<path class="pl" d="M114 284h32v56h-44z"/><path class="pl" d="M96 342h52v18h-60z"/><path class="ln" d="M120 222l23 4M109 312h37M119 292l-7 42M100 351h46M134 292v40"/>')+'</g>'+
+  g('torso')+'<path class="pl" d="M124 80h52l6 8h-64z"/><path class="pl" d="M112 88h76l8 24-12 38h-68l-12-38z"/><path class="pl" d="M124 150h52l-4 26h-44z"/><path class="pl" d="M120 176h60l6 20-36 10-36-10z"/>'+
+    '<path class="ln" d="M118 96l-6 18 10 28M182 96l6 18-10 28M126 158h48M127 167h46M130 184h12M158 184h12"/></g>'+
+  g('cp')+'<path class="pl" d="M141 70h18v10h-18z"/><path class="pl" d="M132 70l-2-20 8-12h24l8 12-2 20z"/><path class="pl" d="M144 38l2-8h8l2 8z"/><path class="ln" d="M134 63h32M150 30v8"/></g>'+
+  g('arms')+both('<circle class="pl" cx="88" cy="104" r="24"/><path class="pl" d="M62 100a26 26 0 0 1 52 0h-7a19 19 0 0 0-38 0z"/><circle class="ln" cx="88" cy="106" r="11"/><circle class="ln" cx="88" cy="106" r="3"/>'+
+    '<path class="pl" d="M78 128h20l-2 36h-16z"/><circle class="pl" cx="88" cy="172" r="8"/><path class="pl" d="M72 180h32l-4 52h-24z"/><path class="pl" d="M78 236h20l2 16h-24z"/><path class="ln" d="M75 196h26M78 222h20M79 244h18M88 140v18"/>')+'</g>'+
+  /* core subsystems */
+  '<circle class="ln ring '+st('reactor',0)+'"'+d('reactor',0)+' cx="150" cy="116" r="21"/><circle '+c('reactor',0,0,'core')+' cx="150" cy="116" r="16"/><circle class="core '+st('reactor',0)+'"'+d('reactor',0)+' cx="150" cy="116" r="7"/><path '+det('reactor',0)+' d="M150 100v6M150 126v6M134 116h6M160 116h6"/>'+
+  '<circle '+c('balancer',0,0,'core')+' cx="150" cy="190" r="7"/><path class="ln det gyro '+st('balancer',0)+'"'+d('balancer',0)+' d="M143 190h14M150 183v14"/>'+
+  '<path '+c('targeting',0,0,'core')+' d="M136 49h28l-2 9h-24z"/><rect '+c('targeting',1,1,'slide')+' x="120" y="94" width="17" height="7" rx="2"/><rect '+c('targeting',2,1,'slide')+' x="163" y="94" width="17" height="7" rx="2"/>'+
+  '<path '+c('comms',0,0,'mast')+' d="M137 43l-13-30" style="fill:none"/><circle '+c('comms',0,0,'tip')+' cx="123" cy="10" r="3.2"/>'+
+  /* optional equipment */
+  '<path '+c('sensors',0,1,'mast')+' d="M163 43l22-28" style="fill:none"/><circle '+c('sensors',0,1,'tip')+' cx="188" cy="11" r="5.5"/><path '+c('sensors',0,1,'tip')+' d="M172 24l10 8" style="fill:none"/>'+
+  '<path '+c('sensors',1,1,'dish')+' d="M66 84a22 22 0 0 1 42-8z"/>'+
+  '<rect '+c('sensors',2,1,'slide')+' x="196" y="66" width="30" height="13" rx="3"/><circle '+c('sensors',2,1,'tip')+' cx="211" cy="72.5" r="3"/>'+
+  '<path '+c('railgun',0,1,'slide')+' d="M198 222h28v-6h100v7h-88v6h88v7h-100v6h-28z"/>'+
+  '<path '+c('railgun',1,1,'swing')+' d="M200 64l100-34 4 11-100 36z"/><path '+det('railgun',1)+' d="M222 62l76-26"/>'+
+  '<path '+c('shield',0,1,'shield')+' d="M-22 178l94-12 4 84-40 44-52-34z"/><path '+det('shield',0)+' d="M-8 190l66-8 3 62-26 30-36-24z"/>'+
+  '<rect class="scan" x="-34" y="0" width="368" height="3"/>'+
+  calls+'</svg>';
+}
+/* move a drawn schematic to a new state; with anim, parts deploy, lock and retract */
+function setMech(svg,eq,nd,anim){
+  eq=eq||{};nd=nd||{};const order={};let n=0;
+  svg.querySelectorAll('[data-k]').forEach(e=>{
+    const k=e.dataset.k,i=+e.dataset.i,v=eq[k]||[0,0],s=i<v[0]?'on':i<v[0]+v[1]?'pend':'off',old=e.dataset.s;
+    if(old===s)return;
+    e.dataset.s=s;e.classList.remove('on','pend','off','in','out','lock');e.style.animationDelay='';e.classList.add(s);
+    if(!anim)return;
+    const key=k+i;if(order[key]===undefined)order[key]=n++;
+    const cls=old==='off'?'in':s==='off'?'out':s==='on'?'lock':'';
+    if(!cls)return;
+    if(cls==='in')e.style.animationDelay=(order[key]*130)+'ms';
+    void e.getBoundingClientRect();e.classList.add(cls);
+    const done=ev=>{if(ev.target!==e)return;e.classList.remove(cls);e.style.animationDelay='';e.removeEventListener('animationend',done);};
+    e.addEventListener('animationend',done);
+    setTimeout(()=>{e.classList.remove(cls);},2600+order[key]*130);
+  });
+  let nc=0;svg.querySelectorAll('[data-n]').forEach(e=>{const on=nd[e.dataset.n]==='cordon';if(e.classList.contains('cordon')!==on){e.classList.toggle('cordon',on);nc++;}});
+  if(anim&&(n>=3||nc)){svg.classList.remove('refit');void svg.getBoundingClientRect();svg.classList.add('refit');clearTimeout(svg._rf);svg._rf=setTimeout(()=>svg.classList.remove('refit'),1700);}
+}
+const FRAME_EQ={reactor:[1,0],balancer:[1,0],comms:[1,0],sensors:[1,0],targeting:[1,0],thrusters:[2,0]};
+
+/* ----- navigation ----- */
+function renderNav(active){
+  const nav=$('#nav');nav.textContent='';
+  LESSONS.forEach(L=>{
+    nav.append(el('a',{href:'#lesson-'+L.id,class:'nav-item'+(active===L.id?' active':'')+(lessonDone(L)?' done':''),'aria-current':active===L.id?'page':null,title:L.title},
+      el('span',{class:'num',text:lessonDone(L)?'✓':('0'+L.id)}),el('span',{class:'nav-title',text:L.short||L.title})));
+  });
+  nav.append(el('a',{href:'#cheat-sheet',class:'nav-item'+(active==='cheats'?' active':'')},el('span',{class:'num',text:'≡'}),el('span',{class:'nav-title',text:'Cheat sheet'})));
+  const n=LESSONS.filter(lessonDone).length;
+  $('#progress-text').textContent='['+n+'/'+LESSONS.length+'] lessons complete';
+  $('#progress-bar').style.width=(n/LESSONS.length*100)+'%';
+  const a=$('.nav-item.active',nav);if(a&&a.scrollIntoView)a.scrollIntoView({block:'nearest',inline:'center'});
+}
+
+/* ----- widgets ----- */
+const W={};
+W.anatomy=function(box){
+  const VIEW={
+    cluster:['Cluster','The whole frame. In a real system, all your servers together. One cluster is a set of machines managed together, and everything you do with kubectl is addressed to it as a single thing. You never log in to an individual section.'],
+    cp:['Control plane','The cockpit node. It holds the record of what should be running, decides which section each subsystem goes to, and runs the loops that notice and repair differences. kubectl talks only to this part.'],
+    nodes:['Nodes','Torso, arms and legs: the three worker nodes. In a real system, three servers or cloud virtual machines. Each is a separate computer with its own processor and memory, and each runs whatever pods the control plane assigns to it.'],
+    pods:['Pods','The lit subsystems: reactor, balancer, comms, sensors, targeting and two thrusters. In a real system these would be your API, your web app and your workers. Each is a container running on one of the nodes, wrapped in a pod with its own network address.'],
+    deploy:['Deployment','The standing order behind a subsystem (a service of your app). The two thrusters exist because a Deployment says "two", just as two copies of a worker would. If one fails it is replaced, and if you change the number the frame changes to match.']};
+  const fig=el('div',{class:'bp fig'}),cap=el('p',{class:'caption','aria-live':'polite'}),btns={};
+  const CALLS=[[166,62,262,56,'cockpit: control plane'],[188,11,262,14,'sensors: pod'],[232,100,262,96,'arms: node'],[184,142,262,150,'torso: node'],[192,312,262,312,'legs: node'],[136,116,40,150,'reactor: pod','end'],[100,52,40,34,'thrusters: deployment','end'],[150,190,40,206,'balancer: pod','end']];
+  fig.innerHTML=mech({eq:FRAME_EQ,box:'-130 0 570 372',calls:CALLS,title:'KF-07 KESTREL'});
+  function show(k){fig.className='bp fig hl-'+k;cap.textContent=VIEW[k][1];for(const b in btns)btns[b].setAttribute('aria-pressed',b===k);}
+  for(const k in VIEW)btns[k]=el('button',{type:'button',class:'seg',text:VIEW[k][0],onclick:()=>show(k)});
+  box.append(el('div',{class:'segs wrap',role:'group','aria-label':'Kubernetes term'},Object.values(btns)),fig,cap);show('cluster');
+};
+function annotated(box,notes,label){
+  const pre=el('div',{class:'code-lines',role:'group','aria-label':label}),panel=el('div',{class:'explain','aria-live':'polite'});
+  const btns=[];
+  notes.forEach((n,i)=>{
+    if(!n[1]){pre.append(el('div',{class:'cl plain',text:n[0]||' '}));return;}
+    const b=el('button',{type:'button',class:'cl',text:n[0],onclick:()=>pick(i)});btns[i]=b;pre.append(b);
+  });
+  function pick(i){btns.forEach((b,k)=>b&&b.setAttribute('aria-pressed',k===i));panel.innerHTML='<code>'+notes[i][0].trim().replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</code><p>'+notes[i][1]+'</p>';}
+  box.append(el('div',{class:'scroll-x'},pre),panel);pick(0);
+}
+W.manifest=function(box){annotated(box,MANIFEST_NOTES,'frame/sensors.yaml, line by line');};
+W.missions=function(box){
+  const fig=el('div',{class:'bp fig small'}),side=el('div',{class:'m-side'}),cap=el('p',{class:'caption','aria-live':'polite'}),btns={};
+  function show(k){
+    const M=MISSIONS[k];if(!fig.firstChild)fig.innerHTML=mech({eq:M.eq,label:'The Kestrel, redrawn for each mission loadout'});else setMech(fig.firstChild,M.eq,{},true);
+    side.textContent='';
+    side.append(el('h4',{text:k==='frame'?'frame/ (the base)':'missions/'+k+'/kustomization.yaml'}),
+      M.diff.length?el('div',{class:'score'},M.diff.map(d=>el('div',{class:'sc-row'},el('span',{text:d[0]}),el('b',{class:'ok',text:d[1]+' → '+d[2]})))):el('p',{class:'empty',text:'No overrides. This is what every mission starts from.'}),
+      k==='frame'?null:el('p',{class:'hint',text:'ConfigMap mission: PROFILE='+M.prof}));
+    cap.textContent=M.cap;for(const b in btns)btns[b].setAttribute('aria-pressed',b===k);
+  }
+  for(const k in MISSIONS)btns[k]=el('button',{type:'button',class:'seg',text:MISSIONS[k].label,onclick:()=>show(k)});
+  box.append(el('div',{class:'segs wrap',role:'group','aria-label':'Mission'},Object.values(btns)),el('div',{class:'m-grid'},fig,side),cap);show('frame');
+};
+W.cheats=function(box){
+  const q=el('input',{id:'cheat-filter',type:'search',placeholder:'Filter, for example: rollout',autocomplete:'off',autocapitalize:'off',spellcheck:'false'});
+  const out=el('div',{class:'cheats'});
+  function draw(){
+    const f=q.value.trim().toLowerCase();out.textContent='';let g=null,tb=null,n=0;
+    CHEATS.forEach(r=>{
+      if(f&&!(r[0]+' '+r[1]+' '+r[2]).toLowerCase().includes(f))return;n++;
+      if(r[0]!==g){g=r[0];out.append(el('h3',{text:g}));tb=el('dl',{class:'cheat'});out.append(tb);}
+      tb.append(el('dt',{},el('code',{text:r[1]})),el('dd',{text:r[2]}));
+    });
+    if(!n)out.append(el('p',{class:'empty',text:'No command matches "'+q.value+'".'}));
+  }
+  q.addEventListener('input',draw);
+  box.append(el('label',{for:'cheat-filter',class:'sr',text:'Filter commands'}),q,out);draw();
+};
+
+/* ----- bench: live schematic on top, terminal at the bottom ----- */
+const WIDE=window.matchMedia('(min-width:1040px)');
+let benchEl=null,slotEl=null,ticker=null;
+function placeBench(){if(!benchEl)return;const host=WIDE.matches?$('#bench'):slotEl;if(host&&benchEl.parentNode!==host)host.append(benchEl);}
+WIDE.addEventListener('change',placeBench);
+function lab(L,sec,ctx){
+  ctx=ctx||{};
+  const tasks=L.tasks||[];
+  let sim,cur=saved.done[L.id]?tasks.length:0;const hist=[];let hi=0;let sig={},live='';const skipped=new Set();
+  const list=el('ol',{class:'tasks'}),term=el('div',{class:'term-out',tabindex:'0','aria-label':'Terminal output',role:'log'}),map=el('div',{class:'zones'}),stepbar=el('div',{class:'stepbar'}),mission=el('span',{class:'pill'});
+  const input=el('input',{id:'term-in',type:'text',autocomplete:'off',autocapitalize:'off',autocorrect:'off',spellcheck:'false','aria-label':'Command',placeholder:'type a command'});
+  const form=el('form',{class:'term-in',onsubmit:e=>{e.preventDefault();runLine();}},el('span',{class:'prompt',text:'$'}),input,el('button',{type:'submit',class:'run',text:'Run'}));
+  const banner=el('div',{class:'banner',hidden:true});
+  function print(text,cls){if(text==='')return;term.append(el('div',{class:'tl '+(cls||''),text:text}));term.scrollTop=term.scrollHeight;term.scrollLeft=0;}
+  function loadCmd(c,jump){input.value=c;if(jump&&!WIDE.matches)form.scrollIntoView({block:'center',behavior:'smooth'});}
+  const cmdBtn=(c,jump)=>el('button',{type:'button',class:'cmd',title:'Put this command in the terminal',onclick:()=>loadCmd(c,jump)},el('code',{text:c}),el('span',{class:'tap',text:'Tap to load'}));
+  const ranBtn=c=>el('button',{type:'button',class:'ran',title:'Put this command in the terminal',onclick:()=>loadCmd(c,true)},el('code',{text:c}));
+  function redo(){cur=0;reset(true);}
+  const norm=s=>s.replace(/\s+/g,' ').trim();
+  function drawTasks(){
+    list.textContent='';
+    tasks.forEach((t,i)=>{
+      const st=i<cur?(skipped.has(i)?'skip':'done'):i===cur?'now':'todo';
+      const li=el('li',{class:'task '+st},el('div',{class:'task-h'},el('span',{class:'mark',text:st==='done'?'✓':st==='skip'?'–':String(i+1)}),el('span',{class:'what',text:t.what})));
+      if(st==='done')li.append(ranBtn(t.cmd),el('p',{class:'saw',text:t.saw}));
+      if(st==='now')li.append(cmdBtn(t.cmd,true),el('dl',{class:'parts'},t.parts.map(p=>[el('dt',{},el('code',{text:p[0]})),el('dd',{text:p[1]})])));
+      if(st==='todo')li.append(ranBtn(t.cmd));
+      if(st==='skip')li.append(ranBtn(t.cmd),el('p',{class:'saw',text:'Skipped. You can still run it.'}));
+      list.append(li);
+    });
+    const all=tasks.length&&cur>=tasks.length;banner.hidden=!all;
+    if(all){banner.textContent='';banner.append(el('strong',{text:'Lab complete. '}),document.createTextNode('The sandbox is still live, so experiment freely. Type help to see what it understands. '),el('button',{type:'button',class:'mini',text:'Do the lab again',onclick:redo}));}
+    stepbar.textContent='';
+    if(!tasks.length)stepbar.append(el('span',{class:'sb-h',text:'Free sandbox'}),el('span',{class:'sb-w',text:'Nothing to complete here. Try a command:'}),cmdBtn('kubectl get pods -o wide'));
+    else if(all)stepbar.append(el('span',{class:'sb-h',text:'Lab complete'}),el('span',{class:'sb-w',text:'Experiment freely, or type help.'}));
+    else stepbar.append(el('span',{class:'sb-h',text:'Step '+(cur+1)+' of '+tasks.length}),el('span',{class:'sb-w',text:tasks[cur].what}),cmdBtn(tasks[cur].cmd));
+  }
+  const PCLS={Running:'ok',ContainerCreating:'re',Pending:'re',Terminating:'gone',CrashLoopBackOff:'bad',ErrImagePull:'bad',ImagePullBackOff:'bad'};
+  function snapshot(){sim.busy();const w=sim.world;return JSON.stringify([w.pods.map(p=>p.name+sim.status(p)+p.node),w.nodes.map(n=>n.cordoned),w.deps.map(d=>d.name+d.replicas+d.image),w.svcs.length,w.cms.map(c=>JSON.stringify(c.data)),w.secrets.length,Object.keys(w.fwd)]);}
+  const figEl=el('div',{class:'bp fig live',html:mech({})}),nodesBox=el('div',{class:'nodes'});
+  const frameZone=el('div',{class:'zone z-frame wide'},el('h3',{text:'KF-07 Kestrel (the cluster)'}),el('div',{class:'zsub',text:'sections are nodes, subsystems are pods'}),el('div',{class:'frame-row'},figEl,nodesBox),el('div',{class:'exit',text:'kubectl get pods -o wide'}));
+  map.append(frameZone);
+  function drawMap(flash){
+    sim.busy();const w=sim.world;[...map.children].forEach(c=>{if(c!==frameZone)c.remove();});const next={};
+    const chip=(t,c,title)=>el('span',{class:'chip '+(c||''),text:t,title:title||null});
+    const zone=(key,title,sub,body,sigv,exit,wide)=>{
+      next[key]=sigv;
+      const z=el('div',{class:'zone z-'+key+(wide?' wide':'')},el('h3',{text:title}),el('div',{class:'zsub',text:sub}),body,el('div',{class:'exit',text:exit}));
+      if(flash&&sig[key]!==undefined&&sig[key]!==next[key]){z.classList.add('flash');requestAnimationFrame(()=>requestAnimationFrame(()=>z.classList.remove('flash')));}
+      map.append(z);
+    };
+    const eq={};w.pods.forEach(p=>{const s=sim.status(p);if(s==='Terminating')return;(eq[p.app]=eq[p.app]||[0,0])[s==='Running'?0:1]++;});
+    const nd={};w.nodes.forEach(n=>{if(n.cordoned)nd[n.name]='cordon';});
+    const cm=w.cms.find(c=>c.name==='mission');mission.textContent='mission: '+(cm&&cm.data.PROFILE?cm.data.PROFILE:'none set');mission.className='pill'+(cm?' ok':'');
+    setMech(figEl.firstChild,eq,nd,flash);
+    nodesBox.textContent='';const nodes=nodesBox;nodes.append(...w.nodes.map(n=>{const ps=w.pods.filter(p=>p.node===n.name);
+      return el('div',{class:'node'+(n.cordoned?' off':'')},el('div',{class:'node-h'},el('b',{text:n.name}),el('span',{class:'pill '+(n.cordoned?'re':n.role?'':'ok'),text:n.role?'control plane':n.cordoned?'cordoned':'ready'})),
+        el('div',{class:'chips'},n.role?[chip('api-server'),chip('scheduler'),chip('controllers'),chip('etcd')]:ps.length?ps.map(p=>{const s=sim.status(p);return chip(p.app+(s==='Running'?'':' · '+(s==='ContainerCreating'?'starting':s==='Terminating'?'stopping':s)),'pod '+(PCLS[s]||''),p.name+' ('+s+')');}):el('span',{class:'empty',text:'no pods'})));}));
+    const pend=w.pods.filter(p=>!p.node);
+    if(pend.length)nodes.append(el('div',{class:'node off'},el('div',{class:'node-h'},el('b',{text:'unscheduled'}),el('span',{class:'pill bad',text:'pending'})),el('div',{class:'chips'},pend.map(p=>chip(p.app,'pod re',p.name+' (Pending: no node has room)')))));
+    next.frame=JSON.stringify([w.pods.map(p=>p.name+sim.status(p)+p.node),nd]);
+    if(flash&&sig.frame!==undefined&&sig.frame!==next.frame){frameZone.classList.add('flash');requestAnimationFrame(()=>requestAnimationFrame(()=>frameZone.classList.remove('flash')));}
+    const rows=(items,empty)=>el('div',{class:'zlist'},items.length?items:el('span',{class:'empty',text:empty}));
+    zone('deps','Deployments','standing orders: keep N running',rows(w.deps.map(d=>{const r=sim.q.depReady(d);
+      return el('div',{class:'rowi'},el('div',{class:'dep-h'},el('b',{text:d.name}),el('span',{class:'pill '+(d.replicas===0?'off':r===d.replicas&&!sim.q.rollingOut(d)?'ok':'re'),text:r+'/'+d.replicas})),el('span',{class:'sub',text:d.image.replace(/^hangar\/[^:]*:?/,'v')}));}),'none yet'),JSON.stringify(w.deps.map(d=>[d.name,d.replicas,d.image,sim.q.depReady(d)])),'kubectl get deployments');
+    zone('svcs','Services','stable names in front of pods',rows(w.svcs.map(s=>{const n=sim.q.endpoints(s).length;
+      return el('div',{class:'rowi'},el('b',{text:s.name+':'+s.port}),el('span',{class:'sub',text:'→ '+n+' pod'+(n===1?'':'s')+' on :'+s.target}));}).concat(Object.keys(w.fwd).map(p=>el('div',{class:'rowi'},el('b',{text:'localhost:'+p}),el('span',{class:'sub',text:'port-forward → '+w.fwd[p].svc})))),'none yet'),JSON.stringify([w.svcs.map(s=>s.name+sim.q.endpoints(s).length),Object.keys(w.fwd)]),'kubectl get services');
+    zone('config','Config','settings kept outside images',rows(w.cms.map(c=>el('div',{class:'rowi'},el('b',{text:c.name}),el('span',{class:'sub',text:'ConfigMap · '+Object.keys(c.data).map(k=>k+'='+c.data[k]).join(', ')}))).concat(w.secrets.map(c=>el('div',{class:'rowi'},el('b',{text:c.name}),el('span',{class:'sub',text:'Secret · '+Object.keys(c.data).map(k=>k+'=•••').join(', ')})))),'none yet'),JSON.stringify([w.cms,w.secrets.map(s=>s.name)]),'kubectl get configmaps,secrets');
+    sig=next;live=snapshot();
+  }
+  function reset(clearTerm){
+    sim=createSim();if(L.seed)sim.seed(L.seed);sig={};skipped.clear();runId++;busy=false;form.classList.remove('busy');input.disabled=false;if(clearTerm)term.textContent='';
+    print('Simulated Kubernetes cluster "kestrel": 1 control-plane node, 3 workers. Nothing is installed or run on your device. Type help for the command list.','note');
+    if(L.seed)print('This sandbox starts with some subsystems already running. kubectl get pods shows them.','note');
+    if([5,7].includes(L.id))print('Type ls to see the folders of manifests, and cat to read a file.','note');
+    drawTasks();drawMap(false);
+    if(ctx.onReset)ctx.onReset();
+  }
+  let busy=false,runId=0;
+  /* output arrives one line at a time, and the newest line is kept in view */
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function showLine(text,cls){const d=el('div',{class:'tl '+(cls||''),text:text});term.append(d);term.scrollTop=term.scrollHeight;term.scrollLeft=0;return d;}
+  async function printOut(text,cls,id){
+    if(text==='')return;
+    const lines=text.split('\n'),gap=Math.max(25,Math.min(110,2600/lines.length));
+    for(let n=0;n<lines.length;n++){
+      const ln=lines[n];
+      if(ln.charCodeAt(0)===2)await sleep(+ln.slice(1));
+      else{showLine(ln,cls&&ln.charAt(0)==='('?'note':cls);if(n<lines.length-1)await sleep(gap);}
+      if(id!==runId)return;
+    }
+    await sleep(gap);
+  }
+  function keepInView(){if(WIDE.matches)return;const b=form.getBoundingClientRect();if(b.bottom>window.innerHeight||b.top<80)form.scrollIntoView({block:'end',behavior:'smooth'});}
+  async function runLine(){
+    if(busy)return;
+    const line=input.value.trim();if(!line)return;input.value='';hist.push(line);hi=hist.length;
+    print('$ '+line,'in');
+    keepInView();
+    const r=sim.exec(line);
+    if(r.clear){term.textContent='';return;}
+    drawMap(true);
+    const id=runId;busy=true;form.classList.add('busy');input.disabled=true;
+    await printOut(r.out,r.ok?'':'err',id);
+    if(id!==runId)return;
+    busy=false;form.classList.remove('busy');input.disabled=false;
+    if(ctx.onRun)ctx.onRun(line,r);
+    if(cur<tasks.length){
+      const l=norm(line);let pass=false,jump=0;try{pass=!!tasks[cur].test(l,sim.world,r,sim);}catch(e){}
+      /* ran a later step's command: move on to it and mark the ones in between as skipped */
+      if(!pass)for(let k=cur+1;k<tasks.length;k++){let ok=false;try{ok=l===norm(tasks[k].cmd)&&!!tasks[k].test(l,sim.world,r,sim);}catch(e){}
+        if(ok){for(let s=cur;s<k;s++)skipped.add(s);jump=k-cur;cur=k;pass=true;break;}}
+      /* went back to a skipped step: tick it off */
+      if(!pass)for(const s of [...skipped]){let ok=false;try{ok=l===norm(tasks[s].cmd)&&!!tasks[s].test(l,sim.world,r,sim);}catch(e){}
+        if(ok){skipped.delete(s);print('✓ Step '+(s+1)+' of '+tasks.length+' done. '+tasks[s].saw,'ok');drawTasks();break;}}
+      if(pass){
+        const t=tasks[cur];cur++;
+        print('✓ Step '+cur+' of '+tasks.length+' done'+(jump?' ('+jump+' earlier step'+(jump>1?'s':'')+' skipped). ':'. ')+t.saw,'ok');
+        if(cur>=tasks.length){saved.done[L.id]=true;save();renderNav(L.id);print('✓ Lesson '+L.id+' lab complete.','ok');}
+        drawTasks();
+        if(WIDE.matches){const n=$('.task.now',list)||banner;if(n.scrollIntoView)n.scrollIntoView({block:'nearest'});}
+      }else if(!r.ok&&/^(kubectl|k)\b/.test(line)){print('Hint: read the message above. This step is waiting for: '+tasks[cur].cmd,'note');}
+    }
+    if(!input.disabled&&WIDE.matches)input.focus({preventScroll:true});
+    if(ctx.hold)ctx.hold=false;else requestAnimationFrame(keepInView);
+  }
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();runLine();}
+    else if(e.key==='ArrowUp'&&hist.length){e.preventDefault();hi=Math.max(0,hi-1);input.value=hist[hi];}
+    else if(e.key==='ArrowDown'&&hist.length){e.preventDefault();hi=Math.min(hist.length,hi+1);input.value=hist[hi]||'';}
+  });
+  if(sec&&tasks.length)sec.append(el('p',{text:L.labIntro}),list,banner);
+  const bench=el('div',{class:'bench-in'},
+    el('section',{class:'map','aria-label':'What the cluster holds right now'},el('div',{class:'map-head'},el('b',{text:'Cluster kestrel: live status'}),mission),map),
+    stepbar,
+    el('section',{class:'term','aria-label':'Terminal'},el('div',{class:'term-bar'},el('span',{text:'Terminal (simulated)'}),el('span',{class:'row'},el('button',{type:'button',class:'mini dark',text:'help',onclick:()=>{input.value='help';runLine();}}),el('button',{type:'button',class:'mini dark',text:'reset',onclick:()=>{if(cur<tasks.length)cur=0;reset(true);}}))),term,form));
+  ctx.sim=()=>sim;ctx.load=c=>loadCmd(c,true);
+  reset(false);
+  /* pods start and stop over time, so the schematic follows the clock as well as the commands */
+  if(ticker)clearInterval(ticker);
+  ticker=setInterval(()=>{if(!bench.isConnected)return;if(snapshot()!==live)drawMap(true);},350);
+  return bench;
+}
+
+/* ----- quiz ----- */
+function quiz(L,sec){
+  L.quiz.forEach((q,i)=>{
+    const key=L.id+'-'+i,fb=el('p',{class:'fb','aria-live':'polite'}),opts=el('div',{class:'opts'});
+    function draw(){
+      const ch=saved.quiz[key];opts.textContent='';
+      q.opts.forEach((o,k)=>opts.append(el('button',{type:'button',class:'opt'+(ch===k?(k===q.a?' right':' wrong'):''),'aria-pressed':ch===k,text:o,onclick:()=>{saved.quiz[key]=k;save();draw();renderNav(L.id);}})));
+      fb.className='fb'+(ch==null?'':ch===q.a?' good':' bad');
+      fb.textContent=ch==null?'':ch===q.a?'Correct. '+q.why:'Not quite. Have another look at the options, or re-read the section above.';
+    }
+    sec.append(el('div',{class:'q'},el('p',{class:'qt',text:(i+1)+'. '+q.q}),opts,fb));draw();
+  });
+}
+
+/* ----- page ----- */
+function mount(art,bench,slot){
+  const main=$('#main'),old=benchEl;main.textContent='';if(old)old.remove();
+  main.append(art);benchEl=bench;slotEl=slot;placeBench();
+}
+function showLesson(id){
+  const L=LESSONS.find(x=>x.id===id)||LESSONS[0];
+  const art=el('article',{}),slot=el('div',{class:'slot'}),ctx={};
+  art.append(el('p',{class:'eyebrow',text:'Lesson '+L.id+' of '+LESSONS.length+' · about '+L.mins+' minutes'}),el('h1',{text:L.title}),el('section',{class:'prose',html:L.idea}));
+  if(L.widget){const box=el('div',{class:'widget'});art.append(el('section',{},el('h2',{text:L.widgetTitle}),el('p',{text:L.widgetIntro}),box));W[L.widget](box,ctx);}
+  let bench;
+  if(L.tasks){const s=el('section',{class:'lab'},el('h2',{text:'Try it'}));art.append(s);bench=lab(L,s,ctx);s.append(slot);}
+  else{bench=lab(L,null,ctx);art.append(el('section',{class:'slot-sec'},el('h2',{text:'Sandbox'}),el('p',{text:'This lesson has no lab, but the sandbox is open if you want to look around.'}),slot));}
+  if(L.notes)art.append(el('section',{class:'prose notes',html:L.notes}));
+  const qs=el('section',{},el('h2',{text:'Check yourself'}));art.append(qs);quiz(L,qs);
+  art.append(el('section',{},el('h2',{text:'Further reading'}),el('ul',{class:'reading'},L.reading.map(r=>el('li',{},el('a',{href:r[1],target:'_blank',rel:'noopener',text:r[0]}),el('span',{text:r[2]}))))));
+  const prev=LESSONS.find(x=>x.id===L.id-1),next=LESSONS.find(x=>x.id===L.id+1);
+  art.append(el('nav',{class:'pager','aria-label':'Lessons'},prev?el('a',{href:'#lesson-'+prev.id,class:'btn ghost',text:'← '+(prev.short||prev.title)}):el('span'),next?el('a',{href:'#lesson-'+next.id,class:'btn',text:(next.short||next.title)+' →'}):el('a',{href:'#cheat-sheet',class:'btn',text:'Cheat sheet →'})));
+  mount(art,bench,slot);renderNav(L.id);
+}
+function showCheats(){
+  const box=el('div',{class:'widget'}),slot=el('div',{class:'slot'});
+  const art=el('article',{},el('p',{class:'eyebrow',text:'kubectl --help  # reference'}),el('h1',{text:'Cheat sheet'}),el('p',{class:'prose',text:'Every command from the nine lessons. Words in capitals are placeholders for your own names. The sandbox here is free play, with the standard frame already running: try any of them.'}),box,el('section',{class:'prose'},el('h2',{text:'Translation key'}),el('p',{text:'Every Kestrel term used in this guide, and what it stands for in an ordinary web system.'}),el('div',{html:KEY_HTML})),el('section',{class:'slot-sec'},el('h2',{text:'Sandbox'}),slot));
+  W.cheats(box);mount(art,lab({id:0,seed:['kubectl apply -k frame/']},null),slot);renderNav('cheats');
+}
+function route(){
+  const h=location.hash.replace('#','');const m=/^lesson-(\d+)$/.exec(h);
+  if(h==='cheat-sheet')showCheats();else showLesson(m?+m[1]:1);
+  $('#main').scrollTop=0;window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);route();
+})();
+
+</script>
+</body>
+</html>

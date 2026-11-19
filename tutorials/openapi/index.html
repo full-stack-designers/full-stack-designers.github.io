@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAPI Design Tutor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: fixed left rail of seven steps (learn, then build), one reading column, a sticky review panel beside the workbook. Same frame as the MCP Interface Design Tutor. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --sunk:#e8ecea; --ink:#15211f; --muted:#5a6966; --line:#d3dad7;
+  --accent:#0a6a60; --accent-ink:#ffffff; --accent-soft:#dcefeb;
+  --ok:#1f7a3d; --ok-soft:#dff2e4; --warn:#9a5b00; --warn-soft:#fbeed3; --bad:#b3261e; --bad-soft:#fbe1de;
+  --code-bg:#12201e; --code-ink:#dbe8e4; --code-key:#7fd6c6; --code-str:#f2c879;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1716; --surface:#172220; --sunk:#1f2d2a; --ink:#e4ecea; --muted:#9aaba7; --line:#2c3d39;
+    --accent:#5cc9b8; --accent-ink:#06211d; --accent-soft:#17352f;
+    --ok:#6fd08a; --ok-soft:#15301d; --warn:#f0b955; --warn-soft:#382a0e; --bad:#ff8f86; --bad-soft:#3d1a17;
+    --code-bg:#0a1211; --code-ink:#d5e3df;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--display);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:1.25rem;font-weight:700}
+h2{font-size:2rem;font-weight:700;margin-bottom:.4rem}
+h3{font-size:1.2rem;font-weight:700;margin:2rem 0 .5rem}
+p{margin:.6rem 0}
+code,pre,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--sunk);padding:.08em .35em;border-radius:4px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;align-self:start;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.rail p{font-size:.85rem;color:var(--muted);margin:0}
+.rail nav{display:flex;flex-direction:column;gap:2px}
+.rail .grp{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 8px 4px}
+.rail a{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;color:var(--ink);text-decoration:none;font-weight:500;font-size:.95rem}
+.rail a:hover{background:var(--sunk)}
+.rail a.on{background:var(--accent-soft);color:var(--accent)}
+.rail .n{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font:500 .72rem var(--mono);color:var(--muted)}
+.rail a.done .n{background:var(--ok);border-color:var(--ok);color:var(--surface)}
+.rail .badge{margin-left:auto;font:500 .72rem var(--mono);padding:1px 7px;border-radius:99px;background:var(--warn-soft);color:var(--warn)}
+.rail .badge.zero{background:var(--ok-soft);color:var(--ok)}
+main{padding:36px clamp(16px,4vw,56px) 80px;min-width:0}
+section.view{display:none;max-width:1180px}
+section.view.on{display:block}
+.read{max-width:68ch}
+.lede{font-size:1.1rem;color:var(--muted)}
+.step-tag{font:500 .78rem var(--mono);color:var(--accent);margin-bottom:6px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:16px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h4{margin:0 0 4px;font:700 1.02rem var(--display)}
+.card p{margin:.3rem 0;font-size:.93rem}
+.card .who{font:500 .74rem var(--mono);color:var(--accent)}
+.card .so{border-top:1px dashed var(--line);margin-top:10px;padding-top:8px;font-size:.9rem}
+.card .so b{color:var(--accent)}
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;margin:16px 0;font-size:.95rem}
+ol.steps{padding-left:1.2rem}
+ol.steps li{margin:.5rem 0}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin:12px 0}
+.pair>div{border-radius:10px;padding:12px 14px;font-size:.92rem;border:1px solid var(--line);background:var(--surface)}
+.pair .lab{font:500 .74rem var(--mono);display:block;margin-bottom:4px}
+.pair .no{border-color:var(--bad)}.pair .no .lab{color:var(--bad)}
+.pair .yes{border-color:var(--ok)}.pair .yes .lab{color:var(--ok)}
+pre.code{background:var(--code-bg);color:var(--code-ink);padding:16px;border-radius:12px;overflow-x:auto;line-height:1.55;margin:0;white-space:pre}
+pre.code .k{color:var(--code-key)}pre.code .s{color:var(--code-str)}pre.code .c{opacity:.6}
+pre.code button{all:unset;cursor:pointer;border-bottom:1px dashed var(--code-key);border-radius:3px;color:var(--code-key)}
+pre.code button:hover,pre.code button.on{background:rgba(127,214,198,.22)}
+pre.code button:focus-visible{outline:2px solid var(--code-key)}
+.anat{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;margin:16px 0}
+.anat .ex{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;align-self:start;position:sticky;top:16px}
+.anat .ex h4{margin:0 0 6px;font:700 1.05rem var(--display)}
+table.codes{border-collapse:collapse;width:100%;font-size:.92rem;margin:10px 0}
+table.codes th{text-align:left;font:500 .74rem var(--mono);color:var(--muted);border-bottom:1px solid var(--line);padding:4px 10px 4px 0}
+table.codes td{border-bottom:1px solid var(--line);padding:6px 10px 6px 0;vertical-align:top}
+table.codes td:first-child{font-family:var(--mono);white-space:nowrap}
+.quiz{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin:14px 0}
+.quiz .q{font-weight:600;margin:0 0 10px}
+.quiz .opts{display:flex;flex-wrap:wrap;gap:8px}
+.quiz .opts.col{flex-direction:column}
+.quiz button{font:inherit;text-align:left;background:var(--bg);color:var(--ink);border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer}
+.quiz button:hover{border-color:var(--accent)}
+.quiz button.right{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.quiz button.wrong{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+.quiz .fb{margin:10px 0 0;font-size:.93rem;min-height:1.4em;color:var(--muted)}
+.wb{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.panel>h3{margin:0 0 4px;font-size:1.08rem}
+.panel>.hint{font-size:.87rem;color:var(--muted);margin:0 0 12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f label,.lbl{font-size:.8rem;font-weight:600;color:var(--muted)}
+input[type=text],textarea,select{font:inherit;font-size:.93rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+textarea{resize:vertical;min-height:60px}
+.btn{font:500 .9rem var(--body);background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:8px 14px;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn.sm{padding:4px 10px;font-size:.82rem}
+.btn.x{background:transparent;color:var(--muted);border:1px solid var(--line);padding:4px 9px}
+.btn.x:hover{color:var(--bad);border-color:var(--bad)}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.row input{flex:1}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+details.tool{border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--bg)}
+details.tool>summary{cursor:pointer;padding:10px 12px;display:flex;gap:10px;align-items:center;font-family:var(--mono);font-size:.9rem;list-style:none;flex-wrap:wrap}
+details.tool>summary::-webkit-details-marker{display:none}
+details.tool>summary::before{content:"▸";color:var(--muted)}
+details.tool[open]>summary::before{content:"▾"}
+details.tool .body{padding:4px 12px 14px;display:flex;flex-direction:column;gap:12px}
+.pill{font:500 .72rem var(--mono);padding:1px 8px;border-radius:99px}
+.pill.end{margin-left:auto;background:var(--sunk);color:var(--muted)}
+.pill.read{background:var(--ok-soft);color:var(--ok)}
+.pill.write{background:var(--warn-soft);color:var(--warn)}
+.pill.destructive{background:var(--bad-soft);color:var(--bad)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}.dot.ok{background:var(--ok)}
+.prm,.fld{display:grid;gap:6px;align-items:center;margin-bottom:6px}
+.prm{grid-template-columns:1.1fr .8fr auto 1fr 2fr auto}
+.fld{grid-template-columns:1.1fr .85fr auto auto 1fr .9fr 1.7fr auto}
+.rq{display:flex;gap:4px;align-items:center;font-size:.78rem;color:var(--muted);white-space:nowrap}
+.prm-h{font-size:.74rem;color:var(--muted);font-weight:600}
+.checks{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:.88rem}
+.checks label{display:flex;gap:6px;align-items:center}
+.pv{background:var(--code-bg);color:var(--code-ink);border-radius:8px;padding:10px 12px;margin:0;font:400 .78rem/1.5 var(--mono);white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto}
+.review{position:sticky;top:16px}
+.review h3{margin:0 0 8px;font-size:1.08rem}
+.score{display:flex;gap:10px;margin-bottom:4px}
+.score div{flex:1;background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--line)}
+.score b{display:block;font:700 1.35rem var(--display);font-variant-numeric:tabular-nums}
+.score span{font-size:.74rem;color:var(--muted)}
+.issues{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:58vh;overflow:auto}
+.issues li{font-size:.86rem;padding:7px 9px;border-radius:8px;border-left:3px solid var(--warn);background:var(--warn-soft)}
+.issues li.bad{border-color:var(--bad);background:var(--bad-soft)}
+.issues li.ok{border-color:var(--ok);background:var(--ok-soft)}
+.issues .w{font-family:var(--mono);font-size:.78rem;display:block;color:var(--muted);overflow-wrap:anywhere}
+.spec-out{background:var(--code-bg);color:var(--code-ink);border-radius:12px;padding:18px;white-space:pre-wrap;word-break:break-word;font:400 .82rem/1.6 var(--mono);max-height:70vh;overflow:auto;margin:0}
+.links{padding-left:1.1rem}.links li{margin:.35rem 0}
+.next{margin-top:28px;display:flex;gap:10px;flex-wrap:wrap}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .rail{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:14px 16px}
+  .rail p{display:none}
+  .rail nav{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:4px}
+  .rail .grp{display:none}
+  .rail a{white-space:nowrap}
+  .wb,.anat{grid-template-columns:1fr}
+  .review,.anat .ex{position:static}
+  .prm,.fld{grid-template-columns:1fr 1fr;background:var(--surface);padding:8px;border-radius:8px;border:1px solid var(--line)}
+  .prm-h{display:none}
+  h2{font-size:1.6rem}
+  input[type=text],textarea,select{font-size:16px}
+}
+@media (prefers-reduced-motion:no-preference){.rail a,.quiz button{transition:background .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="shell">
+<aside class="rail">
+  <div>
+    <h1>OpenAPI Design Tutor</h1>
+    <p>Learn the ideas, design your API, hand a spec to a coding agent.</p>
+  </div>
+  <nav id="nav" aria-label="Steps">
+    <span class="grp">Learn</span>
+    <a href="#basics"><span class="n">1</span>What you are designing</a>
+    <a href="#define"><span class="n">2</span>How to define it</a>
+    <a href="#constraints"><span class="n">3</span>Constraints</a>
+    <a href="#practices"><span class="n">4</span>Best practices</a>
+    <span class="grp">Build</span>
+    <a href="#project"><span class="n">5</span>Practice project</a>
+    <a href="#workbook"><span class="n">6</span>Design workbook<span class="badge" id="navBadge">0</span></a>
+    <a href="#spec"><span class="n">7</span>Spec for your agent</a>
+  </nav>
+  <p>Written against OpenAPI <span class="mono">3.1</span>, the version most tools read. Your workbook draft is kept in this browser only.</p>
+</aside>
+
+<main>
+<!-- 1 -->
+<section class="view" id="basics">
+ <div class="read">
+  <div class="step-tag">Step 1 of 7</div>
+  <h2>What you are designing</h2>
+  <p class="lede">An API is the interface your product offers to other software. OpenAPI is the file that describes it precisely enough that people, tools and coding agents can all build from the same page.</p>
+  <p>You already design interfaces. A screen has a layout, labels and states, and a person learns it by looking. An API has addresses, field names and status codes, and a developer or an AI agent learns it by reading. If the names are inconsistent or a failure state was never designed, they struggle in the same way a person struggles with a confusing screen.</p>
+  <p>API stands for application programming interface. The APIs in this tutor are HTTP APIs, the kind a web or mobile app calls to load and save data. Each call is a <b>request</b> (a method, an address and sometimes a body of data) that gets one <b>response</b> (a status code and usually a body).</p>
+<pre class="code"><span class="c"># request: the app asks to create an invoice</span>
+<span class="k">POST</span> /v1/invoices
+Content-Type: application/json
+
+{ <span class="s">"customer_id"</span>: <span class="s">"cus_208"</span>, <span class="s">"total"</span>: 48000, <span class="s">"currency"</span>: <span class="s">"CAD"</span> }
+
+<span class="c"># response: the API says it worked and returns the new invoice</span>
+<span class="k">201</span> Created
+
+{ <span class="s">"id"</span>: <span class="s">"inv_1042"</span>, <span class="s">"status"</span>: <span class="s">"draft"</span>, <span class="s">"total"</span>: 48000, ... }</pre>
+  <p>An <b>OpenAPI description</b> is a text file, usually <code>openapi.yaml</code>, that lists every request the API accepts and every response it can give. Because the format is a standard, tools can turn the file into documentation, a mock server that answers with example data, client code, and tests. Writing this file before any code exists is called <b>design-first</b>. It is the API equivalent of agreeing a wireframe before the build.</p>
+  <h3>The three things you decide</h3>
+ </div>
+ <div class="cards">
+  <div class="card"><span class="who">the nouns</span><h4>Resources</h4><p>The things your product is about: invoices, customers, appointments. Each gets an address, such as <code>/invoices</code> for the collection and <code>/invoices/inv_1042</code> for one item.</p><p class="so">Decide <b>what exists</b> and what it is called.</p></div>
+  <div class="card"><span class="who">the verbs</span><h4>Operations</h4><p>What a caller may do to a resource. An operation is an HTTP method plus a path: <code>GET /invoices</code> reads the list, <code>POST /invoices</code> creates one.</p><p class="so">Decide <b>what can be done</b>, and what can go wrong.</p></div>
+  <div class="card"><span class="who">the shapes</span><h4>Schemas</h4><p>The fields of each resource: their names, types, which are required and which values are allowed. A schema is a form specification for data.</p><p class="so">Decide <b>what the data looks like</b>, field by field.</p></div>
+ </div>
+ <div class="read">
+  <div class="note">You do not need to write YAML by hand to design well. In this tutor you make the decisions in a workbook, and step 7 writes the OpenAPI file and a brief for the agent that will build it.</div>
+  <h3>Check yourself: which part of the design is it?</h3>
+  <div class="quiz" data-answer="resource"><p class="q">“Our product is about appointments, patients and vets.”</p><div class="opts"><button data-o="resource">Resources</button><button data-o="operation">Operation</button><button data-o="schema">Schema</button></div><p class="fb" data-right="Yes. These are the nouns that get addresses." data-wrong="These are the things the product is about, so they are resources."></p></div>
+  <div class="quiz" data-answer="operation"><p class="q">“The receptionist can cancel an appointment.”</p><div class="opts"><button data-o="resource">Resources</button><button data-o="operation">Operation</button><button data-o="schema">Schema</button></div><p class="fb" data-right="Yes. Something a caller can do: a method and a path." data-wrong="It is something a caller does to a resource, so it is an operation."></p></div>
+  <div class="quiz" data-answer="schema"><p class="q">“An appointment has a start time, a vet and a status that is booked, done or cancelled.”</p><div class="opts"><button data-o="resource">Resources</button><button data-o="operation">Operation</button><button data-o="schema">Schema</button></div><p class="fb" data-right="Yes. Fields, types and allowed values are the schema." data-wrong="It lists the fields and their allowed values, which is a schema."></p></div>
+  <div class="next"><a class="btn" href="#define">Next: how to define it</a></div>
+ </div>
+</section>
+
+<!-- 2 -->
+<section class="view" id="define">
+ <div class="read">
+  <div class="step-tag">Step 2 of 7</div>
+  <h2>How to define it</h2>
+  <p class="lede">Start from what callers need to get done, find the nouns, then work down to operations, fields and failures. Do not start from your screens or your database tables.</p>
+  <ol class="steps">
+   <li><b>List the jobs.</b> Write five to ten sentences describing what a client app must be able to do. “Show the invoice list, filtered by status.” “Send an invoice to the customer.”</li>
+   <li><b>Find the nouns.</b> Underline the things in those sentences. The ones with their own identity and life cycle are your resources.</li>
+   <li><b>Map each job to an operation.</b> Pick a method and a path on a resource. Most jobs are one of five: list, read one, create, change, delete. The rest are named actions, such as send or cancel.</li>
+   <li><b>Shape the data.</b> For each resource, list the fields with a type, a description and an example. Mark what is required and what only the server sets.</li>
+   <li><b>Design the failures.</b> For each operation, decide which errors a caller can meet. Every one is a state some screen has to show.</li>
+   <li><b>Review, mock, repeat.</b> Read the contract as if you had to build a screen from it. A mock server lets a front end try it before the back end exists.</li>
+  </ol>
+  <h3>The methods</h3>
+  <table class="codes">
+   <tr><th>Method</th><th>Means</th><th>Safe to repeat?</th></tr>
+   <tr><td>GET</td><td>Read. Changes nothing.</td><td>Yes</td></tr>
+   <tr><td>POST</td><td>Create something, or run a named action.</td><td>No, unless you design for it</td></tr>
+   <tr><td>PATCH</td><td>Change some fields of one item.</td><td>Usually</td></tr>
+   <tr><td>PUT</td><td>Replace one item entirely.</td><td>Yes</td></tr>
+   <tr><td>DELETE</td><td>Remove one item.</td><td>Yes</td></tr>
+  </table>
+  <h3>Anatomy of an OpenAPI file</h3>
+  <p>This is one operation and part of one schema. Select any underlined part to see what it is for.</p>
+ </div>
+ <div class="anat">
+<pre class="code" id="anat">paths:
+  <button data-p="path">/invoices/{invoiceId}/send</button>:
+    <button data-p="method">post</button>:
+      <button data-p="summary">summary</button>: <span class="s">Send an invoice</span>
+      <button data-p="operationId">operationId</button>: <span class="s">sendInvoice</span>
+      <button data-p="description">description</button>: <span class="s">Emails the invoice to the customer's
+        billing contact and moves it from draft to sent.</span>
+      <button data-p="parameters">parameters</button>:
+        - name: <span class="s">invoiceId</span>
+          in: <span class="s">path</span>
+          required: true
+          schema: { type: <span class="s">string</span> }
+      <button data-p="responses">responses</button>:
+        <span class="s">'200'</span>:
+          description: <span class="s">The invoice, now sent.</span>
+          content:
+            application/json:
+              schema:
+                <button data-p="ref">$ref</button>: <span class="s">'#/components/schemas/Invoice'</span>
+        <button data-p="err">'409'</button>:
+          $ref: <span class="s">'#/components/responses/Conflict'</span>
+<button data-p="components">components</button>:
+  schemas:
+    Invoice:
+      type: <span class="s">object</span>
+      <button data-p="required">required</button>: [customer_id, total]
+      properties:
+        id: { type: <span class="s">string</span>, <button data-p="readOnly">readOnly</button>: true }
+        total:
+          type: <span class="s">integer</span>
+          <button data-p="pdesc">description</button>: <span class="s">Amount in cents.</span>
+          <button data-p="example">example</button>: 48000
+        status:
+          type: <span class="s">string</span>
+          <button data-p="enum">enum</button>: [draft, sent, paid, void]
+        due_date:
+          type: <span class="s">string</span>
+          <button data-p="format">format</button>: <span class="s">date</span></pre>
+  <div class="ex" id="anatEx" aria-live="polite"><h4>path</h4><p></p></div>
+ </div>
+ <div class="read">
+  <h3>What comes back: every status code is a screen state</h3>
+  <p>The first digit tells the story. <b>2xx</b> means it worked. <b>4xx</b> means the caller has to change something. <b>5xx</b> means the server failed and the caller did nothing wrong. When you add a status code to an operation, you are also adding a state to every screen that calls it.</p>
+  <table class="codes">
+   <tr><th>Code</th><th>Means</th><th>What the screen does</th></tr>
+   <tr><td>200 OK</td><td>Worked, here is the data.</td><td>Show it.</td></tr>
+   <tr><td>201 Created</td><td>Worked, a new item exists.</td><td>Confirm and go to the new item.</td></tr>
+   <tr><td>204 No Content</td><td>Worked, nothing to return.</td><td>Remove the row, confirm quietly.</td></tr>
+   <tr><td>401 Unauthorized</td><td>Not signed in, or the session expired.</td><td>Send the person to sign in.</td></tr>
+   <tr><td>403 Forbidden</td><td>Signed in, but not allowed.</td><td>Explain the permission, offer no retry.</td></tr>
+   <tr><td>404 Not Found</td><td>No such item.</td><td>Show a “no longer exists” state.</td></tr>
+   <tr><td>409 Conflict</td><td>Valid request, wrong moment. Sending an invoice that was already sent.</td><td>Refresh and explain what changed.</td></tr>
+   <tr><td>422 Unprocessable</td><td>Some fields are not acceptable.</td><td>Mark the fields, keep what was typed.</td></tr>
+   <tr><td>429 Too Many Requests</td><td>Slow down.</td><td>Wait and retry automatically.</td></tr>
+  </table>
+  <div class="quiz" data-answer="b"><p class="q">The app asks to send invoice 1042, which was already sent yesterday. What should the API answer?</p><div class="opts col"><button data-o="a">200 OK, and quietly send it a second time.</button><button data-o="b">409 Conflict, with a message saying the invoice was already sent and when.</button><button data-o="c">500 Internal Server Error.</button></div><p class="fb" data-right="Yes. The request was well formed, but it clashes with the invoice's current state. The message lets the screen explain it." data-wrong="The request is valid and the server is healthy. The problem is the invoice's current state, which is what 409 is for."></p></div>
+  <div class="quiz" data-answer="c"><p class="q">The receptionist changes only the time of an appointment. Which method fits?</p><div class="opts col"><button data-o="a">POST /appointments</button><button data-o="b">GET /appointments/{appointmentId}?time=15:00</button><button data-o="c">PATCH /appointments/{appointmentId}</button></div><p class="fb" data-right="Yes. PATCH changes some fields of one existing item." data-wrong="POST would create a second appointment, and GET must never change anything. PATCH changes some fields of one item."></p></div>
+  <div class="next"><a class="btn" href="#constraints">Next: constraints</a></div>
+ </div>
+</section>
+
+<!-- 3 -->
+<section class="view" id="constraints">
+ <div class="read">
+  <div class="step-tag">Step 3 of 7</div>
+  <h2>Constraints to design around</h2>
+  <p class="lede">Each constraint below changes a design decision. The line at the bottom of each card says which one.</p>
+ </div>
+ <div class="cards">
+  <div class="card"><h4>You cannot update the callers</h4><p>Once an app in someone's pocket or a partner's integration depends on your API, it keeps sending the old requests for years.</p><p class="so"><b>So:</b> treat the contract as permanent. Add freely, but never rename, remove or retype what exists.</p></div>
+  <div class="card"><h4>Screens change faster than data</h4><p>An endpoint shaped like a screen, such as “dashboard data”, breaks at the next redesign and is useless to any other client.</p><p class="so"><b>So:</b> model the things the product is about. Resources survive redesigns.</p></div>
+  <div class="card"><h4>The network fails halfway</h4><p>A request can succeed on the server while the reply is lost. The app, or the person, tries again.</p><p class="so"><b>So:</b> make reads and deletes safe to repeat, and let creates carry an idempotency key so a retry does not make a duplicate.</p></div>
+  <div class="card"><h4>Lists grow</h4><p>Forty invoices today is forty thousand in three years. A list with no limit works in the demo and times out in production.</p><p class="so"><b>So:</b> every list has a default and a maximum page size, and a way to ask for the next page.</p></div>
+  <div class="card"><h4>The caller is not trusted</h4><p>Anything can call an API, with any data. The app's form validation protects the person, not the server.</p><p class="so"><b>So:</b> state every rule in the schema, check permissions on every call, and never take the account from the request body.</p></div>
+  <div class="card"><h4>Every failure needs words</h4><p>A bare “400” leaves the screen with nothing to show. Front-end teams end up inventing messages.</p><p class="so"><b>So:</b> one error shape for the whole API, with a readable title, a stable code, and which field is wrong.</p></div>
+  <div class="card"><h4>Money and time are traps</h4><p>Decimal numbers lose cents in transit. A date without a time zone means a different day in Vancouver and in Paris.</p><p class="so"><b>So:</b> money as whole cents with a currency. Dates as <code>2026-12-01</code>, moments as UTC timestamps.</p></div>
+  <div class="card"><h4>Payloads cost data and battery</h4><p>Too little in a response forces five follow-up calls. Too much is slow on a phone.</p><p class="so"><b>So:</b> return what the common screens need, including a display name beside each ID.</p></div>
+  <div class="card"><h4>Machines read it literally</h4><p>Code generators and AI agents build from your names, descriptions and examples, with no chance to ask what you meant.</p><p class="so"><b>So:</b> describe every field, give examples, and name things as you want them to appear in code.</p></div>
+ </div>
+ <div class="read">
+  <h3>Breaking or safe?</h3>
+  <p>A change is breaking if an app written against the old contract can stop working under the new one. Judge each change to an API that is already in use.</p>
+  <div class="quiz" data-answer="safe"><p class="q">Add an optional <code>notes</code> field to the invoice.</p><div class="opts"><button data-o="safe">Safe</button><button data-o="breaking">Breaking</button></div><p class="fb" data-right="Yes. Old apps ignore a field they do not know, and never have to send it." data-wrong="It is safe. Old apps ignore a new response field and are not required to send it."></p></div>
+  <div class="quiz" data-answer="breaking"><p class="q">Rename <code>total</code> to <code>amount_cents</code> because the new name is clearer.</p><div class="opts"><button data-o="safe">Safe</button><button data-o="breaking">Breaking</button></div><p class="fb" data-right="Yes. Every app that reads total now gets nothing. Keep the name and improve the description instead." data-wrong="It is breaking. Every app that reads or sends total stops working. Keep the name and improve the description."></p></div>
+  <div class="quiz" data-answer="breaking"><p class="q">Make <code>due_date</code> required when creating an invoice.</p><div class="opts"><button data-o="safe">Safe</button><button data-o="breaking">Breaking</button></div><p class="fb" data-right="Yes. Requests that were valid yesterday are rejected today." data-wrong="It is breaking. Old apps that leave it out start getting errors."></p></div>
+  <div class="quiz" data-answer="breaking"><p class="q">Add a new status value, <code>overdue</code>, that the API can now return.</p><div class="opts"><button data-o="safe">Safe</button><button data-o="breaking">Breaking</button></div><p class="fb" data-right="Yes, and it is the one people miss. An app with a badge for four statuses meets a fifth it cannot show. Tell callers from day one that the list can grow." data-wrong="This one catches people out. An app that handles four statuses meets a fifth it has no badge for, so tools treat it as breaking."></p></div>
+  <div class="quiz" data-answer="c"><p class="q">You really do need to change the shape of the invoice list. What is the right route?</p><div class="opts col"><button data-o="a">Change it and tell the app teams in the release notes.</button><button data-o="b">Change it on Friday evening, when traffic is low.</button><button data-o="c">Publish the new shape under <code>/v2</code>, keep <code>/v1</code> running, and give a date for its retirement.</button></div><p class="fb" data-right="Yes. Old callers keep working while new ones move over." data-wrong="Apps already installed cannot read release notes. Run the new version beside the old one and retire the old one on a published date."></p></div>
+  <div class="next"><a class="btn" href="#practices">Next: best practices</a></div>
+ </div>
+</section>
+
+<!-- 4 -->
+<section class="view" id="practices">
+ <div class="read">
+  <div class="step-tag">Step 4 of 7</div>
+  <h2>Best practices</h2>
+  <p class="lede">Ten habits, each with a before and after. The workbook checks most of them for you.</p>
+
+  <h3>1. Name resources, not screens</h3>
+  <p>Plural nouns for collections, and an ID for one item.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>GET /dashboardData</code>, <code>GET /invoiceScreen</code></div><div class="yes"><span class="lab">after</span><code>GET /invoices</code>, <code>GET /invoices/{invoiceId}</code></div></div>
+
+  <h3>2. Let the method be the verb</h3>
+  <p>Paths are nouns in lowercase with hyphens. The one exception is a real business action that is more than saving fields: put it after the item, as a POST.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>POST /createInvoice</code>, <code>POST /deleteInvoice</code>, <code>GET /send_invoice?id=1042</code></div><div class="yes"><span class="lab">after</span><code>POST /invoices</code>, <code>DELETE /invoices/{invoiceId}</code>, <code>POST /invoices/{invoiceId}/send</code></div></div>
+
+  <h3>3. One naming style, everywhere</h3>
+  <p>Pick one case for field names and keep it. Use the same word for the same thing in every resource. A caller who has learned one part of the API should be able to guess the rest.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>custName</code>, <code>Due_Date</code>, <code>createdOn</code>, <code>client_id</code> on one resource and <code>customer_id</code> on another</div><div class="yes"><span class="lab">after</span><code>customer_name</code>, <code>due_date</code>, <code>created_at</code>, <code>customer_id</code> everywhere</div></div>
+
+  <h3>4. Make fields hard to get wrong</h3>
+  <p>Give every field a type, a description and an example. List allowed values instead of describing them. Mark fields the server sets as read-only, and keep the required list short.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>status: string</code>, <code>price: 480.00</code>, <code>date: "12/01/26"</code></div><div class="yes"><span class="lab">after</span><code>status</code>: one of draft, sent, paid, void. <code>total: 48000</code> in cents with a <code>currency</code>. <code>due_date: "2026-12-01"</code></div></div>
+
+  <h3>5. Prefer a status to a pile of booleans</h3>
+  <p><code>is_sent</code> and <code>is_paid</code> allow combinations that make no sense, and a third state needs a third flag. One <code>status</code> field with named values has room to grow.</p>
+
+  <h3>6. Design errors like interface copy</h3>
+  <p>Use one shape for every error. This tutor uses the standard one, “problem details” (RFC 9457): a readable <code>title</code>, the <code>status</code>, a <code>detail</code> saying what to do, and an <code>errors</code> list naming each wrong field with a stable code.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>{ "error": "Bad Request" }</code></div><div class="yes"><span class="lab">after</span><code>{ "title": "Some fields need attention", "status": 422, "errors": [{ "field": "total", "code": "required", "message": "Enter the invoice total." }] }</code></div></div>
+
+  <h3>7. Page every list, and wrap it</h3>
+  <p>Give lists a <code>limit</code> with a default and a maximum, and a <code>cursor</code> for the next page. Return the items inside an object, so there is room for the cursor now and other details later without breaking anyone.</p>
+  <div class="pair"><div class="no"><span class="lab">before</span><code>[ {...}, {...}, ... 40,000 more ]</code></div><div class="yes"><span class="lab">after</span><code>{ "data": [ {...}, {...} ], "next_cursor": "c_8fj2k" }</code></div></div>
+
+  <h3>8. Say what else happens</h3>
+  <p>A summary names the job in a few words. A description says what a caller cannot guess: side effects, preconditions and limits. “Emails the customer” is a fact someone needs before they wire up a button.</p>
+
+  <h3>9. Version from day one, then only add</h3>
+  <p>Put <code>/v1</code> in the base address before anyone depends on it. After that, add optional things freely and treat everything else as a new version.</p>
+
+  <h3>10. Review it like a design</h3>
+  <p>Walk every job through the contract and count the calls. Mock it and build one screen against it. Run a linter for consistency, the way you would run a design lint on a file. Most fixes are names and missing failure states.</p>
+
+  <h3>Check yourself</h3>
+  <div class="quiz" data-answer="b"><p class="q">Which field design will cause the fewest bugs?</p><div class="opts col"><button data-o="a"><code>price: 480.5</code>, a decimal number in dollars.</button><button data-o="b"><code>total: 48050</code>, a whole number of cents, with <code>currency: "CAD"</code>.</button><button data-o="c"><code>price: "$480.50"</code>, formatted text ready to display.</button></div><p class="fb" data-right="Yes. Whole numbers survive every language and every sum, and the currency travels with the amount." data-wrong="Decimals pick up rounding errors and formatted text cannot be added up. Use whole cents plus a currency."></p></div>
+  <div class="quiz" data-answer="a"><p class="q">The mobile team wants one endpoint that returns everything for the home screen. What is the better offer?</p><div class="opts col"><button data-o="a">Resource endpoints with the filters and fields that screen needs, such as <code>GET /invoices?status=overdue&amp;limit=5</code>.</button><button data-o="b"><code>GET /homeScreen</code>, rebuilt whenever the screen changes.</button><button data-o="c">Direct access to the database for the mobile app.</button></div><p class="fb" data-right="Yes. The same endpoints serve the next screen, the web app and partners." data-wrong="A screen-shaped endpoint breaks at the next redesign. Give the screen good filters on resource endpoints."></p></div>
+
+  <h3>Further reading</h3>
+  <ul class="links">
+   <li><a href="https://learn.openapis.org/" target="_blank" rel="noopener">OpenAPI: getting started</a>, the official introduction to the format</li>
+   <li><a href="https://spec.openapis.org/oas/latest.html" target="_blank" rel="noopener">OpenAPI Specification</a>, the authoritative reference</li>
+   <li><a href="https://opensource.zalando.com/restful-api-guidelines/" target="_blank" rel="noopener">Zalando RESTful API guidelines</a>, a thorough public style guide with reasons</li>
+   <li><a href="https://github.com/microsoft/api-guidelines" target="_blank" rel="noopener">Microsoft REST API guidelines</a>, another widely used house style</li>
+   <li><a href="https://www.rfc-editor.org/rfc/rfc9457.html" target="_blank" rel="noopener">RFC 9457, Problem Details</a>, the standard error shape</li>
+   <li><a href="https://docs.stripe.com/api" target="_blank" rel="noopener">Stripe API reference</a>, a well-regarded example of naming, errors and pagination</li>
+   <li><a href="https://github.com/stoplightio/prism" target="_blank" rel="noopener">Prism</a>, a mock server that answers from an OpenAPI file</li>
+   <li><a href="https://redocly.com/docs/cli/" target="_blank" rel="noopener">Redocly CLI</a>, a linter and documentation builder</li>
+   <li><a href="https://github.com/oasdiff/oasdiff" target="_blank" rel="noopener">oasdiff</a>, which compares two versions of a contract and lists breaking changes</li>
+  </ul>
+  <div class="next"><a class="btn" href="#project">Next: practice project</a></div>
+ </div>
+</section>
+
+<!-- 5 -->
+<section class="view" id="project">
+ <div class="read">
+  <div class="step-tag">Step 5 of 7</div>
+  <h2>Practice project: rescue the clinic API</h2>
+  <p class="lede">Paws &amp; Claws, a small vet clinic, had an API written one screen at a time. The new mobile app cannot be built on it. Your job is to redesign the contract.</p>
+  <p>The broken design has verbs in its paths, an endpoint named after a screen, a price stored as a decimal, a status anyone can set to anything, a list with no limit, and no designed errors at all. Load it into the workbook and the review panel will list every problem.</p>
+  <h3>Your brief</h3>
+  <ol class="steps">
+   <li>The reception app has three screens: today's appointments, a booking form, and an appointment's details with a Cancel button.</li>
+   <li>Write those as jobs first. Then find the resources. Appointment is one. Is the pet another?</li>
+   <li>Redesign the operations so each screen needs one or two calls, and each job has its failure states.</li>
+   <li>Get the review panel to zero issues.</li>
+   <li>Open the spec and read it as if you were the coding agent. Would you know what to build?</li>
+  </ol>
+  <div class="note">Stuck? A good answer has two resources, <code>Appointment</code> and <code>Patient</code>, and about five operations: <code>GET /appointments</code> with a date filter, <code>POST /appointments</code>, <code>GET /appointments/{appointmentId}</code>, <code>POST /appointments/{appointmentId}/cancel</code> and <code>GET /patients</code>.</div>
+  <div class="toolbar"><button class="btn" data-act="load-project">Load the broken API into the workbook</button><a class="btn ghost" href="#workbook">Skip to my own design</a></div>
+  <h3>Then do it for your own product</h3>
+  <p>Clear the workbook, write the jobs first, and only then add resources and operations. If the product already has screens, keep the design file closed until the jobs are written.</p>
+ </div>
+</section>
+
+<!-- 6 -->
+<section class="view" id="workbook">
+ <div class="step-tag">Step 6 of 7</div>
+ <h2>Design workbook</h2>
+ <p class="lede read">Fill this in from top to bottom. The review panel updates as you type, and step 7 turns it into a spec.</p>
+ <div class="toolbar">
+  <button class="btn ghost sm" data-act="load-example">Load example (invoicing app)</button>
+  <button class="btn ghost sm" data-act="load-project">Load practice project</button>
+  <button class="btn ghost sm" data-act="clear">Start blank</button>
+  <span id="wbNote" style="font-size:.85rem;color:var(--muted);align-self:center" aria-live="polite"></span>
+ </div>
+ <div class="wb">
+  <div id="wb"></div>
+  <aside class="panel review">
+   <h3>Design review</h3>
+   <div class="score">
+    <div><b id="sIssues">0</b><span>issues</span></div>
+    <div><b id="sRes">0</b><span>resources</span></div>
+    <div><b id="sOps">0</b><span>operations</span></div>
+   </div>
+   <ul class="issues" id="issues"></ul>
+  </aside>
+ </div>
+ <div class="next"><a class="btn" href="#spec">Next: generate the spec</a></div>
+</section>
+
+<!-- 7 -->
+<section class="view" id="spec">
+ <div class="read">
+  <div class="step-tag">Step 7 of 7</div>
+  <h2>Spec for your coding agent</h2>
+  <p class="lede">Built from the workbook. Paste the brief into Claude Code or another coding agent as the task. It contains the OpenAPI file, which you can also copy on its own for a mock server or a linter.</p>
+  <p id="specWarn" style="font-size:.92rem"></p>
+  <div class="toolbar">
+   <button class="btn ghost sm" id="vBrief" aria-pressed="true">Brief with contract</button>
+   <button class="btn ghost sm" id="vYaml" aria-pressed="false">openapi.yaml only</button>
+   <button class="btn" id="copyBtn">Copy</button>
+   <a class="btn ghost" href="#workbook">Back to workbook</a>
+   <span id="copyMsg" style="align-self:center;font-size:.88rem;color:var(--muted)" aria-live="polite"></span>
+  </div>
+ </div>
+ <pre class="spec-out" id="specOut" tabindex="0"></pre>
+</section>
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<script>
+(function(){
+"use strict";
+var $=function(s,r){return (r||document).querySelector(s)}, $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var store={get:function(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- routing + progress ---------- */
+var VIEWS=["basics","define","constraints","practices","project","workbook","spec"];
+var done=store.get("oaTutorDone")||{};
+function route(){
+  var h=(location.hash||"").slice(1); if(VIEWS.indexOf(h)<0)h="basics";
+  $$("section.view").forEach(function(s){s.classList.toggle("on",s.id===h)});
+  $$("#nav a").forEach(function(a){var id=a.getAttribute("href").slice(1);a.classList.toggle("on",id===h);a.classList.toggle("done",!!done[id]);if(id===h)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current")});
+  if(h==="spec")renderSpec();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+function markDone(id){done[id]=1;store.set("oaTutorDone",done);$$("#nav a").forEach(function(a){if(a.getAttribute("href")==="#"+id)a.classList.add("done")})}
+
+/* ---------- quizzes ---------- */
+document.addEventListener("click",function(e){
+  var b=e.target.closest(".quiz button"); if(!b)return;
+  var q=b.closest(".quiz"), fb=$(".fb",q), ok=b.dataset.o===q.dataset.answer;
+  $$("button",q).forEach(function(x){x.classList.remove("right","wrong")});
+  b.classList.add(ok?"right":"wrong");
+  fb.textContent=ok?fb.dataset.right:fb.dataset.wrong; fb.style.color=ok?"var(--ok)":"var(--bad)";
+  if(ok){q.dataset.solved="1";var sec=q.closest("section.view");if($$(".quiz",sec).every(function(x){return x.dataset.solved}))markDone(sec.id)}
+});
+
+/* ---------- anatomy ---------- */
+var ANAT={
+ path:["path","The address of the thing being acted on. Collections are plural nouns, and a part in braces is a placeholder for one item's ID. The trailing /send is a named action on that item."],
+ method:["method","The HTTP verb. Together with the path it identifies one operation. POST is used for creating and for actions that are more than saving fields."],
+ summary:["summary","A few words naming the job, shown in the documentation menu. Write it like a button label: a verb and a noun."],
+ operationId:["operationId","A unique name for the operation. Code generators turn it into a function name, so sendInvoice becomes api.sendInvoice(). Keep it stable once published."],
+ description:["description","What a caller cannot guess from the name: side effects, preconditions and limits. This is where you say that an email goes out."],
+ parameters:["parameters","Inputs that travel in the address. Path parameters fill the braces. Query parameters come after a question mark and are used for filters, sorting and paging."],
+ responses:["responses","Every answer this operation can give, keyed by status code. Each one is a state the calling screen has to handle, so the list is a design decision."],
+ ref:["$ref","A pointer to a definition kept elsewhere in the file. It works like a component in a design system: define Invoice once, use it everywhere, change it in one place."],
+ err:["an error response","The failure states are part of the contract. This one says the action can clash with the invoice's current state, and points to a shared error shape so every operation fails the same way."],
+ components:["components","The shared library of the file: schemas, error responses and security schemes that operations point to with $ref."],
+ required:["required","The fields a caller must send. Keep the list short, because every required field is one more thing a form has to collect before it can save."],
+ readOnly:["readOnly","A field the server sets and the caller only reads, such as an ID or a creation time. It appears in responses and is ignored in requests."],
+ pdesc:["field description","Helper text for the field. Give the unit, the format and anything surprising. “Amount in cents” prevents a hundredfold billing error."],
+ example:["example","A realistic value. Examples appear in the documentation and become the data a mock server returns, so a front end can be built against them."],
+ enum:["enum","The complete list of allowed values. It works like a dropdown instead of a free-text box, and tools reject anything else."],
+ format:["format","A more precise kind of text. date means 2026-12-01, date-time means a full timestamp, email means an address."]
+};
+function showAnat(p){var a=ANAT[p];$("#anatEx h4").textContent=a[0];$("#anatEx p").textContent=a[1];$$("#anat button").forEach(function(b){b.classList.toggle("on",b.dataset.p===p)})}
+$("#anat").addEventListener("click",function(e){var b=e.target.closest("button");if(b)showAnat(b.dataset.p)});
+showAnat("path");
+
+/* ---------- workbook data ---------- */
+var uid=0;function nid(){return "r"+(++uid)+Math.random().toString(36).slice(2,6)}
+function F(name,type,required,readOnly,desc,example,values){return {name:name,type:type,required:!!required,readOnly:!!readOnly,desc:desc||"",example:example==null?"":String(example),values:values||""}}
+function Q(name,type,required,desc,values){return {name:name,type:type,required:!!required,desc:desc||"",values:values||""}}
+function O(method,path,summary,desc,res,body,ret,errs,params){var e={403:false,404:false,409:false,422:false};(errs||[]).forEach(function(c){e[c]=true});return {method:method,path:path,summary:summary,desc:desc||"",res:res||"",body:!!body,ret:ret,errors:e,params:params||[]}}
+var EXAMPLE={
+ app:{name:"Tally Desk",summary:"Invoicing for small service businesses: customers, invoices, payments.",callers:"Our own web and mobile apps, and accountants' tools through partner integrations.",stack:"Python (FastAPI)",auth:"Bearer token, acting as the signed-in user",base:"https://api.tallydesk.example/v1",version:"1.0.0",tenancy:"Every query is filtered by the business account in the access token.",limits:"Lists return at most 100 items. 120 requests per minute per user.",notes:"Example data. Replace with your own product."},
+ jobs:["Show the invoice list, filtered by status, newest first.","Open one invoice with its customer name and total.","Create a draft invoice for a customer.","Send an invoice to the customer by email.","Delete a draft that was created by mistake.","Pick a customer from a list when creating an invoice."],
+ resources:[
+  {id:"inv",name:"Invoice",desc:"A bill issued to one customer.",fields:[
+   F("id","string",0,1,"Assigned by Tally Desk.","inv_1042"),
+   F("customer_id","string",1,0,"The customer being billed.","cus_208"),
+   F("customer_name","string",0,1,"The customer's display name, so a list needs no second call.","Atelier Nord"),
+   F("status","string",0,1,"Where the invoice is in its life. New values may be added later.","sent","draft, sent, paid, void"),
+   F("total","integer",1,0,"Amount in cents, so 48000 means 480.00.","48000"),
+   F("currency","string",1,0,"Three-letter currency code.","CAD","CAD, USD, EUR"),
+   F("due_date","date",0,0,"The day payment is due.","2026-12-01"),
+   F("created_at","date-time",0,1,"When the invoice was created, in UTC.","2026-11-13T16:20:00Z")]},
+  {id:"cus",name:"Customer",desc:"A person or business that can be billed.",fields:[
+   F("id","string",0,1,"Assigned by Tally Desk.","cus_208"),
+   F("name","string",1,0,"Display name.","Atelier Nord"),
+   F("billing_email","email",1,0,"Where invoices are sent.","accounts@ateliernord.example"),
+   F("created_at","date-time",0,1,"When the customer was added, in UTC.","2026-03-02T09:15:00Z")]}
+ ],
+ ops:[
+  O("GET","/invoices","List invoices","Returns the business's invoices, newest first.","inv",0,"list",[422],[Q("status","string",0,"Only return invoices in this state.","draft, sent, paid, void"),Q("customer_id","string",0,"Only return invoices for this customer."),Q("limit","integer",0,"How many to return. Default 25, maximum 100."),Q("cursor","string",0,"Pass next_cursor from the previous page to continue.")]),
+  O("POST","/invoices","Create an invoice","Creates a draft. Nothing is sent to the customer.","inv",1,"one",[422]),
+  O("GET","/invoices/{invoiceId}","Get an invoice","","inv",0,"one",[404]),
+  O("DELETE","/invoices/{invoiceId}","Delete a draft invoice","Only drafts can be deleted. Sent invoices must be voided instead.","inv",0,"none",[404,409]),
+  O("POST","/invoices/{invoiceId}/send","Send an invoice","Emails the invoice to the customer's billing email and moves it from draft to sent. Fails with a conflict if it was already sent, paid or void.","inv",0,"one",[404,409]),
+  O("GET","/customers","List customers","Returns customers in alphabetical order.","cus",0,"list",[422],[Q("limit","integer",0,"How many to return. Default 25, maximum 100."),Q("cursor","string",0,"Pass next_cursor from the previous page to continue.")])
+ ]
+};
+var PROJECT={
+ app:{name:"Paws & Claws Clinic",summary:"Vet clinic bookings: patients (pets), owners, vets, appointments.",callers:"The reception app on the clinic's tablets.",stack:"Python (FastAPI)",auth:"None",base:"http://api.pawsclaws.example",version:"1.0.0",tenancy:"",limits:"",notes:"Practice project. This design is broken on purpose."},
+ jobs:[],
+ resources:[
+  {id:"apt",name:"appointments",desc:"",fields:[F("ID","string",0,0,"",""),F("petName","string",1,0,"",""),F("start_time","string",1,0,"",""),F("price","number",0,0,"",""),F("status","string",0,0,"",""),F("isCancelled","boolean",0,0,"","")]}
+ ],
+ ops:[
+  O("GET","/getAppointments","","","apt",0,"list",[]),
+  O("POST","/appointment/create","Create","","apt",1,"one",[]),
+  O("GET","/appointments/{id}","GET /appointments/{id}","","apt",0,"one",[]),
+  O("POST","/deleteAppointment","Deletes an appointment","","apt",1,"none",[]),
+  O("GET","/dashboardData","Data for the dashboard screen","","",0,"none",[])
+ ]
+};
+var BLANK={app:{name:"",summary:"",callers:"",stack:"Python (FastAPI)",auth:"Bearer token, acting as the signed-in user",base:"https://api.example.com/v1",version:"1.0.0",tenancy:"",limits:"",notes:""},jobs:[""],resources:[],ops:[]};
+function clone(o){return JSON.parse(JSON.stringify(o))}
+var S=store.get("oaTutorDraft"); if(!S||!S.app||!Array.isArray(S.resources)||!Array.isArray(S.ops)||!Array.isArray(S.jobs))S=clone(EXAMPLE);
+function save(){store.set("oaTutorDraft",S)}
+function getP(path){return path.split(".").reduce(function(o,k){return o==null?o:o[k]},S)}
+function setP(path,v){var ks=path.split("."),o=S;for(var i=0;i<ks.length-1;i++)o=o[ks[i]];o[ks[ks.length-1]]=v}
+
+/* ---------- helpers shared by the review, the preview and the spec ---------- */
+function vals(v){return String(v||"").split(",").map(function(x){return x.trim()}).filter(Boolean)}
+function cast(v,type){if(type==="integer"||type==="number"){var n=Number(v);return v===""||isNaN(n)?v:n}if(type==="boolean")return v===true||v==="true";return v}
+function resById(id){for(var i=0;i<S.resources.length;i++)if(S.resources[i].id===id)return S.resources[i];return null}
+function pascal(s){return String(s).replace(/[^A-Za-z0-9]+(.)?/g,function(m,c){return c?c.toUpperCase():""}).replace(/^./,function(c){return c.toUpperCase()})}
+function schemaName(r){return pascal(r.name)||"Item"}
+function plural(n){return /[^aeiou]y$/.test(n)?n.slice(0,-1)+"ies":/(s|x|ch|sh)$/.test(n)?n+"es":n+"s"}
+function segs(p){return String(p).split("/").filter(Boolean)}
+function pathParams(p){return (String(p).match(/\{[^}]+\}/g)||[]).map(function(x){return x.slice(1,-1)})}
+function isParam(s){return /^\{.+\}$/.test(s)}
+function isAction(o){var s=segs(o.path);return o.method==="POST"&&!o.body&&s.length>=2&&!isParam(s[s.length-1])&&isParam(s[s.length-2])}
+function successCode(o){if(o.method==="POST"&&o.body&&o.ret!=="none"&&!isAction(o))return 201;return o.ret==="none"?204:200}
+function opId(o){
+  var r=resById(o.res),s=segs(o.path),lit=s.filter(function(x){return !isParam(x)}),N=r?schemaName(r):pascal(lit[lit.length-1]||"thing");
+  if(o.method==="GET")return o.ret==="list"?"list"+plural(N):"get"+N;
+  if(isAction(o)){var a=pascal(s[s.length-1]);return a.charAt(0).toLowerCase()+a.slice(1)+N}
+  return ({POST:"create",PATCH:"update",PUT:"replace",DELETE:"delete"})[o.method]+N;
+}
+function fieldSchema(f){
+  var o={};
+  if(f.type==="date"||f.type==="date-time"||f.type==="email"){o.type="string";o.format=f.type}
+  else if(f.type==="string[]"){o.type="array";o.items={type:"string"}}
+  else o.type=f.type;
+  if(f.desc&&f.desc.trim())o.description=f.desc.trim();
+  var e=vals(f.values);if(e.length&&f.type!=="string[]"&&f.type!=="boolean")o.enum=e.map(function(x){return cast(x,f.type)});
+  if(f.readOnly)o.readOnly=true;
+  if(f.example!==""&&f.example!=null)o.example=f.type==="string[]"?vals(f.example):cast(String(f.example).trim(),f.type);
+  return o;
+}
+function fieldExample(f){
+  if(f.example!==""&&f.example!=null)return f.type==="string[]"?vals(f.example):cast(String(f.example).trim(),f.type);
+  var e=vals(f.values);if(e.length&&f.type!=="string[]")return cast(e[0],f.type);
+  return ({string:"string",integer:0,number:0,boolean:true,date:"2026-01-31","date-time":"2026-01-31T14:30:00Z",email:"name@example.com","string[]":["string"]})[f.type];
+}
+function exampleOf(r,writable){var o={};r.fields.forEach(function(f){if(!f.name.trim()||(writable&&f.readOnly))return;o[f.name.trim()]=fieldExample(f)});return o}
+function idExample(r){var f=r&&r.fields.filter(function(x){return x.name==="id"})[0];return f&&f.example?String(f.example):""}
+function hasAuth(){return !/^None/.test(S.app.auth)}
+var ERR={
+ 401:["Unauthorized","The request has no valid credentials.","Sign in required","Send a valid credential with the request."],
+ 403:["Forbidden","The caller is signed in but is not allowed to do this.","Not allowed","Your account does not have permission for this action."],
+ 404:["NotFound","Nothing exists at this address, or the caller is not allowed to see it.","Not found","No record has this identifier. It may have been deleted."],
+ 409:["Conflict","The request is valid but clashes with the current state of the record.","Not possible right now","This action is not possible in the record's current state. Reload it and try again."],
+ 422:["ValidationFailed","The request was understood, but some values are not acceptable.","Some fields need attention","Correct the fields listed in errors and send the request again."],
+ 429:["TooManyRequests","The caller has sent too many requests in a short time.","Too many requests","Wait a moment, then try again."]
+};
+function opErrors(o){var c=[];if(hasAuth())c.push(401);[403,404,409,422].forEach(function(k){if(o.errors&&o.errors[k])c.push(k)});if(S.app.limits&&/per (minute|second|hour)|rate/i.test(S.app.limits))c.push(429);return c}
+
+/* ---------- workbook render ---------- */
+function fid(path){return "f-"+path.replace(/\./g,"-")}
+function inp(path,label,ph){return '<div class="f"><label for="'+fid(path)+'">'+label+'</label><input type="text" id="'+fid(path)+'" data-k="'+path+'" value="'+esc(getP(path))+'" placeholder="'+esc(ph||"")+'"></div>'}
+function txt(path,label,ph){return '<div class="f"><label for="'+fid(path)+'">'+label+'</label><textarea id="'+fid(path)+'" data-k="'+path+'" placeholder="'+esc(ph||"")+'">'+esc(getP(path))+'</textarea></div>'}
+function sel(path,label,opts){var v=getP(path);return '<div class="f"><label for="'+fid(path)+'">'+label+'</label><select id="'+fid(path)+'" data-k="'+path+'">'+opts.map(function(o){var val=Array.isArray(o)?o[0]:o,lab=Array.isArray(o)?o[1]:o;return '<option value="'+esc(val)+'"'+(val===v?" selected":"")+(Array.isArray(o)&&o[2]?' data-rid="'+esc(o[2])+'"':"")+'>'+esc(lab)+'</option>'}).join("")+'</select></div>'}
+function bare(path,aria,ph){return '<input type="text" aria-label="'+aria+'" id="'+fid(path)+'" data-k="'+path+'" value="'+esc(getP(path))+'" placeholder="'+esc(ph||"")+'">'}
+function chk(path,label){return '<label class="rq"><input type="checkbox" id="'+fid(path)+'" data-k="'+path+'"'+(getP(path)?" checked":"")+'>'+label+'</label>'}
+var STACKS=["Python (FastAPI)","TypeScript (Fastify)","Go (standard library with chi)","C# (ASP.NET Core)","Let the agent choose to match the existing codebase"];
+var AUTHS=["Bearer token, acting as the signed-in user","API key per integration","None"];
+var TYPES=["string","integer","number","boolean","date","date-time","email","string[]"];
+var QTYPES=["string","integer","number","boolean","date"];
+var METHODS=["GET","POST","PATCH","PUT","DELETE"];
+var RETS=[["none","Nothing"],["one","One item"],["list","A page of items"]];
+function mclass(m){return m==="GET"?"read":m==="DELETE"?"destructive":"write"}
+function renderWB(){
+  var h='<div class="panel"><h3>1. Product and callers</h3><p class="hint">Enough context for an agent that has never seen your product.</p>'+
+   '<div class="grid2">'+inp("app.name","Product name","Tally Desk")+inp("app.base","Base address, with a version","https://api.example.com/v1")+sel("app.stack","Language and framework",STACKS)+sel("app.auth","Authentication",AUTHS)+'</div>'+
+   '<div class="grid2" style="margin-top:12px">'+txt("app.summary","What the product does","One or two sentences.")+txt("app.callers","Who will call the API","Your own apps, partners, AI agents.")+txt("app.tenancy","Permissions and data isolation","How a call is limited to the caller's own data.")+txt("app.limits","Limits","Page sizes, rate limits.")+'</div></div>';
+  h+='<div class="panel"><h3>2. Jobs</h3><p class="hint">What a client app must be able to do, one sentence each. These drive the design and become the acceptance tests.</p>'+
+   S.jobs.map(function(w,i){return '<div class="row">'+bare("jobs."+i,"Job "+(i+1),"Show the invoice list, filtered by status.")+'<button class="btn x sm" data-act="del-job" data-i="'+i+'" aria-label="Remove job">Remove</button></div>'}).join("")+
+   '<button class="btn ghost sm" data-act="add-job">Add job</button></div>';
+  h+='<div class="panel"><h3>3. Resources</h3><p class="hint">The nouns, and the fields of each. Open a card to edit it.</p>'+S.resources.map(resCard).join("")+'<button class="btn ghost sm" data-act="add-res">Add resource</button></div>';
+  h+='<div class="panel"><h3>4. Operations</h3><p class="hint">One card per thing a caller can do. A method and a path, what goes in, what comes back and how it can fail.</p>'+S.ops.map(opCard).join("")+'<button class="btn ghost sm" data-act="add-op">Add operation</button></div>';
+  h+='<div class="panel"><h3>5. Anything else the agent should know</h3>'+txt("app.notes","Notes, non-goals, existing code to reuse","Where the database models live, what is out of scope, house conventions.")+'</div>';
+  $("#wb").innerHTML=h;
+}
+function resCard(r,i){
+  var b="resources."+i;
+  return '<details class="tool" data-kind="res" data-i="'+i+'"'+(r._open?" open":"")+'><summary><span class="dot ok" data-rdot="'+i+'"></span><span data-rsum="'+i+'">'+esc(r.name||"(unnamed resource)")+'</span><span class="pill end" data-rcount="'+i+'">'+r.fields.length+' fields</span></summary><div class="body">'+
+   '<div class="grid2">'+inp(b+".name","Name, singular","Invoice")+inp(b+".desc","What it is","A bill issued to one customer.")+'</div>'+
+   '<div><div class="fld prm-h"><span>Field</span><span>Type</span><span>Req.</span><span>Server sets</span><span>Allowed values</span><span>Example</span><span>Description</span><span></span></div>'+
+   r.fields.map(function(f,j){var fb=b+".fields."+j;return '<div class="fld">'+
+     bare(fb+".name","Field name","due_date")+
+     '<select aria-label="Type" id="'+fid(fb+".type")+'" data-k="'+fb+'.type">'+TYPES.map(function(x){return '<option'+(x===f.type?" selected":"")+'>'+x+'</option>'}).join("")+'</select>'+
+     chk(fb+".required","req")+chk(fb+".readOnly","read-only")+
+     bare(fb+".values","Allowed values, comma separated","a, b, c")+bare(fb+".example","Example value","2026-12-01")+bare(fb+".desc","Field description","Unit, format, anything surprising")+
+     '<button class="btn x sm" data-act="del-field" data-i="'+i+'" data-j="'+j+'" aria-label="Remove field">×</button></div>'}).join("")+
+   '<button class="btn ghost sm" data-act="add-field" data-i="'+i+'">Add field</button></div>'+
+   '<div><button class="btn x sm" data-act="del-res" data-i="'+i+'">Delete this resource</button></div></div></details>';
+}
+function opCard(o,i){
+  var b="ops."+i,ro=[["","(choose)"]].concat(S.resources.map(function(r){return [r.id,r.name||"(unnamed)",r.id]}));
+  return '<details class="tool" data-kind="op" data-i="'+i+'"'+(o._open?" open":"")+'><summary><span class="dot ok" data-odot="'+i+'"></span><span class="pill '+mclass(o.method)+'" data-opill="'+i+'">'+o.method+'</span><span data-osum="'+i+'">'+esc(o.path||"(no path)")+'</span><span class="pill end" data-oid="'+i+'"></span></summary><div class="body">'+
+   '<div class="grid2">'+sel(b+".method","Method",METHODS)+inp(b+".path","Path","/invoices/{invoiceId}")+inp(b+".summary","Summary, like a button label","Send an invoice")+sel(b+".res","Resource it is about",ro)+'</div>'+
+   txt(b+".desc","Description: side effects, preconditions, limits","Emails the customer and moves the invoice from draft to sent.")+
+   '<div class="grid2">'+sel(b+".ret","It returns",RETS)+'<div class="f"><span class="lbl">Request body</span>'+chk(b+".body","The caller sends the resource's writable fields")+'</div></div>'+
+   '<div><span class="lbl">Query parameters: filters, sorting, paging</span><div class="prm prm-h" style="margin-top:6px"><span>Parameter</span><span>Type</span><span>Req.</span><span>Allowed values</span><span>Description</span><span></span></div>'+
+   o.params.map(function(p,j){var pb=b+".params."+j;return '<div class="prm">'+
+     bare(pb+".name","Parameter name","status")+
+     '<select aria-label="Type" id="'+fid(pb+".type")+'" data-k="'+pb+'.type">'+QTYPES.map(function(x){return '<option'+(x===p.type?" selected":"")+'>'+x+'</option>'}).join("")+'</select>'+
+     chk(pb+".required","req")+bare(pb+".values","Allowed values, comma separated","a, b, c")+bare(pb+".desc","Parameter description","What it filters, default, maximum")+
+     '<button class="btn x sm" data-act="del-param" data-i="'+i+'" data-j="'+j+'" aria-label="Remove parameter">×</button></div>'}).join("")+
+   '<div class="row" style="margin:0"><button class="btn ghost sm" data-act="add-param" data-i="'+i+'">Add parameter</button><button class="btn ghost sm" data-act="add-paging" data-i="'+i+'">Add limit and cursor</button></div></div>'+
+   '<div><span class="lbl">How it can fail</span><div class="checks" style="margin-top:6px">'+
+     '<label><input type="checkbox" id="'+fid(b+".errors.404")+'" data-k="'+b+'.errors.404"'+(o.errors[404]?" checked":"")+'>404 not found</label>'+
+     '<label><input type="checkbox" id="'+fid(b+".errors.422")+'" data-k="'+b+'.errors.422"'+(o.errors[422]?" checked":"")+'>422 invalid fields</label>'+
+     '<label><input type="checkbox" id="'+fid(b+".errors.409")+'" data-k="'+b+'.errors.409"'+(o.errors[409]?" checked":"")+'>409 wrong state</label>'+
+     '<label><input type="checkbox" id="'+fid(b+".errors.403")+'" data-k="'+b+'.errors.403"'+(o.errors[403]?" checked":"")+'>403 not allowed</label></div>'+
+     '<p style="font-size:.8rem;color:var(--muted);margin:.4rem 0 0">401 is added to every operation when the API has authentication.</p></div>'+
+   '<div><span class="lbl">What a caller would see</span><pre class="pv" data-pv="'+i+'" style="margin-top:6px"></pre></div>'+
+   '<div><button class="btn x sm" data-act="del-op" data-i="'+i+'">Delete this operation</button></div></div></details>';
+}
+function preview(o){
+  var r=resById(o.res),q=o.params.filter(function(p){return p.name.trim()&&!/^(limit|cursor)$/.test(p.name)}).slice(0,1).map(function(p){var e=vals(p.values);return p.name.trim()+"="+(e[0]||({integer:"10",number:"10",boolean:"true",date:"2026-01-31"})[p.type]||"value")});
+  var path=String(o.path||"").replace(/\{[^}]+\}/g,function(){return idExample(r)||"123"});
+  var L=[o.method+" "+path+(q.length?"?"+q[0]:"")];
+  if(o.body&&r)L.push(JSON.stringify(exampleOf(r,true),null,2));
+  var c=successCode(o);L.push("","→ "+c+" "+({200:"OK",201:"Created",204:"No Content"})[c]);
+  if(o.ret==="one"&&r)L.push(JSON.stringify(exampleOf(r),null,2));
+  if(o.ret==="list"&&r)L.push(JSON.stringify({data:[exampleOf(r)],next_cursor:null},null,2));
+  var e=opErrors(o);if(e.length)L.push("","can also answer: "+e.join(", "));
+  return L.join("\n");
+}
+
+/* ---------- design review ---------- */
+var SNAKE=/^[a-z][a-z0-9]*(_[a-z0-9]+)*$/,VERB=/^(get|list|create|add|new|update|edit|delete|remove|fetch|do|make|set|save|post|put)([A-Z_-]|$)/;
+function lint(){
+  var out=[];
+  function add(level,where,msg,kind,i){out.push({level:level,where:where,msg:msg,kind:kind,i:i})}
+  var a=S.app;
+  if(!a.name.trim())add("warn","Product","Name the product so the agent knows what it is building for.");
+  if(!a.summary.trim())add("warn","Product","Add a one or two sentence summary of what the product does.");
+  if(!a.callers.trim())add("warn","Product","Say who will call the API. It changes how careful the design must be about change.");
+  if(/^None/.test(a.auth))add("bad","Product","An API with no authentication exposes every customer's data to anyone who finds the address. Choose bearer tokens or API keys.");
+  else if(!a.tenancy.trim())add("warn","Product","Say how each call is limited to the caller's own data.");
+  if(!/^https:\/\//.test(a.base.trim()))add("warn","Product","Use an https:// base address. Plain http sends credentials in the clear.");
+  if(!/\/v\d+\b/.test(a.base))add("warn","Product","Put a version in the base address, such as /v1, so a future /v2 can run beside it.");
+  if(S.jobs.filter(function(w){return w.trim()}).length<3)add("warn","Jobs","Write at least three jobs. They justify each operation and become the acceptance tests.");
+
+  if(!S.resources.length)add("bad","Resources","Add at least one resource.");
+  var seenR={},used={};S.ops.forEach(function(o){if(o.res)used[o.res]=1});
+  S.resources.forEach(function(r,i){
+    var w=r.name||"(unnamed resource)",n=r.name.trim();
+    if(!n)add("bad",w,"Give the resource a name.","res",i);
+    else{
+      if(!/^[A-Z][A-Za-z0-9]*$/.test(n))add("warn",w,"Name resources as singular nouns with a capital, such as Invoice or LineItem.","res",i);
+      else if(/s$/.test(n)&&!/(ss|us|is)$/.test(n))add("warn",w,"Use the singular for the resource name. The path gets the plural: Invoice lives at /invoices.","res",i);
+      if(seenR[n.toLowerCase()])add("bad",w,"Two resources share this name.","res",i);seenR[n.toLowerCase()]=1;
+    }
+    if(!r.desc.trim())add("warn",w,"Say in one sentence what this resource is.","res",i);
+    var fs=r.fields.filter(function(f){return f.name.trim()});
+    if(!fs.length){add("bad",w,"Add the fields of this resource.","res",i);return}
+    if(r.fields.length>fs.length)add("bad",w,"A field has no name.","res",i);
+    var idf=fs.filter(function(f){return f.name.trim().toLowerCase()==="id"})[0];
+    if(!idf)add("warn",w,"Add an id field, so each item can be addressed.","res",i);
+    else if(!idf.readOnly)add("warn",w,"Mark id as set by the server. Callers should not choose identifiers.","res",i);
+    var notSnake=fs.filter(function(f){return !SNAKE.test(f.name.trim())}).map(function(f){return f.name.trim()});
+    if(notSnake.length)add("warn",w,"Use one naming style for fields. This tutor uses snake_case; fix: "+notSnake.join(", ")+".","res",i);
+    var nd=fs.filter(function(f){return !f.desc.trim()}).length;
+    if(nd)add("warn",w,nd+" field"+(nd>1?"s have":" has")+" no description.","res",i);
+    var ne=fs.filter(function(f){return f.example===""||f.example==null}).length;
+    if(ne)add("warn",w,ne+" field"+(ne>1?"s have":" has")+" no example. Examples become the mock data and the documentation.","res",i);
+    fs.forEach(function(f){
+      var fn=f.name.trim(),l=fn.toLowerCase();
+      if(/(amount|total|price|cost|balance|fee|tax)/.test(l)){
+        if(f.type==="number"||f.type==="string")add("bad",w,fn+": do not send money as a decimal or as text. Use an integer in the smallest unit, such as cents.","res",i);
+        else if(f.type==="integer"&&f.desc.trim()&&!/cent|minor|smallest|pence/i.test(f.desc))add("warn",w,fn+": say the unit in the description, for example “Amount in cents”.","res",i);
+      }
+      if(f.type==="string"&&/(_at|time|timestamp)$/.test(l))add("warn",w,fn+": use the date-time type so the format and time zone are unambiguous.","res",i);
+      else if(f.type==="string"&&/(date|_on|day)$/.test(l))add("warn",w,fn+": use the date type, which means 2026-12-01.","res",i);
+      if(f.type==="string"&&/(status|state|kind|currency)$/.test(l)&&!vals(f.values).length)add("warn",w,fn+": list the allowed values, so callers and tools know the full set.","res",i);
+      if(f.type==="boolean"&&/^is_?(cancel|paid|sent|done|complete|active|void|closed|open|draft|deleted)/i.test(fn)&&fs.some(function(x){return /(status|state)$/.test(x.name.toLowerCase())}))add("warn",w,fn+" repeats what status already says. Keep the status and drop the flag.","res",i);
+      if(f.required&&f.readOnly)add("warn",w,fn+" is both required and set by the server. A caller cannot send it, so untick one.","res",i);
+    });
+    if(!used[r.id])add("warn",w,"No operation uses this resource yet.","res",i);
+  });
+
+  if(!S.ops.length)add("bad","Operations","Add at least one operation.");
+  var seenO={},seenId={};
+  S.ops.forEach(function(o,i){
+    var p=o.path.trim(),w=o.method+" "+(p||"(no path)"),s=segs(p),r=resById(o.res),act=isAction(o);
+    if(!p||p.charAt(0)!=="/")add("bad",w,"A path starts with a slash, such as /invoices.","op",i);
+    else{
+      if(p.length>1&&/\/$/.test(p))add("warn",w,"Drop the trailing slash.","op",i);
+      var k=o.method+" "+p.replace(/\{[^}]+\}/g,"{}");if(seenO[k])add("bad",w,"Two operations share this method and path.","op",i);seenO[k]=1;
+      var bad=0;
+      s.forEach(function(x,n){
+        if(isParam(x)){if(/^\{id\}$/i.test(x)&&!bad++)add("warn",w,"Name the placeholder after its resource, such as {invoiceId}, so nested paths stay readable.","op",i);return}
+        var last=n===s.length-1;
+        if(VERB.test(x)&&!(act&&last))add("bad",w,"“"+x+"” puts a verb in the path. The method is the verb: use "+(/^(delete|remove)/.test(x)?"DELETE":/^(create|add|new|save|post)/.test(x)?"POST":/^(update|edit|set|put)/.test(x)?"PATCH":"GET")+" on a noun path.","op",i);
+        else if(/(data|screen|page|view|dashboard|widget)$/i.test(x))add("bad",w,"“"+x+"” is named after a screen. Offer the resources that screen shows, with filters.","op",i);
+        else if(/[A-Z_]/.test(x))add("warn",w,"Write path words in lowercase with hyphens: “"+x+"”.","op",i);
+        else if(!(act&&last)&&!/s$/.test(x)&&(s[n+1]===undefined||isParam(s[n+1])||n===0))add("warn",w,"Collections are plural nouns: “"+x+"” should probably be “"+plural(x)+"”.","op",i);
+      });
+      if(pathParams(p).length>2)add("warn",w,"This path is nested three levels deep. Keep to one level of nesting and address deeper items directly.","op",i);
+      if(act&&o.method!=="POST")add("warn",w,"A named action changes something, so it should be a POST.","op",i);
+    }
+    var sm=o.summary.trim();
+    if(!sm)add("bad",w,"Add a summary: a few words naming the job, like a button label.","op",i);
+    else{
+      if(sm.length>60)add("warn",w,"Keep the summary under 60 characters and move the rest to the description.","op",i);
+      if(/\//.test(sm)||/^(GET|POST|PUT|PATCH|DELETE)\b/.test(sm))add("warn",w,"Describe the job in the summary, not the HTTP call.","op",i);
+      else if(sm.split(/\s+/).length<2)add("warn",w,"A one-word summary says too little. Use a verb and a noun.","op",i);
+    }
+    if((o.body||o.ret!=="none")&&!r)add("bad",w,"Choose which resource this operation is about.","op",i);
+    if((o.method==="GET"||o.method==="DELETE")&&o.body)add("bad",w,o.method+" requests do not carry a body. Use query parameters to filter, or a different method.","op",i);
+    if(o.method==="GET"&&o.ret==="none")add("bad",w,"A GET that returns nothing has no purpose. Choose what it returns.","op",i);
+    if(/^(POST|PUT|PATCH)$/.test(o.method)&&!o.body&&!act)add("warn",w,"A create or update needs a request body. If this is a named action, put it after an item: /invoices/{invoiceId}/send.","op",i);
+    if(o.method==="DELETE"&&o.ret==="list")add("warn",w,"A delete returns nothing, or the deleted item.","op",i);
+    var endsParam=s.length&&isParam(s[s.length-1]);
+    if(o.method==="GET"&&o.ret==="list"){
+      if(endsParam)add("warn",w,"A path ending in an ID addresses one item, so it should return one item.","op",i);
+      if(!o.params.some(function(x){return /^(limit|page_size|per_page)$/.test(x.name.trim())}))add("warn",w,"A list needs a limit parameter, with a default and a maximum, and a cursor for the next page.","op",i);
+    }
+    if(o.method==="GET"&&o.ret==="one"&&s.length&&!endsParam&&!pathParams(p).length)add("warn",w,"This path addresses a collection but returns one item. Add an ID to the path or return a page of items.","op",i);
+    if(pathParams(p).length&&!o.errors[404])add("warn",w,"The ID in the path may not exist. Add the 404 not found response.","op",i);
+    if((o.body||o.params.some(function(x){return x.name.trim()}))&&!o.errors[422])add("warn",w,"Callers can send unacceptable values. Add the 422 invalid fields response.","op",i);
+    if(act&&!o.errors[409])add("warn",w,"An action can arrive at the wrong moment, such as sending twice. Add the 409 wrong state response.","op",i);
+    if((act||o.method==="DELETE")&&!o.desc.trim())add("warn",w,"Say in the description what else happens and when it is refused: messages sent, records changed, states that block it.","op",i);
+    if(o.params.some(function(x){return !x.name.trim()}))add("bad",w,"A parameter has no name.","op",i);
+    var pn=o.params.filter(function(x){return x.name.trim()});
+    var md=pn.filter(function(x){return !x.desc.trim()}).length;
+    if(md)add("warn",w,md+" parameter"+(md>1?"s have":" has")+" no description.","op",i);
+    if(pn.some(function(x){return !SNAKE.test(x.name.trim())}))add("warn",w,"Name query parameters in the same style as fields: snake_case.","op",i);
+    if(o.method==="GET"&&pn.some(function(x){return x.required}))add("warn",w,"Keep filters optional, so the plain list still works.","op",i);
+    if(p&&p.charAt(0)==="/"){var id=opId(o);if(seenId[id])add("bad",w,"This operation would get the same code name, "+id+", as another. Change the path, method or what it returns.","op",i);seenId[id]=1}
+  });
+  return out;
+}
+function refresh(){
+  var issues=lint();
+  $("#sIssues").textContent=issues.length;$("#sRes").textContent=S.resources.length;$("#sOps").textContent=S.ops.length;
+  var b=$("#navBadge");b.textContent=issues.length;b.classList.toggle("zero",!issues.length);
+  $("#issues").innerHTML=issues.length?issues.map(function(x){return '<li class="'+x.level+'"><span class="w">'+esc(x.where)+'</span>'+esc(x.msg)+'</li>'}).join(""):'<li class="ok">No issues found. Read the spec as if you were the agent, then walk each job through it.</li>';
+  function lv(kind,i){return issues.filter(function(x){return x.kind===kind&&x.i===i}).reduce(function(a,x){return x.level==="bad"?"bad":a==="bad"?a:"warn"},"ok")}
+  S.resources.forEach(function(r,i){
+    var d=$('[data-rdot="'+i+'"]');if(d)d.className="dot "+lv("res",i);
+    var s=$('[data-rsum="'+i+'"]');if(s)s.textContent=r.name||"(unnamed resource)";
+    var c=$('[data-rcount="'+i+'"]');if(c)c.textContent=r.fields.length+(r.fields.length===1?" field":" fields");
+    $$('option[data-rid="'+r.id+'"]').forEach(function(o){o.textContent=r.name||"(unnamed)"});
+  });
+  S.ops.forEach(function(o,i){
+    var d=$('[data-odot="'+i+'"]');if(d)d.className="dot "+lv("op",i);
+    var s=$('[data-osum="'+i+'"]');if(s)s.textContent=o.path||"(no path)";
+    var p=$('[data-opill="'+i+'"]');if(p){p.className="pill "+mclass(o.method);p.textContent=o.method}
+    var n=$('[data-oid="'+i+'"]');if(n)n.textContent=opId(o);
+    var v=$('[data-pv="'+i+'"]');if(v)v.textContent=preview(o);
+  });
+  if(!issues.length&&S.ops.length)markDone("workbook");
+  return issues;
+}
+var wb=$("#wb");
+wb.addEventListener("input",function(e){var k=e.target.dataset.k;if(!k)return;setP(k,e.target.type==="checkbox"?e.target.checked:e.target.value);save();refresh()});
+wb.addEventListener("change",function(e){var k=e.target.dataset.k;if(!k||e.target.tagName!=="SELECT")return;setP(k,e.target.value);save();refresh()});
+wb.addEventListener("toggle",function(e){var d=e.target;if(d.matches&&d.matches("details.tool")){var list=d.dataset.kind==="res"?S.resources:S.ops,it=list[+d.dataset.i];if(it)it._open=d.open}},true);
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-act]");if(!b)return;var a=b.dataset.act,i=+b.dataset.i,j=+b.dataset.j,note="";
+  if(a==="add-job")S.jobs.push("");
+  else if(a==="del-job")S.jobs.splice(i,1);
+  else if(a==="add-res")S.resources.push({id:nid(),name:"",desc:"",fields:[F("id","string",0,1,"Assigned by the server.","")],_open:true});
+  else if(a==="del-res"){var rid=S.resources[i].id;S.resources.splice(i,1);S.ops.forEach(function(o){if(o.res===rid)o.res=""})}
+  else if(a==="add-field"){S.resources[i].fields.push(F("","string",0,0,"",""));S.resources[i]._open=true}
+  else if(a==="del-field"){S.resources[i].fields.splice(j,1);S.resources[i]._open=true}
+  else if(a==="add-op"){var o=O("GET","","","",S.resources.length===1?S.resources[0].id:"",0,"one",[]);o._open=true;S.ops.push(o)}
+  else if(a==="del-op")S.ops.splice(i,1);
+  else if(a==="add-param"){S.ops[i].params.push(Q("","string",0,""));S.ops[i]._open=true}
+  else if(a==="add-paging"){var ps=S.ops[i].params,has=function(n){return ps.some(function(x){return x.name===n})};if(!has("limit"))ps.push(Q("limit","integer",0,"How many to return. Default 25, maximum 100."));if(!has("cursor"))ps.push(Q("cursor","string",0,"Pass next_cursor from the previous page to continue."));S.ops[i]._open=true}
+  else if(a==="del-param"){S.ops[i].params.splice(j,1);S.ops[i]._open=true}
+  else if(a==="load-example"){S=clone(EXAMPLE);note="Example loaded."}
+  else if(a==="load-project"){S=clone(PROJECT);note="Practice project loaded. Fix the issues in the review panel.";markDone("project")}
+  else if(a==="clear"){S=clone(BLANK);note="Blank workbook. Start with the jobs."}
+  else return;
+  save();renderWB();refresh();
+  if(note){$("#wbNote").textContent=note;if(location.hash!=="#workbook")location.hash="#workbook"}
+});
+
+/* ---------- the OpenAPI document ---------- */
+function buildOpenAPI(){
+  var a=S.app,name=a.name.trim()||"Untitled",base=a.base.trim()||"https://api.example.com/v1";
+  var host=(/^https?:\/\/[^\/]+/.exec(base)||["https://api.example.com"])[0];
+  var doc={openapi:"3.1.0",info:{title:name+" API",version:a.version||"1.0.0"}};
+  if(a.summary.trim())doc.info.description=a.summary.trim();
+  doc.servers=[{url:base}];
+  var bearer=/^Bearer/.test(a.auth),key=/^API key/.test(a.auth);
+  if(bearer)doc.security=[{bearerAuth:[]}];if(key)doc.security=[{apiKeyAuth:[]}];
+  var usedRes=S.resources.filter(function(r){return r.name.trim()&&S.ops.some(function(o){return o.res===r.id})});
+  if(usedRes.length)doc.tags=usedRes.map(function(r){var t={name:plural(schemaName(r))};if(r.desc.trim())t.description=r.desc.trim();return t});
+  var schemas={},responses={},needList={},needUpdate={},usedErr={};
+  function ref(n){return {$ref:"#/components/schemas/"+n}}
+  doc.paths={};
+  S.ops.forEach(function(o){
+    var p=o.path.trim();if(!p||p.charAt(0)!=="/")return;
+    var r=resById(o.res),N=r?schemaName(r):null,op={};
+    if(N)op.tags=[plural(N)];
+    if(o.summary.trim())op.summary=o.summary.trim();
+    if(o.desc.trim())op.description=o.desc.trim();
+    op.operationId=opId(o);
+    var params=pathParams(p).map(function(n){var x={name:n,in:"path",required:true,description:"The "+(N?N.replace(/([a-z])([A-Z])/g,"$1 $2").toLowerCase():"item")+" identifier.",schema:{type:"string"}};var ex=idExample(r);if(ex&&/id$/i.test(n))x.example=ex;return x});
+    o.params.forEach(function(q){var n=q.name.trim();if(!n)return;var sc=q.type==="date"?{type:"string",format:"date"}:{type:q.type},e=vals(q.values);if(e.length&&q.type!=="boolean")sc.enum=e.map(function(v){return cast(v,q.type)});
+      if(n==="limit"&&q.type==="integer"){sc.minimum=1;sc.maximum=100;sc.default=25}
+      var x={name:n,in:"query"};if(q.required)x.required=true;if(q.desc.trim())x.description=q.desc.trim();x.schema=sc;params.push(x)});
+    if(o.method==="POST"&&!isAction(o))params.push({name:"Idempotency-Key",in:"header",description:"A unique value chosen by the caller. Repeating a request with the same key returns the first result instead of creating a duplicate.",schema:{type:"string"}});
+    if(params.length)op.parameters=params;
+    if(o.body&&N&&o.method!=="GET"&&o.method!=="DELETE"){var bn=N;if(o.method==="PATCH"){bn=N+"Update";needUpdate[r.id]=1}op.requestBody={required:true,content:{"application/json":{schema:ref(bn)}}}}
+    var code=String(successCode(o)),rs={};
+    if(o.ret==="one"&&N)rs[code]={description:code==="201"?"The "+N+" was created.":"The "+N+".",content:{"application/json":{schema:ref(N)}}};
+    else if(o.ret==="list"&&N){needList[r.id]=1;rs[code]={description:"One page of "+plural(N)+".",content:{"application/json":{schema:ref(N+"List")}}}}
+    else rs[code]={description:code==="204"?"Done. There is nothing to return.":"Done."};
+    opErrors(o).forEach(function(c){usedErr[c]=1;rs[String(c)]={$ref:"#/components/responses/"+ERR[c][0]}});
+    op.responses=rs;
+    (doc.paths[p]=doc.paths[p]||{})[o.method.toLowerCase()]=op;
+  });
+  S.resources.forEach(function(r){
+    if(!r.name.trim())return;var N=schemaName(r),sc={type:"object"},props={},req=[];
+    if(r.desc.trim())sc.description=r.desc.trim();
+    r.fields.forEach(function(f){var n=f.name.trim();if(!n)return;props[n]=fieldSchema(f);if(f.required&&!f.readOnly)req.push(n)});
+    if(req.length)sc.required=req;sc.properties=props;schemas[N]=sc;
+    if(needUpdate[r.id]){var up={};r.fields.forEach(function(f){var n=f.name.trim();if(n&&!f.readOnly)up[n]=fieldSchema(f)});schemas[N+"Update"]={type:"object",description:"The fields of "+N+" a caller may change. Send only the ones to change.",properties:up}}
+    if(needList[r.id])schemas[N+"List"]={type:"object",required:["data","next_cursor"],properties:{data:{type:"array",items:ref(N)},next_cursor:{type:["string","null"],description:"Pass this as cursor to get the next page. Null on the last page."}}};
+  });
+  var codes=Object.keys(usedErr);
+  if(codes.length){
+    schemas.Problem={type:"object",description:"The shape of every error, following RFC 9457.",required:["type","title","status"],properties:{
+      type:{type:"string",format:"uri",description:"A stable address that identifies the kind of problem."},
+      title:{type:"string",description:"A short sentence a person can read."},
+      status:{type:"integer",description:"The HTTP status code."},
+      detail:{type:"string",description:"What to do about it."},
+      errors:{type:"array",description:"Present on validation failures: one entry per unacceptable field.",items:{type:"object",required:["field","code","message"],properties:{field:{type:"string",description:"The name of the field or parameter."},code:{type:"string",description:"A stable code for programs, such as required or too_long."},message:{type:"string",description:"A sentence for the person filling in the form."}}}}}};
+    var firstField="name";S.resources.some(function(r){return r.fields.some(function(f){if(f.required&&!f.readOnly&&f.name.trim()){firstField=f.name.trim();return true}})});
+    codes.forEach(function(c){var e=ERR[c],ex={type:host+"/problems/"+e[0].replace(/([a-z])([A-Z])/g,"$1-$2").toLowerCase(),title:e[2],status:+c,detail:e[3]};
+      if(c==="422")ex.errors=[{field:firstField,code:"required",message:"This field is required."}];
+      responses[e[0]]={description:e[1],content:{"application/problem+json":{schema:ref("Problem"),example:ex}}}});
+  }
+  var comp={};
+  if(bearer)comp.securitySchemes={bearerAuth:{type:"http",scheme:"bearer",description:"Send the signed-in user's access token in the Authorization header."}};
+  if(key)comp.securitySchemes={apiKeyAuth:{type:"apiKey",in:"header",name:"X-API-Key",description:"One key per integration."}};
+  if(Object.keys(schemas).length)comp.schemas=schemas;
+  if(Object.keys(responses).length)comp.responses=responses;
+  if(Object.keys(comp).length)doc.components=comp;
+  return doc;
+}
+function toYaml(doc){try{if(window.jsyaml)return window.jsyaml.dump(doc,{lineWidth:-1,noRefs:true}).replace(/\n$/,"")}catch(e){}return JSON.stringify(doc,null,2)}
+
+/* ---------- the brief ---------- */
+function buildSpec(){
+  var a=S.app,L=[],jobs=S.jobs.filter(function(w){return w.trim()}),name=a.name.trim()||"the product";
+  function add(s){L.push(s==null?"":s)}
+  add("# Build the "+name+" HTTP API from this OpenAPI contract");add();
+  add("You are implementing an HTTP API. The OpenAPI document in section 3 is the contract and this document is the full brief. If anything is ambiguous or conflicts with the existing codebase, stop and list your questions before writing code.");add();
+  add("## 1. Context");
+  add("- Product: "+name+(a.summary.trim()?". "+a.summary.trim():""));
+  if(a.callers.trim())add("- Callers of the API: "+a.callers.trim());
+  add("- Language and framework: "+a.stack);
+  add("- Base address: "+(a.base.trim()||"(not given)"));
+  add("- Authentication: "+a.auth);
+  if(a.tenancy.trim())add("- Permissions and data isolation: "+a.tenancy.trim());
+  if(a.limits.trim())add("- Limits: "+a.limits.trim());
+  if(a.notes.trim())add("- Notes: "+a.notes.trim());add();
+  add("## 2. Jobs the API must support");
+  if(jobs.length)jobs.forEach(function(w,i){add((i+1)+". "+w.trim())});else add("(none provided; ask the product owner before building further)");add();
+  add("## 3. The contract");
+  add("Save this as `openapi.yaml` at the root of the service and treat it as the source of truth. Paths, methods, operationIds, field names, types, required lists, allowed values and status codes are the contract. Do not rename, add or remove any of them without asking. If the framework generates its own OpenAPI output, make that output match this file and check it in a test.");add();
+  add("```yaml");add(toYaml(buildOpenAPI()));add("```");add();
+  add("## 4. Conventions for every operation");
+  add("- Validate every request against the contract on the server: required fields, types, formats, allowed values and limits. Never rely on the client having validated.");
+  add("- Return every error as `application/problem+json` in the Problem shape, with the status codes the contract lists for that operation. For 422, include one `errors` entry per unacceptable field, with a stable `code` and a `message` a person can read. Write `title` and `detail` as plain sentences that say what to do next. Never return stack traces, SQL or internal identifiers.");
+  add("- Use 404 when the item does not exist or the caller may not see it, 409 when the request is valid but the item's current state does not allow it, and 5xx only for faults of the server.");
+  if(hasAuth())add("- Derive the caller and their account from the validated credential on every request, never from the path, query or body. Apply that account as a filter in every query. Return 401 for a missing or invalid credential.");
+  add("- Fields marked readOnly are set by the server. Ignore them if a caller sends them.");
+  add("- Lists return an object with `data` and `next_cursor`. Honour `limit` (default 25, maximum 100), keep the ordering stable between pages, and make `cursor` opaque to the caller.");
+  add("- Creating operations accept an `Idempotency-Key` header. A repeated request with the same key returns the original result and creates nothing new. GET, PUT and DELETE must be safe to repeat.");
+  add("- Dates are ISO 8601 (`2026-12-01`). Timestamps are UTC with a `Z`. Amounts of money are integers in the smallest currency unit and are never floats, in transit or in storage.");
+  add("- Ignore unknown fields in requests rather than failing, and never remove or rename a response field. Adding optional fields and new operations is allowed; anything else is a new version.");
+  add("- Log every request for audit: caller, operationId, status and duration. Do not log credentials or personal data.");add();
+  add("## 5. Acceptance criteria");
+  add("- `openapi.yaml` passes a linter (for example `redocly lint openapi.yaml`) with no errors.");
+  add("- Contract tests prove that every operation's real responses match the contract, for the success response and for each listed error. A mock server such as Prism can stand in for the API while clients are built.");
+  add("- Unit tests cover each operation's success path, validation failures, permission failures and wrong-state conflicts.");
+  add("- A breaking-change check (for example `oasdiff breaking`) runs in CI against the last released contract.");
+  add("- Each job in section 2 can be completed using only these operations. Provide the sequence of requests for each:");
+  jobs.forEach(function(w){add("  - \""+w.trim()+"\"")});add();
+  add("## 6. Deliverables");
+  add("- Service source code following the repository's existing structure and style, with `openapi.yaml` checked in and served at `/openapi.yaml`.");
+  add("- Tests, and a README covering how to run the service, how to obtain a credential for local use and which environment variables it needs.");
+  add("- A short list of open questions and any place you deviated from this brief, with the reason.");
+  return L.join("\n");
+}
+var specMode="brief";
+function renderSpec(){
+  var issues=lint();$("#specOut").textContent=specMode==="yaml"?toYaml(buildOpenAPI()):buildSpec();
+  $("#vBrief").setAttribute("aria-pressed",String(specMode==="brief"));$("#vYaml").setAttribute("aria-pressed",String(specMode==="yaml"));
+  var bad=issues.filter(function(x){return x.level==="bad"}).length;
+  $("#specWarn").innerHTML=issues.length?'<span style="color:var('+(bad?"--bad":"--warn")+')">The design review still lists '+issues.length+' issue'+(issues.length>1?"s":"")+'.</span> The spec below is usable, but fix them first for a better build.':'<span style="color:var(--ok)">The design review is clean.</span>';
+  $("#copyMsg").textContent="";
+}
+$("#vBrief").addEventListener("click",function(){specMode="brief";renderSpec()});
+$("#vYaml").addEventListener("click",function(){specMode="yaml";renderSpec()});
+$("#copyBtn").addEventListener("click",function(){
+  var t=$("#specOut").textContent,m=$("#copyMsg");
+  function fallback(){var r=document.createRange();r.selectNodeContents($("#specOut"));var s=window.getSelection();s.removeAllRanges();s.addRange(r);m.textContent="Selected. Press Ctrl or Cmd + C to copy."}
+  try{navigator.clipboard.writeText(t).then(function(){m.textContent=specMode==="yaml"?"openapi.yaml copied.":"Brief copied.";markDone("spec")},fallback)}catch(e){fallback()}
+});
+
+window.__oaTutor={lint:lint,buildOpenAPI:buildOpenAPI,buildSpec:buildSpec,toYaml:toYaml,load:function(n){S=clone(n==="project"?PROJECT:n==="blank"?BLANK:EXAMPLE);renderWB();refresh()}};
+renderWB();refresh();route();
+})();
+</script>
+</body>
+</html>

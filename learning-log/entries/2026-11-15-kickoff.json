@@ -1,0 +1,15 @@
+{
+  "date": "2026-11-15",
+  "did": "Set the goal: build the Kestrel simulator by following my Designer Learning Path, and put it live on GitHub Pages. Set the rules: I do all the work, Claude only guides. Chose Neon for the database.",
+  "evidence": [
+    {
+      "label": "First commit: Add README",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/a9d9bc624d3768e4d2f5986d16647e421a2af7ac"
+    }
+  ],
+  "fixes": [],
+  "id": "2026-11-15-kickoff",
+  "learned": "",
+  "title": "Kickoff",
+  "tutorial": ""
+}

@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-15",
+  "did": "Fixed what the review found. Renamed .env.example.txt to .env.example, wrote the project brief into the README, switched my commits to GitHub's noreply email, and fixed the README formatting through pull requests #3 to #5 from feature branches.",
+  "evidence": [
+    {
+      "label": "Pull request #3",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/pull/3"
+    },
+    {
+      "label": "Pull request #4",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/pull/4"
+    },
+    {
+      "label": "Pull request #5",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/pull/5"
+    }
+  ],
+  "fixes": [],
+  "id": "2026-11-15-git-basics-review",
+  "learned": "git config needs the setting's name before its value. In Markdown, # is a heading, not a comment, and a heading needs a space after the #. My first two fixes went straight to main before the pull request habit stuck.",
+  "title": "Git Basics: review and milestone 1 done",
+  "tutorial": "git-basics"
+}

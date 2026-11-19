@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-17",
+  "did": "Laid out the project. One repository now holds both halves: cockpit, a Vite scaffold with React, TypeScript and ESLint, and api, beside docs and specs. I installed the cockpit's packages, added the flight feature's types file, moved App.tsx into src/app and added the API's entry file. Five commits, one at the end of each lesson that changed something.",
+  "evidence": [
+    {
+      "label": "Add docs folder and scaffold the cockpit app",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/1bac1108791d3abf17de84ec46fe64964b6307c9"
+    },
+    {
+      "label": "Install cockpit packages",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/661e7655bea6cfc9fdea73028be98f120da9f82c"
+    },
+    {
+      "label": "Add the flight feature's types file",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/51921c75cb4ea8bf767615ee2104de5ad8cea6ba"
+    },
+    {
+      "label": "Move App.tsx into src/app",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/b1f523cec184f5512340185445acb72ba8864252"
+    },
+    {
+      "label": "Add the API app entry file",
+      "url": "https://github.com/RSSGuy/kestrel-simulator/commit/1a5476c6e773ec5293ec24c4455f9f81283ed638"
+    }
+  ],
+  "fixes": [
+    "Every lesson now says where the terminal starts and how to get there, and each folder step says at what level the folder goes",
+    "Explained the scaffolding tool's questions: answer y at \"Ok to proceed?\", choose ESLint at \"Which linter to use?\", and say no to installing and starting right away",
+    "Covered not having uv installed yet: make the api folder by hand and carry on",
+    "Explained the audit and funding lines after npm install, and the notice that a new version of npm is available",
+    "Marked the steps that only happen in the sandbox for learners working on their own machine",
+    "Replaced lesson 5's move commands with a drag-and-drop sorting drill, since those practice files only exist in the sandbox",
+    "Added a commit reminder to the end of each lesson, with a message and the files that should show up"
+  ],
+  "id": "2026-11-17-project-structure",
+  "learned": "Where the terminal is decides where a new folder lands, and I had to stop and check more than once. Git doesn't record an empty folder, so a folder only shows up on GitHub once it has a file in it. I didn't have uv installed yet, so I made the api folder by hand and carried on.",
+  "title": "Project structure: one repository, two apps",
+  "tutorial": "project-structure"
+}

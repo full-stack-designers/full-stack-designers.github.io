@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Tokens for Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a spec-sheet workbook. Fixed lesson rail on the left, one lesson per view,
+   each lesson = short reading column + one wide hands-on panel + one check question. */
+:root {
+  --paper: #F3F4F0;
+  --surface: #FFFFFF;
+  --ink: #171C22;
+  --ink-soft: #56606B;
+  --line: #D9DCD3;
+  --accent: #2447D6;
+  --accent-soft: #E3E8FB;
+  --on-accent: #FFFFFF;
+  --agent: #9A4A06;
+  --agent-soft: #FBEBD3;
+  --good: #1F7A4D;
+  --good-soft: #DDF1E6;
+  --warn: #8F5200;
+  --warn-soft: #FBEBD3;
+  --bad: #B3261E;
+  --bad-soft: #FADEDB;
+  --code-bg: #101623;
+  --code-ink: #DDE3F0;
+  --code-dim: #8A96AD;
+  --font-display: "Bricolage Grotesque", "Arial Narrow", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --radius: 10px;
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.75rem;
+  --step-3: 2.5rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #12151A; --surface: #1A1F27; --ink: #E8EAED; --ink-soft: #9AA4B1; --line: #2C333D;
+    --accent: #8FA5FF; --accent-soft: #1F2A52; --on-accent: #0E1430;
+    --agent: #F2B261; --agent-soft: #3A2A12;
+    --good: #5DCB95; --good-soft: #143424; --warn: #F0B45A; --warn-soft: #3A2A12;
+    --bad: #F28B82; --bad-soft: #43191A; --code-bg: #0B0E14;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #12151A; --surface: #1A1F27; --ink: #E8EAED; --ink-soft: #9AA4B1; --line: #2C333D;
+  --accent: #8FA5FF; --accent-soft: #1F2A52; --on-accent: #0E1430;
+  --agent: #F2B261; --agent-soft: #3A2A12;
+  --good: #5DCB95; --good-soft: #143424; --warn: #F0B45A; --warn-soft: #3A2A12;
+  --bad: #F28B82; --bad-soft: #43191A; --code-bg: #0B0E14;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.6; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+code, pre, .mono { font-family: var(--font-mono); font-size: 0.9em; }
+p code, li code, td code { background: var(--accent-soft); padding: 0.1em 0.35em; border-radius: 4px; }
+
+.shell { display: grid; grid-template-columns: 264px minmax(0, 1fr); min-height: 100vh; }
+.rail { border-right: 1px solid var(--line); padding: 28px 20px; position: sticky; top: 0; align-self: start; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); line-height: 1.15; text-wrap: balance; }
+.brand small { display: block; font-family: var(--font-body); font-weight: 400; font-size: var(--step--1); color: var(--ink-soft); margin-top: 6px; }
+.rail nav { display: flex; flex-direction: column; gap: 2px; }
+.rail nav a { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: center; padding: 8px 10px; border-radius: 8px; text-decoration: none; color: var(--ink); font-size: 0.9375rem; }
+.rail nav a:hover { background: var(--accent-soft); }
+.rail nav a[aria-current="page"] { background: var(--ink); color: var(--paper); }
+.num { font-family: var(--font-mono); font-size: 0.75rem; width: 24px; height: 24px; border-radius: 50%; border: 1px solid currentColor; display: grid; place-items: center; }
+a.done .num { background: var(--good); border-color: var(--good); color: var(--surface); }
+.meter { font-size: var(--step--1); color: var(--ink-soft); }
+.meter .bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.meter .bar i { display: block; height: 100%; background: var(--good); width: 0; transition: width .3s; }
+
+main { padding: 44px clamp(16px, 5vw, 64px) 80px; max-width: 1060px; }
+.lesson { display: none; }
+.lesson.on { display: block; }
+.eyebrow { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-soft); letter-spacing: .04em; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.9rem, 4.5vw, var(--step-3)); line-height: 1.08; margin: 6px 0 16px; text-wrap: balance; max-width: 22ch; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); margin: 36px 0 8px; text-wrap: balance; }
+h3 { font-size: var(--step-0); font-weight: 600; margin: 0 0 6px; }
+.prose { max-width: 66ch; }
+.prose p { margin: 0 0 14px; }
+.lede { font-size: var(--step-1); line-height: 1.45; color: var(--ink); }
+.note { border-left: 3px solid var(--agent); background: var(--agent-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; max-width: 66ch; margin: 18px 0; font-size: 0.9375rem; }
+.note b { color: var(--agent); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; margin: 22px 0; }
+.panel > .cap { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink-soft); margin-bottom: 14px; display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; padding: 4px; }
+.seg button { border: 0; background: transparent; padding: 7px 12px; border-radius: 6px; font-size: 0.875rem; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 8px; font-weight: 500; text-decoration: none; display: inline-block; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.small { padding: 5px 10px; font-size: var(--step--1); }
+.cols { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.box { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: var(--paper); min-width: 0; }
+.box .lbl { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+pre { background: var(--code-bg); color: var(--code-ink); padding: 14px; border-radius: 8px; margin: 0; overflow-x: auto; line-height: 1.5; font-size: 0.8125rem; white-space: pre; }
+.verdict { margin-top: 14px; padding: 12px 14px; border-radius: 8px; font-size: 0.9375rem; }
+.verdict.bad { background: var(--bad-soft); color: var(--bad); }
+.verdict.warn { background: var(--warn-soft); color: var(--warn); }
+.verdict.good { background: var(--good-soft); color: var(--good); }
+.verdict span { color: var(--ink); }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); vertical-align: -2px; margin-right: 6px; }
+
+/* tiers */
+.tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tier h3 { font-family: var(--font-mono); font-size: var(--step--1); font-weight: 500; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; }
+.tok { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
+.tok.hit { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.tok .swatch { flex: none; margin: 0; }
+.chain { font-family: var(--font-mono); font-size: 0.875rem; margin-top: 14px; padding: 12px; background: var(--paper); border-radius: 8px; overflow-wrap: anywhere; }
+.preview { display: flex; align-items: center; justify-content: center; padding: 22px; border-radius: 8px; margin-top: 12px; border: 1px solid var(--line); }
+.preview span { padding: 10px 18px; border-radius: 8px; font-weight: 600; }
+
+/* linter */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: var(--step--1); font-weight: 600; }
+input[type="text"], input[type="number"], select, textarea { font: inherit; font-family: var(--font-mono); font-size: 0.9375rem; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); width: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips button { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 4px 11px; font-family: var(--font-mono); font-size: 0.8125rem; }
+.score { display: flex; align-items: baseline; gap: 10px; margin: 16px 0 8px; }
+.score b { font-family: var(--font-display); font-size: var(--step-2); }
+.findings { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.findings li { padding: 8px 12px; border-radius: 7px; font-size: 0.9375rem; display: grid; grid-template-columns: 62px 1fr; gap: 8px; }
+.findings li .tag { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; padding-top: 3px; }
+.findings .e { background: var(--bad-soft); } .findings .e .tag { color: var(--bad); }
+.findings .w { background: var(--warn-soft); } .findings .w .tag { color: var(--warn); }
+.findings .o { background: var(--good-soft); } .findings .o .tag { color: var(--good); }
+dl.out { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 16px 0 0; font-size: 0.9375rem; }
+dl.out dt { color: var(--ink-soft); } dl.out dd { margin: 0; font-family: var(--font-mono); font-size: 0.875rem; overflow-wrap: anywhere; }
+
+/* anatomy */
+.anat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; }
+.dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--paper); padding: 8px; display: flex; flex-direction: column; gap: 4px; }
+.dialog .ttl { font-size: var(--step--1); color: var(--ink-soft); padding: 6px 8px; font-family: var(--font-mono); }
+.row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 7px; padding: 9px 8px; font-size: 0.875rem; width: 100%; }
+.row:hover { background: var(--surface); }
+.row[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.row .k { color: var(--ink-soft); } .row .v { font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; }
+.detail h3 { font-family: var(--font-display); font-size: var(--step-1); }
+.detail dt { font-size: var(--step--1); font-weight: 600; color: var(--ink-soft); margin-top: 12px; }
+.detail dd { margin: 2px 0 0; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: var(--agent-soft); color: var(--agent); }
+
+/* builder */
+.build { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px; }
+.form { display: grid; gap: 12px; align-content: start; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 0.9375rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
+.tw { overflow-x: auto; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: var(--step--1); color: var(--ink-soft); font-weight: 600; }
+
+/* quiz */
+.quiz { border: 1px dashed var(--ink-soft); border-radius: var(--radius); padding: 18px 20px; margin-top: 36px; max-width: 66ch; }
+.quiz .q { font-weight: 600; margin: 4px 0 12px; }
+.quiz .opts { display: flex; flex-direction: column; gap: 6px; }
+.quiz .opts button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 12px; }
+.quiz .opts button.right { border-color: var(--good); background: var(--good-soft); }
+.quiz .opts button.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.quiz .why { margin-top: 12px; font-size: 0.9375rem; min-height: 1.5em; }
+.foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+
+/* checklist */
+.todo { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.todo label { display: grid; grid-template-columns: 22px 1fr; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.todo label:hover { background: var(--paper); }
+.todo input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--good); }
+.todo small { display: block; color: var(--ink-soft); }
+.reading { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.reading a { display: block; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 12px 14px; text-decoration: none; color: var(--ink); }
+.reading a b { display: block; color: var(--accent); }
+.reading a span { font-size: 0.875rem; color: var(--ink-soft); }
+
+[hidden] { display: none !important; }
+a.gl { color: inherit; text-decoration: underline dotted var(--ink-soft); text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+a.gl:hover { color: var(--accent); text-decoration-color: var(--accent); }
+#gBack { position: sticky; top: 12px; z-index: 2; margin-bottom: 8px; }
+.term.flash { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* setup stepper */
+.stepper { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; }
+.slist { display: flex; flex-direction: column; gap: 4px; }
+.slist button { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: center; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 7px; padding: 8px; font-size: 0.875rem; }
+.slist button:hover { background: var(--paper); }
+.slist button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.slist .num { width: 22px; height: 22px; }
+.slist button.ok .num { background: var(--good); border-color: var(--good); color: var(--surface); }
+.sbody h3 { font-family: var(--font-display); font-size: var(--step-1); margin-bottom: 10px; }
+.sbody ol { margin: 0 0 14px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.sbody .tip { font-size: 0.9375rem; background: var(--agent-soft); border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+.vt { border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow-x: auto; }
+.vt .vh { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); padding: 8px 10px; border-bottom: 1px solid var(--line); text-transform: uppercase; letter-spacing: .06em; }
+.vt table { font-family: var(--font-mono); font-size: 0.8125rem; }
+.vt th { font-family: var(--font-body); }
+.vt td, .vt th { padding: 6px 10px; white-space: nowrap; }
+.vt tr:last-child td { border-bottom: 0; }
+.vt .al { background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; display: inline-block; }
+.snav { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+@media (max-width: 860px) { .stepper { grid-template-columns: minmax(0, 1fr); } .slist { flex-direction: row; overflow-x: auto; } .slist button { grid-template-columns: 24px max-content; } }
+/* glossary */
+.gtools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 18px 0; max-width: 66ch; }
+.gtools input { flex: 1 1 220px; font-family: var(--font-body); }
+.gloss { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); margin: 0; }
+.term { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.term dt { font-family: var(--font-display); font-weight: 700; font-size: 1.0625rem; display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.term dt .grp { font-family: var(--font-mono); font-weight: 400; font-size: 0.6875rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.term dd { margin: 0; font-size: 0.9375rem; }
+.term .eg { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink-soft); overflow-wrap: anywhere; }
+.term a { font-size: var(--step--1); margin-top: auto; }
+.rail nav a.ref { margin-top: 10px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; padding-top: 14px; }
+
+@media (max-width: 860px) {
+  .rail nav a.ref { margin-top: 0; border-top: 0; padding-top: 8px; border-radius: 8px; }
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 16px; gap: 12px; }
+  .rail nav { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .rail nav a { grid-template-columns: 24px max-content; }
+  main { padding-top: 28px; }
+  .tiers, .anat, .build { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand">Design Tokens for Agents<small>A hands-on guide to defining tokens an AI agent can read over MCP</small></div>
+    <nav id="nav" aria-label="Lessons"></nav>
+    <div class="meter"><span id="meterText">0 of 8 lessons checked</span><div class="bar"><i id="meterBar"></i></div></div>
+  </aside>
+
+  <main>
+    <!-- 1 -->
+    <section class="lesson" id="L-model">
+      <div class="eyebrow">Lesson 1 of 7</div>
+      <h1>What the agent sees when it looks at your design</h1>
+      <div class="prose">
+        <p class="lede">An agent never sees your Figma file the way you do. It asks a server a question and gets back text. Your tokens are well defined when that text is enough to write the right code.</p>
+        <p><b>MCP</b> (Model Context Protocol) is a standard plug between an AI agent and an outside system. The system runs an <b>MCP server</b>, which offers a list of <b>tools</b>. A tool is a named action with a description, such as "get the variables used in this frame". The agent reads the list, picks a tool, calls it, and reads the reply.</p>
+        <p>For design work the usual server is Figma's. Its <code>get_variable_defs</code> tool returns the variables and styles used in a selection, and <code>get_design_context</code> returns a code starting point for the same selection. Everything the agent learns about your tokens arrives through replies like these.</p>
+        <p>Try the three ways the same blue button can be defined, and watch what reaches the agent.</p>
+      </div>
+
+      <div class="panel">
+        <div class="cap"><span>One button, three definitions</span><span>Simplified illustration of real responses</span></div>
+        <div class="seg" id="mSeg" role="group" aria-label="How the fill is defined"></div>
+        <div class="cols" style="margin-top:16px">
+          <div class="box"><div class="lbl">1 · In Figma</div><div id="mFigma"></div></div>
+          <div class="box"><div class="lbl">2 · MCP reply the agent reads</div><pre id="mReply"></pre></div>
+          <div class="box"><div class="lbl">3 · Code the agent writes</div><pre id="mCode"></pre></div>
+        </div>
+        <div class="verdict" id="mVerdict"></div>
+      </div>
+
+      <div class="note"><b>The rule for the whole guide:</b> the token name, its value, and its code syntax are what travel reliably. Anything you want the agent to know should live in one of those three, or in a rules file the agent always reads (lesson 6).</div>
+      <div class="quiz" data-quiz="model"></div>
+      <div class="foot"><span></span><a class="btn" href="#tiers">Next: the three tiers</a></div>
+    </section>
+
+    <!-- 2 -->
+    <section class="lesson" id="L-tiers">
+      <div class="eyebrow">Lesson 2 of 7</div>
+      <h1>Three tiers, and which one the agent should use</h1>
+      <div class="prose">
+        <p class="lede">A token system is a chain of references. Each link answers a different question, and an agent needs the link that says what a value is for.</p>
+        <p><b>Primitives</b> list the raw options: every blue, every spacing step. <b>Semantic</b> tokens point at a primitive and name a job: brand background, danger text. <b>Component</b> tokens are optional and point at a semantic token for one part of one component.</p>
+        <p>Click any token to trace its chain. Switch the mode and notice that only the semantic tier changes where it points. That is why themes work, and why code should reference the semantic tier.</p>
+      </div>
+
+      <div class="panel">
+        <div class="cap"><span>Alias chain explorer</span>
+          <span class="seg" id="tMode" role="group" aria-label="Mode"></span></div>
+        <div class="tiers">
+          <div class="tier"><h3>Primitive · the options</h3><div id="tPrim"></div></div>
+          <div class="tier"><h3>Semantic · the job</h3><div id="tSem"></div></div>
+          <div class="tier"><h3>Component · the part</h3><div id="tComp"></div></div>
+        </div>
+        <div class="chain" id="tChain"></div>
+        <div class="preview" id="tPrev"><span id="tBtn">Save changes</span></div>
+      </div>
+
+      <div class="prose">
+        <h2>What this means for the agent</h2>
+        <p>If the agent is offered <code>blue/600</code> and <code>color/bg/brand</code> side by side, both resolve to the same hex and it has no way to know one of them breaks in dark mode. Reduce the choice:</p>
+        <ul>
+          <li>Bind every layer to a semantic or component token, never a primitive. The agent reports whatever is bound.</li>
+          <li>Keep primitives in their own collection and hide them from publishing, so library searches return jobs and not paint chips.</li>
+          <li>Put modes (light and dark, brand A and brand B) on the semantic collection only.</li>
+        </ul>
+      </div>
+      <div class="quiz" data-quiz="tiers"></div>
+      <div class="foot"><a class="btn ghost" href="#model">Back</a><a class="btn" href="#naming">Next: naming</a></div>
+    </section>
+
+    <!-- 3 -->
+    <section class="lesson" id="L-naming">
+      <div class="eyebrow">Lesson 3 of 7</div>
+      <h1>Naming: the name is the interface</h1>
+      <div class="prose">
+        <p class="lede">An agent often has only the name to go on. A good name can be read cold, by someone who has never opened your file, and still say where the token belongs.</p>
+        <p>Use a fixed order of slash-separated segments. Figma turns each slash into a group, and the same path maps cleanly onto a token file and a CSS variable.</p>
+        <p class="mono" style="font-size:.9375rem">category / property / role / emphasis / state<br>color / bg / danger / subtle / hover</p>
+        <p>Not every token needs every segment. Keep the order, and skip what does not apply. Type a name below, or pick an example, to see how it reads.</p>
+      </div>
+
+      <div class="panel">
+        <div class="cap"><span>Token name linter</span><span class="seg" id="nTier" role="group" aria-label="Tier being named"></span></div>
+        <div class="field"><label for="nIn">Token name</label><input type="text" id="nIn" value="color/bg/danger/subtle" autocomplete="off" spellcheck="false"></div>
+        <div class="chips" id="nChips"></div>
+        <div class="score"><b id="nScore"></b><span id="nScoreLbl"></span></div>
+        <ul class="findings" id="nFind"></ul>
+        <dl class="out">
+          <dt>Read cold, an agent infers</dt><dd id="nInfer" style="font-family:var(--font-body);font-size:.9375rem"></dd>
+          <dt>CSS variable</dt><dd id="nCss"></dd>
+          <dt>Token file path</dt><dd id="nPath"></dd>
+        </dl>
+      </div>
+
+      <div class="prose">
+        <h2>Habits that help</h2>
+        <ul>
+          <li>Name the job in semantic tokens and the value in primitives. <code>color/text/danger</code> survives a rebrand. <code>color/text/red</code> does not.</li>
+          <li>Use pairs that explain themselves: <code>color/bg/brand</code> with <code>color/text/on-brand</code>.</li>
+          <li>Put the state last so related tokens sort together.</li>
+          <li>Pick one spelling for each idea and never vary it. If half the file says <code>danger</code> and half says <code>error</code>, the agent treats them as two things.</li>
+          <li>Avoid <code>.</code> <code>{</code> <code>}</code> and a leading <code>$</code>. The token file format reserves them.</li>
+        </ul>
+      </div>
+      <div class="quiz" data-quiz="naming"></div>
+      <div class="foot"><a class="btn ghost" href="#tiers">Back</a><a class="btn" href="#anatomy">Next: variable anatomy</a></div>
+    </section>
+
+    <!-- 4 -->
+    <section class="lesson" id="L-anatomy">
+      <div class="eyebrow">Lesson 4 of 7</div>
+      <h1>Anatomy of a well-defined variable</h1>
+      <div class="prose">
+        <p class="lede">A Figma variable has six parts you control. Each one either reaches the agent directly or makes sure the right variable is the one that gets bound.</p>
+        <p>Click each field in the variable below.</p>
+      </div>
+      <div class="panel">
+        <div class="cap"><span>Edit variable</span><span>Click a field</span></div>
+        <div class="anat">
+          <div class="dialog" id="aDialog"><div class="ttl">Collection: Semantic</div></div>
+          <div class="detail box" id="aDetail"></div>
+        </div>
+      </div>
+      <div class="note"><b>Highest return for the least work:</b> code syntax. Figma's own guidance is that it tells the MCP server how each variable is written in your codebase, so the agent receives the exact string your developers use.</div>
+      <div class="quiz" data-quiz="anatomy"></div>
+      <div class="foot"><a class="btn ghost" href="#naming">Back</a><a class="btn" href="#setup">Next: set it up in Figma</a></div>
+    </section>
+
+    <!-- setup -->
+    <section class="lesson" id="L-setup">
+      <div class="eyebrow">Lesson</div>
+      <h1>Set up the variables in Figma</h1>
+      <div class="prose">
+        <p class="lede">This is the build, click by click, for a small starter set: two collections, a light and a dark mode, and every field from the last lesson filled in.</p>
+        <p>Do it once in a scratch file before touching a real library. The menu labels below come from Figma's current help pages. Figma moves things around, so if a label is missing, look for the nearest match in the same place.</p>
+      </div>
+
+      <div class="panel">
+        <div class="cap"><span>Walkthrough</span><span id="sCount"></span></div>
+        <div class="stepper">
+          <div class="slist" id="sList"></div>
+          <div class="sbody">
+            <h3 id="sTitle"></h3>
+            <ol id="sDo"></ol>
+            <div class="tip" id="sTip"></div>
+            <div class="vt"><div class="vh" id="sHead"></div><div id="sTable"></div></div>
+            <div class="snav">
+              <label class="check" for="sDone"><input type="checkbox" id="sDone"> I have done this step</label>
+              <span><button class="btn small ghost" id="sPrev" type="button">Previous</button> <button class="btn small" id="sNext" type="button">Next step</button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="prose">
+        <h2>Scope cheat sheet</h2>
+        <p>In the Scope tab, uncheck "Show in all" and tick only these. The scope names are Figma's. The pairing with token groups is a recommendation, so adjust it to your own naming.</p>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Token group</th><th>Type</th><th>Tick these scopes</th></tr></thead>
+        <tbody>
+          <tr><td><code>color/bg/*</code></td><td>Color</td><td>Frame fill, Shape fill</td></tr>
+          <tr><td><code>color/text/*</code></td><td>Color</td><td>Text fill</td></tr>
+          <tr><td><code>color/border/*</code></td><td>Color</td><td>Stroke</td></tr>
+          <tr><td><code>color/icon/*</code></td><td>Color</td><td>Shape fill, plus Stroke for outlined icons</td></tr>
+          <tr><td><code>color/shadow/*</code></td><td>Color</td><td>Effects</td></tr>
+          <tr><td><code>space/*</code></td><td>Number</td><td>Gap, Padding</td></tr>
+          <tr><td><code>radius/*</code></td><td>Number</td><td>Corner radius</td></tr>
+          <tr><td><code>size/*</code></td><td>Number</td><td>Width and height</td></tr>
+          <tr><td><code>border/width/*</code></td><td>Number</td><td>Stroke</td></tr>
+          <tr><td><code>font/size/*</code>, <code>font/line-height/*</code></td><td>Number</td><td>Font size, Line height</td></tr>
+          <tr><td><code>font/family/*</code></td><td>String</td><td>Font family</td></tr>
+        </tbody>
+      </table></div>
+
+      <div class="prose">
+        <h2>Four things that catch people out</h2>
+        <ul>
+          <li><b>Numbers have no unit.</b> Type <code>16</code>, not <code>16px</code>. The unit is added in code syntax or at export.</li>
+          <li><b>An alias must match the type.</b> A colour can only point at a colour, a number at a number.</li>
+          <li><b>Dragging detaches.</b> Changing padding or gap with the handles on the canvas removes the number variable from that property. Change bound values in the right sidebar.</li>
+          <li><b>The mode switch can seem to be missing.</b> "Apply variable mode" only appears on a layer or frame once something in it uses a variable that has more than one mode.</li>
+        </ul>
+        <h2>Let the agent do the typing</h2>
+        <p>Steps 2 to 7 are repetitive, and code syntax has to be entered one variable at a time by hand. With the remote Figma server connected, the agent can create the whole structure through the <code>use_figma</code> tool. Do the first few by hand so you know what it should look like, then hand over the rest. Edit the lists below to match your own tokens.</p>
+      </div>
+      <div class="panel">
+        <div class="cap"><span>Prompt for your agent</span><button class="btn small ghost" id="sCopy" type="button">Copy</button></div>
+        <pre id="sPrompt" style="white-space:pre-wrap"></pre>
+      </div>
+      <div class="prose"><p>Open the variables view afterwards and check a few rows against the walkthrough: aliases in both modes, scopes, code syntax, and that the primitives are hidden.</p></div>
+      <div class="quiz" data-quiz="setup"></div>
+      <div class="foot"><a class="btn ghost" href="#anatomy">Back</a><a class="btn" href="#format">Next: the token file</a></div>
+    </section>
+
+    <!-- 5 -->
+    <section class="lesson" id="L-format">
+      <div class="eyebrow">Lesson 5 of 7</div>
+      <h1>The same token as a file</h1>
+      <div class="prose">
+        <p class="lede">Outside Figma, tokens live in a JSON file. Since October 2025 there is a stable, vendor-neutral format for it, published by the Design Tokens Community Group and usually called DTCG.</p>
+        <p>A file in the repository is something an agent can read with no connection at all, and something a build tool can turn into CSS, Swift or Kotlin. It is worth knowing how your Figma variable looks in this form. The rules are few:</p>
+        <ul>
+          <li>Groups are nested objects. Each slash in a Figma name becomes one level.</li>
+          <li>A token is any object with a <code>$value</code>. <code>$type</code>, <code>$description</code> and <code>$deprecated</code> sit beside it.</li>
+          <li>An alias is the target path in braces: <code>{color.blue.600}</code>.</li>
+          <li>Values are structured. A dimension is a number plus a unit, never the string <code>"16px"</code>.</li>
+          <li>Save as <code>.tokens</code> or <code>.tokens.json</code>.</li>
+        </ul>
+        <p>Build one below.</p>
+      </div>
+
+      <div class="panel">
+        <div class="cap"><span>Token builder · DTCG 2025.10</span><button class="btn small ghost" id="bCopy" type="button">Copy JSON</button></div>
+        <div class="build">
+          <div class="form">
+            <div class="field"><label for="bName">Name (Figma style, with slashes)</label><input type="text" id="bName" value="color/bg/brand" spellcheck="false" autocomplete="off"></div>
+            <div class="two">
+              <div class="field"><label for="bType">Type</label><select id="bType"><option value="color">color</option><option value="dimension">dimension</option><option value="duration">duration</option><option value="fontWeight">fontWeight</option><option value="number">number</option></select></div>
+              <div class="field"><label for="bKind">Value is</label><select id="bKind"><option value="alias">an alias</option><option value="raw">a raw value</option></select></div>
+            </div>
+            <div class="field" id="bAliasF"><label for="bAlias">Points to</label><input type="text" id="bAlias" value="color/blue/600" spellcheck="false" autocomplete="off"></div>
+            <div class="two" id="bRawF">
+              <div class="field"><label for="bVal">Value</label><input type="text" id="bVal" value="#2447D6" spellcheck="false" autocomplete="off"></div>
+              <div class="field" id="bUnitF"><label for="bUnit">Unit</label><select id="bUnit"></select></div>
+            </div>
+            <div class="field"><label for="bDesc">Description</label><input type="text" id="bDesc" value="Fill for primary actions. Pair with color/text/on-brand." style="font-family:var(--font-body)"></div>
+            <label class="check" for="bDep"><input type="checkbox" id="bDep"> Mark as deprecated</label>
+            <div id="bErr" class="verdict bad" hidden></div>
+          </div>
+          <div><pre id="bOut"></pre></div>
+        </div>
+      </div>
+
+      <div class="prose">
+        <h2>Where Figma and the file differ</h2>
+      </div>
+      <div class="tw"><table>
+        <thead><tr><th>Idea</th><th>Figma variable</th><th>DTCG file</th></tr></thead>
+        <tbody>
+          <tr><td>Grouping</td><td><code>color/bg/brand</code></td><td>Nested objects, referenced as <code>color.bg.brand</code></td></tr>
+          <tr><td>Alias</td><td>Pick another variable as the value</td><td><code>"$value": "{color.blue.600}"</code></td></tr>
+          <tr><td>Modes</td><td>Columns in one collection</td><td>One file per mode in Figma's built-in export. The spec's separate Resolver module describes how to combine them.</td></tr>
+          <tr><td>Types</td><td>Color, number, string, boolean</td><td>Color, dimension, duration, font family, font weight, number and more. There is no plain string type, so string variables need a decision at export.</td></tr>
+          <tr><td>Code syntax, scoping</td><td>Built in</td><td>No standard field. Tools keep extras under <code>$extensions</code>.</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note"><b>Check your export.</b> Users of Figma's built-in variable export have reported that descriptions were left out of the JSON. Open one exported file and confirm what survived before you rely on it.</div>
+      <div class="quiz" data-quiz="format"></div>
+      <div class="foot"><a class="btn ghost" href="#setup">Back</a><a class="btn" href="#connect">Next: connecting to the agent</a></div>
+    </section>
+
+    <!-- 6 -->
+    <section class="lesson" id="L-connect">
+      <div class="eyebrow">Lesson 6 of 7</div>
+      <h1>Connecting tokens to the agent</h1>
+      <div class="prose">
+        <p class="lede">There are three routes from your tokens to an agent. Most teams need the first two together. The third is rarely needed.</p>
+      </div>
+      <div class="cols">
+        <div class="box"><div class="lbl">Route A · Figma's MCP server</div><p style="margin:0">Tokens stay in Figma variables. The agent calls tools to read what a frame uses. Best when the agent is turning designs into code.</p></div>
+        <div class="box"><div class="lbl">Route B · A file in the repo</div><p style="margin:0">Tokens are exported to <code>.tokens.json</code> and built into CSS. The agent reads the files like any other code. No server involved.</p></div>
+        <div class="box"><div class="lbl">Route C · Your own MCP server</div><p style="margin:0">A small service that answers "which token for this job?". Worth it only when tokens live in a separate system shared by many repositories.</p></div>
+      </div>
+      <div class="prose">
+        <p style="margin-top:16px">A sound default: author in Figma, export to the repository, and tell the agent in a rules file which one wins when they disagree.</p>
+        <h2>What each Figma tool gives the agent</h2>
+        <p>Pick a request to see which tool handles it.</p>
+      </div>
+
+      <div class="panel">
+        <div class="cap"><span>Tool explorer · Figma MCP server</span><span id="cAvail"></span></div>
+        <div class="seg" id="cSeg" role="group" aria-label="Request"></div>
+        <div class="cols" style="margin-top:16px">
+          <div class="box"><div class="lbl">You ask</div><div id="cAsk"></div></div>
+          <div class="box"><div class="lbl">Agent calls</div><div class="mono" id="cTool" style="font-weight:500"></div><p id="cWhat" style="margin:8px 0 0;font-size:.9375rem"></p></div>
+          <div class="box"><div class="lbl">Your tokens matter because</div><div id="cWhy" style="font-size:.9375rem"></div></div>
+        </div>
+      </div>
+
+      <div class="prose">
+        <h2>Connect it</h2>
+        <p>The remote server lives at <code>https://mcp.figma.com/mcp</code>. In Claude Code you add it once and sign in with your Figma account when prompted:</p>
+      </div>
+      <pre style="max-width:66ch">claude mcp add --transport http figma https://mcp.figma.com/mcp</pre>
+      <div class="prose">
+        <p style="margin-top:12px">Setup steps change, so confirm against Figma's current instructions in the reading list. Then paste a link to a frame and ask: <em>"List the variable names and their values used in this frame."</em> If the reply shows hex values with no names, those layers are not bound to variables.</p>
+        <h2>Write the rules down</h2>
+        <p>The agent follows a rules file on every task. In Claude Code that file is <code>CLAUDE.md</code> at the root of the repository. This is where knowledge that names cannot carry belongs. Figma's server can also draft one for you with its <code>create_design_system_rules</code> prompt.</p>
+      </div>
+      <div class="panel">
+        <div class="cap"><span>CLAUDE.md · starter section</span><button class="btn small ghost" id="rCopy" type="button">Copy</button></div>
+        <pre id="rules"></pre>
+      </div>
+      <div class="quiz" data-quiz="connect"></div>
+      <div class="foot"><a class="btn ghost" href="#format">Back</a><a class="btn" href="#checklist">Next: readiness checklist</a></div>
+    </section>
+
+    <!-- 7 -->
+    <section class="lesson" id="L-checklist">
+      <div class="eyebrow">Lesson 7 of 7</div>
+      <h1>Readiness checklist</h1>
+      <div class="prose">
+        <p class="lede">Run this against your own file. Ticks are saved in this browser.</p>
+      </div>
+      <div class="panel">
+        <div class="cap"><span id="kCount"></span><button class="btn small ghost" id="kReset" type="button">Clear ticks</button></div>
+        <div id="kList"></div>
+      </div>
+      <div class="prose">
+        <h2>A first test to run</h2>
+        <ol>
+          <li>Pick one small component, such as a card or a button, with every property bound to a semantic variable.</li>
+          <li>Ask the agent to list the variable names and values used in it. Fix anything that comes back as a bare value.</li>
+          <li>Ask the agent to build it. Search the result for <code>#</code> and <code>px</code>. Each hit is a token that was missing, unbound, or unclear.</li>
+        </ol>
+        <h2>Further reading</h2>
+      </div>
+      <div class="reading">
+        <a href="https://www.designtokens.org/tr/2025.10/"><b>Design Tokens specification 2025.10</b><span>The format itself: types, aliases, groups. Short and readable.</span></a>
+        <a href="https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts"><b>Figma MCP server: tools and prompts</b><span>Every tool, what it returns, and example requests.</span></a>
+        <a href="https://github.com/figma/mcp-server-guide"><b>Figma MCP server guide</b><span>Setup per client, best practices, and sample rules.</span></a>
+        <a href="https://www.figma.com/blog/design-systems-ai-mcp/"><b>Design systems and AI</b><span>Figma on why variables and Code Connect change agent output.</span></a>
+        <a href="https://developers.figma.com/docs/figma-mcp-server/mcp-vs-agent"><b>What the MCP sends vs. what the agent does</b><span>Sets expectations on where the server stops.</span></a>
+        <a href="https://help.figma.com/hc/en-us/articles/36346281624471"><b>Extended collections</b><span>Multi-brand theming, plus exporting and importing modes as JSON.</span></a>
+        <a href="https://modelcontextprotocol.io"><b>Model Context Protocol</b><span>The protocol's own introduction to servers, tools and clients.</span></a>
+        <a href="https://terrazzo.app/docs/guides/import-from-figma/"><b>Terrazzo: import from Figma</b><span>One way to turn variables into a .tokens.json file and then into code.</span></a>
+      </div>
+      <div class="foot"><a class="btn ghost" href="#connect">Back</a><a class="btn" href="#glossary">Glossary</a></div>
+    </section>
+
+    <!-- glossary -->
+    <section class="lesson" id="L-glossary">
+      <div class="eyebrow">Reference</div>
+      <h1>Glossary</h1>
+      <div class="prose">
+        <p class="lede">Every term the guide uses, in plain words, with an example and the lesson where it comes up.</p>
+      </div>
+      <a class="btn small" id="gBack" href="#model" hidden></a>
+      <div class="gtools">
+        <input type="text" id="gIn" placeholder="Filter terms, e.g. alias" aria-label="Filter terms" autocomplete="off">
+        <span class="seg" id="gSeg" role="group" aria-label="Topic"></span>
+      </div>
+      <p id="gCount" class="eyebrow" aria-live="polite"></p>
+      <dl class="gloss" id="gList"></dl>
+      <div class="foot"><a class="btn ghost" href="#checklist">Back to the checklist</a><a class="btn ghost" href="#model">Start again</a></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, attrs, text) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  var store = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+  function seg(host, items, current, onPick) {
+    host.textContent = "";
+    items.forEach(function (it) {
+      var b = el("button", { type: "button", "aria-pressed": String(it.id === current) }, it.label);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(host.children, function (c) { c.setAttribute("aria-pressed", "false"); });
+        b.setAttribute("aria-pressed", "true"); onPick(it.id);
+      });
+      host.appendChild(b);
+    });
+  }
+  function copy(btn, text) {
+    btn.addEventListener("click", function () {
+      var done = function (m) { var o = btn.textContent; btn.textContent = m; setTimeout(function () { btn.textContent = o; }, 1400); };
+      try { navigator.clipboard.writeText(text()).then(function () { done("Copied"); }, function () { done("Select and copy manually"); }); }
+      catch (e) { done("Select and copy manually"); }
+    });
+  }
+
+  /* ---------- navigation ---------- */
+  var LESSONS = [
+    ["model", "What the agent sees"], ["tiers", "Three tiers"], ["naming", "Naming"],
+    ["anatomy", "Variable anatomy"], ["setup", "Set it up in Figma"], ["format", "The token file"], ["connect", "Connecting to the agent"], ["checklist", "Readiness checklist"], ["glossary", "Glossary"]
+  ];
+  var COUNT = 8;
+  LESSONS.forEach(function (l, i) { if (i < COUNT) { var e = document.querySelector("#L-" + l[0] + " .eyebrow"); if (e) e.textContent = "Lesson " + (i + 1) + " of " + COUNT; } });
+  var doneSet = store.get("dta-done", {});
+  var nav = $("nav");
+  LESSONS.forEach(function (l, i) {
+    var a = el("a", { href: "#" + l[0], "data-id": l[0] });
+    if (i >= COUNT) a.className = "ref";
+    a.appendChild(el("span", { "class": "num" }, i < COUNT ? String(i + 1) : "Az"));
+    a.appendChild(el("span", null, l[1]));
+    nav.appendChild(a);
+  });
+  function paintNav() {
+    var n = 0;
+    Array.prototype.forEach.call(nav.children, function (a) {
+      var d = !!doneSet[a.getAttribute("data-id")];
+      var idx = Array.prototype.indexOf.call(nav.children, a);
+      if (idx >= COUNT) return;
+      a.classList.toggle("done", d); if (d) n++;
+      a.querySelector(".num").textContent = d ? "✓" : String(idx + 1);
+    });
+    $("meterText").textContent = n + " of " + COUNT + " lessons checked";
+    $("meterBar").style.width = (100 * n / COUNT) + "%";
+  }
+  function markDone(id) { doneSet[id] = 1; store.set("dta-done", doneSet); paintNav(); }
+  function route() {
+    var id = (location.hash || "").slice(1);
+    if (!LESSONS.some(function (l) { return l[0] === id; })) id = "model";
+    document.querySelectorAll(".lesson").forEach(function (s) { s.classList.toggle("on", s.id === "L-" + id); });
+    Array.prototype.forEach.call(nav.children, function (a) {
+      if (a.getAttribute("data-id") === id) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    window.scrollTo(0, 0);
+    if (id === "glossary" && pendingTerm && typeof focusTerm === "function") focusTerm(pendingTerm, pendingFrom);
+    else if ($("gBack")) $("gBack").hidden = true;
+    pendingTerm = null;
+  }
+  var pendingTerm = null, pendingFrom = null, focusTerm;
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest ? e.target.closest("a.gl") : null;
+    if (!a) return;
+    pendingTerm = a.getAttribute("data-term");
+    var cur = document.querySelector(".lesson.on");
+    pendingFrom = cur ? cur.id.slice(2) : null;
+  });
+  window.addEventListener("hashchange", route);
+
+  /* ---------- quizzes ---------- */
+  var QUIZ = {
+    model: { q: "A button's fill is a hex typed in by hand. What does the agent learn about your brand colour token?",
+      o: ["Its name and its value", "Only the hex. There is no token in the reply", "Nothing, the tool call fails"], a: 1,
+      why: "The server reports what is bound to the layer. With nothing bound, the agent gets a colour and no name, so it hard-codes it." },
+    tiers: { q: "Which tier should a component layer's fill be bound to?",
+      o: ["A primitive such as blue/600", "A semantic token such as color/bg/brand", "Whichever resolves to the right hex today"], a: 1,
+      why: "Semantic tokens carry the job and change with the mode. A primitive looks identical today and breaks the first time the theme changes." },
+    naming: { q: "Which name tells an agent the most when read with no other context?",
+      o: ["blue-600", "color/primary", "color/bg/danger/subtle"], a: 2,
+      why: "It states the category, the property it applies to, the meaning and the emphasis. The other two leave the agent guessing where to use them." },
+    anatomy: { q: "Which field stops the agent guessing how a token is spelled in your CSS?",
+      o: ["Description", "Scoping", "Code syntax"], a: 2,
+      why: "Code syntax is the exact string for each platform. With it the agent writes your real variable. Without it the agent derives a spelling from the name." },
+    setup: { q: "You want color/bg/brand to be blue/600 in light and blue/300 in dark. How do you set that up?",
+      o: ["Two variables: color/bg/brand-light and color/bg/brand-dark", "One variable in the Semantic collection, with a different alias in each mode column", "Add a Dark mode to the Primitives collection and change blue/600 there"], a: 1,
+      why: "One name, two columns. Code and the agent reference a single token, and the mode decides which primitive it resolves to." },
+    format: { q: "In the DTCG 2025.10 format, how is 16 pixels written?",
+      o: ["\"16px\"", "16", "{ \"value\": 16, \"unit\": \"px\" }"], a: 2,
+      why: "Dimensions are an object with a number and a unit of px or rem. The unit is required even when the value is 0." },
+    connect: { q: "Your tokens are already a .tokens.json file in the repository the agent works in. Does the agent need an MCP server to use them?",
+      o: ["Yes, agents can only read tokens through MCP", "No. It can read the file, and a rules file tells it how to apply them"], a: 1,
+      why: "MCP is for reaching systems outside the repository, such as Figma. Files in the repository are already in reach." }
+  };
+  document.querySelectorAll("[data-quiz]").forEach(function (host) {
+    var id = host.getAttribute("data-quiz"), Q = QUIZ[id];
+    host.appendChild(el("div", { "class": "eyebrow" }, "Check yourself"));
+    host.appendChild(el("div", { "class": "q" }, Q.q));
+    var opts = el("div", { "class": "opts" }), why = el("div", { "class": "why", "aria-live": "polite" });
+    Q.o.forEach(function (t, i) {
+      var b = el("button", { type: "button" }, t);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(opts.children, function (c) { c.className = ""; });
+        if (i === Q.a) { b.className = "right"; why.textContent = "Correct. " + Q.why; markDone(id); }
+        else { b.className = "wrong"; why.textContent = "Not that one. Try another."; }
+      });
+      opts.appendChild(b);
+    });
+    host.appendChild(opts); host.appendChild(why);
+  });
+
+  /* ---------- lesson 1 ---------- */
+  var M = {
+    hex: { label: "Hex typed by hand",
+      figma: ["#2447D6", "Fill: #2447D6", "No variable bound."],
+      reply: "// get_variable_defs\n{}\n\n// get_design_context (excerpt)\n<button className=\"bg-[#2447D6]\">",
+      code: ".button {\n  background: #2447D6;\n}",
+      v: ["bad", "Hard-coded. ", "The agent has a colour and no meaning, so the hex goes straight into the code. A rebrand or a dark mode now means finding every copy."] },
+    variable: { label: "Variable, no code syntax",
+      figma: ["#2447D6", "Fill: color/bg/brand", "Variable bound. Code syntax empty."],
+      reply: "// get_variable_defs\n{\n  \"color/bg/brand\": \"#2447D6\"\n}",
+      code: ".button {\n  /* spelling guessed from the name */\n  background: var(--color-bg-brand);\n}",
+      v: ["warn", "Close, with a guess. ", "The agent knows the token and invents how your codebase spells it. If your CSS says --ds-color-bg-brand, this line fails silently."] },
+    syntax: { label: "Variable with code syntax",
+      figma: ["#2447D6", "Fill: color/bg/brand", "Code syntax, Web: var(--ds-color-bg-brand)"],
+      reply: "// get_variable_defs\n{\n  \"color/bg/brand\": \"#2447D6\"\n}\n\n// get_design_context (excerpt)\nbackground: var(--ds-color-bg-brand)",
+      code: ".button {\n  background: var(--ds-color-bg-brand);\n}",
+      v: ["good", "Exact. ", "The reply carries the string your developers use. Nothing is left to guess."] }
+  };
+  function paintM(id) {
+    var s = M[id], f = $("mFigma"); f.textContent = "";
+    var p = el("div"); var sw = el("span", { "class": "swatch" }); sw.style.background = s.figma[0];
+    p.appendChild(sw); p.appendChild(el("span", { "class": "mono" }, s.figma[1])); f.appendChild(p);
+    f.appendChild(el("p", { style: "margin:8px 0 0;font-size:.875rem;color:var(--ink-soft)" }, s.figma[2]));
+    $("mReply").textContent = s.reply; $("mCode").textContent = s.code;
+    var v = $("mVerdict"); v.className = "verdict " + s.v[0]; v.textContent = "";
+    v.appendChild(el("b", null, s.v[1])); v.appendChild(el("span", null, s.v[2]));
+  }
+  seg($("mSeg"), Object.keys(M).map(function (k) { return { id: k, label: M[k].label }; }), "hex", paintM); paintM("hex");
+
+  /* ---------- lesson 2 ---------- */
+  var PRIM = { "blue/600": "#2447D6", "blue/300": "#8FA5FF", "grey/50": "#F7F8FA", "grey/900": "#171C22", "navy/900": "#0E1430" };
+  var SEM = {
+    "color/bg/brand": { light: "blue/600", dark: "blue/300" },
+    "color/text/on-brand": { light: "grey/50", dark: "navy/900" },
+    "color/bg/surface": { light: "grey/50", dark: "grey/900" }
+  };
+  var COMP = { "button/primary/bg": "color/bg/brand", "button/primary/label": "color/text/on-brand" };
+  var tMode = "light", tSel = "button/primary/bg";
+  function chainOf(name) {
+    var c = [name];
+    if (COMP[name]) { name = COMP[name]; c.push(name); }
+    if (SEM[name]) { name = SEM[name][tMode]; c.push(name); }
+    c.push(PRIM[name]); return c;
+  }
+  function paintT() {
+    var chain = chainOf(tSel);
+    function fill(host, names) {
+      host.textContent = "";
+      names.forEach(function (n) {
+        var b = el("button", { type: "button", "class": "tok" + (chain.indexOf(n) > -1 ? " hit" : "") });
+        var sw = el("span", { "class": "swatch" }); var c = chainOf(n); sw.style.background = c[c.length - 1];
+        b.appendChild(sw); b.appendChild(el("span", null, n));
+        b.addEventListener("click", function () { tSel = n; paintT(); });
+        host.appendChild(b);
+      });
+    }
+    fill($("tPrim"), Object.keys(PRIM)); fill($("tSem"), Object.keys(SEM)); fill($("tComp"), Object.keys(COMP));
+    $("tChain").textContent = "In " + tMode + " mode:  " + chain.join("  →  ");
+    var bg = chainOf("button/primary/bg"), fg = chainOf("button/primary/label"), sf = chainOf("color/bg/surface");
+    $("tPrev").style.background = sf[sf.length - 1];
+    $("tBtn").style.background = bg[bg.length - 1]; $("tBtn").style.color = fg[fg.length - 1];
+  }
+  seg($("tMode"), [{ id: "light", label: "Light mode" }, { id: "dark", label: "Dark mode" }], "light", function (m) { tMode = m; paintT(); }); paintT();
+
+  /* ---------- lesson 3 ---------- */
+  var CATS = { color: "a colour", space: "a spacing value", spacing: "a spacing value", size: "a size", radius: "a corner radius", font: "a font setting",
+    text: "a text setting", border: "a border setting", shadow: "a shadow", elevation: "a shadow", motion: "a motion setting", duration: "a duration", opacity: "an opacity", z: "a stacking level" };
+  var PROP = { bg: "for backgrounds", background: "for backgrounds", text: "for text", fg: "for foreground content", border: "for borders", icon: "for icons",
+    inset: "for padding inside a container", gap: "for gaps between items", stack: "for vertical gaps", inline: "for horizontal gaps" };
+  var ROLE = { brand: "carrying the brand", danger: "signalling danger", error: "signalling an error", success: "signalling success", warning: "signalling a warning",
+    info: "for neutral information", surface: "on the base surface", neutral: "with no special meaning", accent: "drawing attention", "on-brand": "sitting on top of the brand colour", muted: "that is de-emphasised", disabled: "for disabled elements" };
+  var EMPH = { subtle: "at low emphasis", strong: "at high emphasis", bold: "at high emphasis", default: "at default emphasis" };
+  var STATES = ["hover", "pressed", "active", "focus", "disabled", "selected"];
+  var HUES = ["blue", "red", "green", "grey", "gray", "yellow", "orange", "purple", "pink", "teal", "navy", "black", "white"];
+  var OPAQUE = { btn: "button", clr: "color", col: "color", prim: "primary", sec: "secondary", txt: "text", bkg: "background", bgd: "background", brd: "border", bdr: "border", fnt: "font", sz: "size", rad: "radius" };
+  var VAGUE = ["main", "new", "misc", "temp", "copy", "final", "test", "old", "stuff", "default2", "v2"];
+  var nTier = "semantic";
+  function lint(raw) {
+    var f = [], name = raw.trim();
+    if (!name) return { f: [["e", "Type a name to check it."]], score: 0, segs: [] };
+    if (/^\$/.test(name) || /\/\$/.test(name)) f.push(["e", "A segment starts with $. The token file format reserves that for its own properties."]);
+    if (/[{}.]/.test(name)) f.push(["e", "Contains . { or }. These are reserved for references in token files. Use / between groups and - inside a word."]);
+    var segs = name.split("/").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (/\s/.test(name)) f.push(["w", "Contains spaces. Use hyphens so the name maps cleanly onto a code variable."]);
+    if (/[A-Z]/.test(name)) f.push(["w", "Mixed case. Lowercase with hyphens avoids two spellings of one token (bgBrand vs bg-brand)."]);
+    var words = name.toLowerCase().split(/[\/\-_.\s]+|(?<=[a-z])(?=[A-Z])/).filter(Boolean);
+    var lower = raw.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase().split(/[\/\-_.\s]+/).filter(Boolean);
+    if (segs.length < 2) f.push(["w", "No groups. Add slash-separated segments, starting with the category, so the name reads from general to specific."]);
+    var first = (segs[0] || "").toLowerCase();
+    if (segs.length >= 2 && !CATS[first] && nTier !== "component") f.push(["w", "Starts with “" + segs[0] + "”. Start with the category (color, space, radius, font, shadow) so every token of a kind sorts together."]);
+    var hue = lower.filter(function (w) { return HUES.indexOf(w) > -1; })[0];
+    var hasNum = lower.some(function (w) { return /^\d{2,4}$/.test(w); });
+    var hasRole = lower.some(function (w) { return ROLE[w] || PROP[w]; });
+    if (nTier === "semantic") {
+      if (hue || hasNum) f.push(["e", "Describes the value (" + (hue || "a scale number") + "), not the job. A semantic name should still be true after a rebrand."]);
+      if (!hasRole && segs.length >= 2) f.push(["w", "No recognisable job. Say what it applies to (bg, text, border) and what it means (brand, danger, surface)."]);
+    } else if (nTier === "primitive") {
+      if (hasRole) f.push(["w", "Carries a job word. Primitives should only say what the value is, such as color/blue/600. Jobs belong in the semantic tier."]);
+    }
+    lower.forEach(function (w) { if (OPAQUE[w]) f.push(["w", "“" + w + "” is an abbreviation. Spell it out as “" + OPAQUE[w] + "”."]); });
+    lower.forEach(function (w) { if (VAGUE.indexOf(w) > -1) f.push(["w", "“" + w + "” says nothing about use. Replace it with the job."]); });
+    var st = segs.map(function (s) { return s.toLowerCase(); }).findIndex(function (s) { return STATES.indexOf(s) > -1; });
+    if (st > -1 && st !== segs.length - 1) f.push(["w", "The state (" + segs[st] + ") is not last. Put it at the end so related tokens sort together."]);
+    var e = f.filter(function (x) { return x[0] === "e"; }).length, w = f.length - e;
+    var score = Math.max(0, 100 - e * 35 - w * 15);
+    if (!f.length) f.push(["o", "Reads clearly from general to specific and uses only safe characters."]);
+    return { f: f, score: score, segs: segs, lower: lower };
+  }
+  function infer(r) {
+    if (!r.segs.length) return "—";
+    var parts = [], cat = CATS[(r.segs[0] || "").toLowerCase()];
+    if (cat) parts.push(cat);
+    r.segs.slice(1).forEach(function (s) { s = s.toLowerCase(); if (PROP[s]) parts.push(PROP[s]); else if (ROLE[s]) parts.push(ROLE[s]); else if (EMPH[s]) parts.push(EMPH[s]); else if (STATES.indexOf(s) > -1) parts.push("in the " + s + " state"); });
+    if (!cat && parts.length === 0) return "Very little. It would have to open the file or ask.";
+    if (parts.length === 1) return "Only that it is " + parts[0] + ". Where to use it is a guess.";
+    return parts.join(", ").replace(/^./, function (c) { return c.toUpperCase(); }) + ".";
+  }
+  function paintN() {
+    var r = lint($("nIn").value);
+    $("nScore").textContent = r.score + "/100";
+    $("nScoreLbl").textContent = r.score >= 85 ? "Agent-readable" : r.score >= 55 ? "Usable, with guesswork" : "Likely to be misused";
+    var ul = $("nFind"); ul.textContent = "";
+    r.f.forEach(function (x) {
+      var li = el("li", { "class": x[0] });
+      li.appendChild(el("span", { "class": "tag" }, x[0] === "e" ? "Fix" : x[0] === "w" ? "Improve" : "Good"));
+      li.appendChild(el("span", null, x[1])); ul.appendChild(li);
+    });
+    var clean = (r.lower || []).join("-");
+    $("nInfer").textContent = infer(r);
+    $("nCss").textContent = clean ? "--" + clean : "—";
+    $("nPath").textContent = r.segs.length ? r.segs.map(function (s) { return s.replace(/[{}.]/g, "").replace(/\s+/g, "-").toLowerCase(); }).join(".") : "—";
+  }
+  seg($("nTier"), [{ id: "semantic", label: "Semantic" }, { id: "primitive", label: "Primitive" }, { id: "component", label: "Component" }], "semantic", function (t) { nTier = t; paintN(); });
+  ["color/bg/danger/subtle", "Blue 500", "btnPrimClr", "color/text/on-brand", "space/inset/md", "color.brand.main", "color/bg/hover/brand"].forEach(function (x) {
+    var b = el("button", { type: "button" }, x); b.addEventListener("click", function () { $("nIn").value = x; paintN(); }); $("nChips").appendChild(b);
+  });
+  $("nIn").addEventListener("input", paintN); paintN();
+
+  /* ---------- lesson 4 ---------- */
+  var A = [
+    { k: "Name", v: "color/bg/brand", reach: "Reaches the agent directly",
+      what: "The path that identifies the variable. Slashes create groups.",
+      enter: "Category, then property, then job. Lowercase, hyphens inside a word.",
+      why: "It is the key in the reply the agent reads. If nothing else arrives, the name has to explain the token on its own." },
+    { k: "Values by mode", v: "Light → blue/600 · Dark → blue/300", reach: "Reaches the agent as the resolved value",
+      what: "One value per mode column. Each is a raw value or an alias to another variable.",
+      enter: "In the semantic collection, always alias a primitive. Add a column per theme.",
+      why: "The agent receives the value for the mode the frame is in. Aliases keep every mode consistent, so code that references the token is right in all of them." },
+    { k: "Description", v: "Fill for primary actions. Pair with color/text/on-brand.", reach: "Do not count on it arriving",
+      what: "Free text shown to people picking the variable.",
+      enter: "One sentence on when to use it, and one on what to pair it with or avoid.",
+      why: "Useful to designers and to agents that inspect the library. It is not guaranteed to be in every reply or export, so repeat anything essential in the name and in your rules file." },
+    { k: "Scoping", v: "Fill: frame, shape", reach: "Decides which variable gets bound",
+      what: "The properties a variable is offered for: fills, text, strokes, radius, gap and so on.",
+      enter: "Only the properties the token is meant for. A background colour should not appear in the text picker.",
+      why: "The default offers every variable everywhere, and Figma's guidance for agents advises against leaving it that way. Tight scopes mean people and agents working in Figma bind the right token, and what is bound is what the server reports." },
+    { k: "Code syntax", v: "Web: var(--ds-color-bg-brand)", reach: "Reaches the agent directly",
+      what: "The exact text for this token on each platform: Web, iOS, Android.",
+      enter: "Copy the spelling from the codebase character for character, prefix included.",
+      why: "The server passes this string to the agent in place of a spelling derived from the name. It removes the most common failure: a plausible variable that does not exist." },
+    { k: "Publishing", v: "Published (primitives: hidden)", reach: "Decides what the agent can find",
+      what: "Whether the variable is visible to files that use the library.",
+      enter: "Publish semantic and component tokens. Hide primitives.",
+      why: "An agent searching the library gets a short list of jobs to choose from, with no way to pick a raw paint chip by mistake." }
+  ];
+  function paintA(i) {
+    Array.prototype.forEach.call($("aDialog").querySelectorAll(".row"), function (r, j) { r.setAttribute("aria-pressed", String(i === j)); });
+    var a = A[i], d = $("aDetail"); d.textContent = "";
+    d.appendChild(el("h3", null, a.k)); d.appendChild(el("span", { "class": "pill" }, a.reach));
+    var dl = el("dl", { style: "margin:0" });
+    [["What it is", a.what], ["What to enter", a.enter], ["Why the agent cares", a.why]].forEach(function (p) { dl.appendChild(el("dt", null, p[0])); dl.appendChild(el("dd", null, p[1])); });
+    d.appendChild(dl);
+  }
+  A.forEach(function (a, i) {
+    var r = el("button", { type: "button", "class": "row" });
+    r.appendChild(el("span", { "class": "k" }, a.k)); r.appendChild(el("span", { "class": "v" }, a.v));
+    r.addEventListener("click", function () { paintA(i); }); $("aDialog").appendChild(r);
+  });
+  paintA(4);
+
+  /* ---------- setup walkthrough ---------- */
+  var HEX = { "color/blue/600": "#2447D6", "color/blue/300": "#8FA5FF", "color/grey/50": "#F7F8FA", "color/grey/900": "#171C22", "color/navy/900": "#0E1430" };
+  var PRIMROWS = [["color/blue/600", "#2447D6"], ["color/blue/300", "#8FA5FF"], ["color/grey/50", "#F7F8FA"], ["color/grey/900", "#171C22"], ["color/navy/900", "#0E1430"], ["space/100", "4"], ["space/200", "8"], ["space/400", "16"], ["radius/200", "8"]];
+  var SEMROWS = [
+    ["color/bg/brand", "@color/blue/600", "@color/blue/300"], ["color/text/on-brand", "@color/grey/50", "@color/navy/900"],
+    ["color/bg/surface", "@color/grey/50", "@color/grey/900"], ["color/text/default", "@color/grey/900", "@color/grey/50"],
+    ["space/inset/md", "@space/400", "@space/400"], ["radius/control", "@radius/200", "@radius/200"]];
+  var SCOPES = ["Frame fill, Shape fill", "Text fill", "Frame fill, Shape fill", "Text fill", "Gap, Padding", "Corner radius"];
+  var S = [
+    { t: "Open the variables view",
+      d: ["Open a Figma Design file you can edit. Use a scratch file for the first run.", "Click **Variables** in the left navigation bar.", "The view fills the window. Click **Minimize** to shrink it to a floating window, and **Toggle sidebar** to show collections and groups."],
+      tip: "On an older version of the interface: deselect everything, find **Local variables** in the right sidebar, and click **Open variables**.",
+      head: "Variables", cols: ["Name", "Value"], rows: [["No variables yet", ""]] },
+    { t: "Create the primitives",
+      d: ["Click **+ Create variable** and choose **Color**.", "Name it color/blue/600 and set the value to 2447D6. Each slash in the name becomes a group in the sidebar.", "Add the rest of the starter set the same way. For spacing and radius choose **Number** and type the number with no unit.", "Open the collections dropdown, click **More options**, choose **Rename collection**, and call it Primitives.", "Rename the single mode column from Mode 1 to Value."],
+      tip: "Select a variable and press **Shift + Enter** to duplicate it. That is the quick way to build a scale.",
+      head: "Collection: Primitives", cols: ["Name", "Value"], rows: PRIMROWS },
+    { t: "Create the semantic collection",
+      d: ["In the sidebar click **More options**, then **Create collection**. Name it Semantic.", "Create a Color variable named color/bg/brand.", "Right-click its value and choose **Create alias**. Pick color/blue/600 from the list.", "Repeat for each semantic token. Every value in this collection should be an alias, never a raw value."],
+      tip: "An alias can only point at a variable of the same type. To undo one, hover the value and click **Detach alias**.",
+      head: "Collection: Semantic", cols: ["Name", "Mode 1"], rows: SEMROWS.map(function (r) { return [r[0], r[1]]; }) },
+    { t: "Add a dark mode",
+      d: ["In the Semantic collection, rename the first column to Light.", "Click **New variable mode**, to the right of the column headers. Figma copies the first column into it. Name it Dark.", "In the Dark column, change each colour to its dark counterpart: right-click the value and choose **Create alias**.", "Leave spacing and radius the same in both columns."],
+      tip: "Modes need a paid plan, and how many you get per collection depends on the plan. The left-most column is the default. Right-click a mode and choose **Set as default** to change it.",
+      head: "Collection: Semantic", cols: ["Name", "Light", "Dark"], rows: SEMROWS },
+    { t: "Describe and scope each token",
+      d: ["Hover a row and click the **Edit variable** icon at the end of it.", "Add a description: one sentence on when to use the token and what it pairs with.", "Open the **Scope** tab. Uncheck **Show in all**, then tick only the properties this token is for. The cheat sheet below lists them.", "To scope many at once, select the rows, right-click one, and choose **Edit variables**."],
+      tip: "Scoping exists for colour, number and string variables. If a token later refuses to appear in a picker, a scope that is too narrow is the usual cause.",
+      head: "Collection: Semantic", cols: ["Name", "Scope"], rows: SEMROWS.map(function (r, i) { return [r[0], SCOPES[i]]; }) },
+    { t: "Add code syntax",
+      d: ["In **Edit variable**, under **Code syntax**, click **Add code syntax** and choose **Web**.", "Enter the exact string from your codebase, for example var(--ds-color-bg-brand). A preview shows how it will appear in code snippets.", "Add **iOS** and **Android** only if you ship on those platforms. Each variable holds one name per platform."],
+      tip: "Figma's help lists scoping and hiding as bulk edits, and not code syntax. By hand this is one variable at a time, which is a good reason to let the agent fill it in (see below).",
+      head: "Collection: Semantic", cols: ["Name", "Code syntax, Web"], rows: SEMROWS.map(function (r) { return [r[0], "var(--ds-" + r[0].replace(/\//g, "-") + ")"]; }) },
+    { t: "Hide the primitives",
+      d: ["Open the Primitives collection.", "Select every row: click the first, then Shift-click the last.", "Right-click a selected row, choose **Edit variables**, and tick **Hide from publishing**."],
+      tip: "Semantic tokens keep working, because their aliases still resolve. The primitives just stop being offered in files that use the library.",
+      head: "Collection: Primitives", cols: ["Name", "Value", "Published"], rows: PRIMROWS.map(function (r) { return [r[0], r[1], "Hidden"]; }) },
+    { t: "Bind, switch modes, publish",
+      d: ["Select a layer. In the **Fill** or **Stroke** section click **Apply styles and variables** and pick the semantic token.", "For gap, padding, corner radius and size, open the field's dropdown and choose **Apply variable**.", "Select the parent frame. Under **Appearance** click **Apply variable mode**, hover Semantic, and choose Dark. Everything bound should change at once.", "Publish the file as a library so other files, and an agent searching the library, can see the tokens."],
+      tip: "Anything that did not change when you switched mode is still a raw value. Bind it, then switch again.",
+      head: "Layer: Button / Primary", cols: ["Property", "Bound to"], rows: [["Fill", "@color/bg/brand"], ["Label colour", "@color/text/on-brand"], ["Padding", "@space/inset/md"], ["Corner radius", "@radius/control"]] }
+  ];
+  var sDone = store.get("dta-setup", {}), sCur = 0;
+  function rich(host, text) {
+    text.split("**").forEach(function (part, i) { if (part) host.appendChild(i % 2 ? el("b", null, part) : document.createTextNode(part)); });
+  }
+  function cell(v) {
+    var td = el("td");
+    if (v.charAt(0) === "#") { var sw = el("span", { "class": "swatch" }); sw.style.background = v; td.appendChild(sw); td.appendChild(document.createTextNode(v.slice(1))); }
+    else if (v.charAt(0) === "@") { var a = el("span", { "class": "al" }), n = v.slice(1);
+      if (HEX[n]) { var s2 = el("span", { "class": "swatch" }); s2.style.background = HEX[n]; a.appendChild(s2); }
+      a.appendChild(document.createTextNode(n)); td.appendChild(a); }
+    else td.textContent = v;
+    return td;
+  }
+  function paintS() {
+    var st = S[sCur], n = 0;
+    Array.prototype.forEach.call($("sList").children, function (b, i) {
+      b.setAttribute("aria-pressed", String(i === sCur)); b.classList.toggle("ok", !!sDone[i]);
+      b.querySelector(".num").textContent = sDone[i] ? "✓" : String(i + 1); if (sDone[i]) n++;
+    });
+    $("sCount").textContent = n + " of " + S.length + " steps done";
+    $("sTitle").textContent = (sCur + 1) + ". " + st.t;
+    var ol = $("sDo"); ol.textContent = ""; st.d.forEach(function (x) { var li = el("li"); rich(li, x); ol.appendChild(li); });
+    var tip = $("sTip"); tip.textContent = ""; rich(tip, st.tip);
+    $("sHead").textContent = "What you should see · " + st.head;
+    var tb = el("table"), hr = el("tr"); st.cols.forEach(function (c) { hr.appendChild(el("th", null, c)); });
+    var th = el("thead"); th.appendChild(hr); tb.appendChild(th);
+    var body = el("tbody"); st.rows.forEach(function (r) { var tr = el("tr"); r.forEach(function (v) { tr.appendChild(cell(v)); }); body.appendChild(tr); });
+    tb.appendChild(body); $("sTable").textContent = ""; $("sTable").appendChild(tb);
+    $("sDone").checked = !!sDone[sCur];
+    $("sPrev").disabled = sCur === 0; $("sNext").disabled = sCur === S.length - 1;
+  }
+  S.forEach(function (st, i) {
+    var b = el("button", { type: "button" }); b.appendChild(el("span", { "class": "num" }, String(i + 1))); b.appendChild(el("span", null, st.t));
+    b.addEventListener("click", function () { sCur = i; paintS(); }); $("sList").appendChild(b);
+  });
+  $("sDone").addEventListener("change", function () { if ($("sDone").checked) sDone[sCur] = 1; else delete sDone[sCur]; store.set("dta-setup", sDone); paintS(); });
+  $("sPrev").addEventListener("click", function () { if (sCur > 0) { sCur--; paintS(); } });
+  $("sNext").addEventListener("click", function () { if (sCur < S.length - 1) { sCur++; paintS(); } });
+  paintS();
+  $("sPrompt").textContent = [
+    "Set up design token variables in this Figma file: <paste the file link>",
+    "",
+    "Before writing anything, list the collections and variables that already exist",
+    "and tell me what you will create or change. Do not delete or rename anything.",
+    "",
+    "1. Collection \"Primitives\" with one mode named \"Value\".",
+    "   Colours: " + PRIMROWS.slice(0, 5).map(function (r) { return r[0] + " " + r[1]; }).join(", "),
+    "   Numbers: " + PRIMROWS.slice(5).map(function (r) { return r[0] + " " + r[1]; }).join(", "),
+    "   Hide every variable in this collection from publishing.",
+    "",
+    "2. Collection \"Semantic\" with modes \"Light\" and \"Dark\".",
+    "   Every value is an alias to a primitive, never a raw value."
+  ].concat(SEMROWS.map(function (r) { return "   " + r[0] + ": Light " + r[1].slice(1) + ", Dark " + r[2].slice(1); })).concat([
+    "",
+    "3. Scopes (no variable keeps the default of all scopes):",
+    "   color/bg/* frame fill and shape fill; color/text/* text fill;",
+    "   space/* gap and padding; radius/* corner radius.",
+    "",
+    "4. Web code syntax on every Semantic variable:",
+    "   var(--ds-<name with slashes replaced by hyphens>)",
+    "",
+    "5. A one-sentence description on every Semantic variable saying when to use it",
+    "   and what it pairs with.",
+    "",
+    "When done, list every variable with its values per mode, scopes and code syntax",
+    "so I can check it."
+  ]).join("\n");
+  copy($("sCopy"), function () { return $("sPrompt").textContent; });
+
+  /* ---------- lesson 5 ---------- */
+  var UNITS = { dimension: ["px", "rem"], duration: ["ms", "s"] };
+  var DEF = { color: "#2447D6", dimension: "16", duration: "200", fontWeight: "600", number: "1.5" };
+  var ALIAS = { color: "color/blue/600", dimension: "space/400", duration: "duration/fast", fontWeight: "font/weight/semibold", number: "scale/150" };
+  function badSeg(s) { return /^\$/.test(s) || /[{}.]/.test(s); }
+  function buildToken() {
+    var type = $("bType").value, kind = $("bKind").value, err = "";
+    var segs = $("bName").value.split("/").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!segs.length) err = "Give the token a name.";
+    else if (segs.some(badSeg)) err = "Names cannot start with $ or contain . { }";
+    var value;
+    if (kind === "alias") {
+      var t = $("bAlias").value.split("/").map(function (s) { return s.trim(); }).filter(Boolean);
+      if (!t.length) err = err || "Say which token this points to.";
+      else if (t.some(badSeg)) err = err || "The target name cannot start with $ or contain . { }";
+      value = "{" + t.join(".") + "}";
+    } else {
+      var raw = $("bVal").value.trim();
+      if (type === "color") {
+        var m = /^#?([0-9a-f]{6})$/i.exec(raw);
+        if (!m) err = err || "Enter a six-digit hex colour, such as #2447D6.";
+        else { var h = m[1].toLowerCase(), c = [0, 2, 4].map(function (i) { return Math.round(parseInt(h.substr(i, 2), 16) / 255 * 1000) / 1000; });
+          value = { colorSpace: "srgb", components: c, hex: "#" + h }; }
+      } else {
+        var n = Number(raw);
+        if (raw === "" || isNaN(n)) err = err || "Enter a number.";
+        else if (type === "fontWeight" && (n < 1 || n > 1000)) err = err || "Font weight must be between 1 and 1000.";
+        else value = UNITS[type] ? { value: n, unit: $("bUnit").value } : n;
+      }
+    }
+    var tok = { $type: type, $value: value };
+    if ($("bDesc").value.trim()) tok.$description = $("bDesc").value.trim();
+    if ($("bDep").checked) tok.$deprecated = true;
+    var root = {}, cur = root;
+    segs.forEach(function (s, i) { cur[s] = i === segs.length - 1 ? tok : {}; cur = cur[s]; });
+    return { err: err, json: JSON.stringify(root, null, 2).replace(/\[\s+([\d.]+),\s+([\d.]+),\s+([\d.]+)\s+\]/, "[$1, $2, $3]") };
+  }
+  function paintB() {
+    var type = $("bType").value, alias = $("bKind").value === "alias";
+    $("bAliasF").hidden = !alias; $("bRawF").hidden = alias; $("bUnitF").hidden = !UNITS[type];
+    var r = buildToken();
+    $("bErr").hidden = !r.err; $("bErr").textContent = r.err;
+    $("bOut").textContent = r.err ? "// Fix the highlighted problem to see the JSON" : r.json;
+  }
+  function onType() {
+    var type = $("bType").value, u = $("bUnit"); u.textContent = "";
+    (UNITS[type] || []).forEach(function (x) { u.appendChild(el("option", { value: x }, x)); });
+    $("bVal").value = DEF[type]; $("bAlias").value = ALIAS[type]; paintB();
+  }
+  $("bType").addEventListener("change", onType);
+  ["bName", "bKind", "bAlias", "bVal", "bUnit", "bDesc", "bDep"].forEach(function (id) { $(id).addEventListener("input", paintB); $(id).addEventListener("change", paintB); });
+  paintB();
+  copy($("bCopy"), function () { return $("bOut").textContent; });
+
+  /* ---------- lesson 6 ---------- */
+  var C = [
+    { id: "vars", label: "List the tokens", ask: "“List the variable names and their values used in this frame.”", tool: "get_variable_defs", avail: "Desktop and remote",
+      what: "Returns the variables and styles used in the selection: colours, spacing, typography.",
+      why: "Only bound variables appear. This is the fastest audit of whether your file is ready." },
+    { id: "ctx", label: "Build this frame", ask: "“Implement this frame using our components and tokens.”", tool: "get_design_context", avail: "Desktop and remote",
+      what: "Returns design context and a code starting point. React with Tailwind by default, other frameworks on request.",
+      why: "Bound variables with code syntax come through as your real tokens. Unbound values come through as raw numbers." },
+    { id: "search", label: "Find a token", ask: "“Is there a token for a subtle danger background?”", tool: "search_design_system", avail: "Remote only",
+      what: "Searches connected libraries for components, variables and styles that match a text query.",
+      why: "It matches on words. A token named for its job is findable. One named blue-100 is not." },
+    { id: "write", label: "Create tokens in Figma", ask: "“Create a semantic colour collection from tokens/semantic.tokens.json.”", tool: "use_figma", avail: "Remote only",
+      what: "Creates, edits and inspects content in a Figma file, including variables and collections.",
+      why: "The agent can set names, aliases, modes, scopes and code syntax for you, which makes a consistent structure cheap to apply." },
+    { id: "rules", label: "Draft the rules", ask: "“Create design system rules for this repository.”", tool: "create_design_system_rules", avail: "An MCP prompt, not a tool",
+      what: "Produces a rules file describing how to turn designs into code that fits your codebase and stack.",
+      why: "This is where token usage rules live so that every later task follows them." },
+    { id: "cc", label: "Reuse components", ask: "“Which code component matches this card?”", tool: "get_code_connect_map", avail: "Desktop and remote",
+      what: "Returns the code component mapped to each selected instance through Code Connect.",
+      why: "Tokens cover values. Code Connect covers components. Together they let the agent reuse instead of rebuild." }
+  ];
+  function paintC(id) {
+    var c = C.filter(function (x) { return x.id === id; })[0];
+    $("cAsk").textContent = c.ask; $("cTool").textContent = c.tool; $("cWhat").textContent = c.what; $("cWhy").textContent = c.why; $("cAvail").textContent = c.avail;
+  }
+  seg($("cSeg"), C, "vars", paintC); paintC("vars");
+  $("rules").textContent = [
+    "## Design tokens",
+    "",
+    "- Tokens are authored in Figma variables and exported to tokens/*.tokens.json.",
+    "  If Figma and the repository disagree, stop and ask which is current.",
+    "- Use semantic tokens only (color/*, space/*, radius/*, font/*).",
+    "  Never reference primitives (color/blue/*, color/grey/*) in components.",
+    "- Write each token exactly as its Figma code syntax gives it,",
+    "  for example var(--ds-color-bg-brand). Do not derive a spelling from the name.",
+    "- Never hard-code a colour, size, radius or font value.",
+    "  If no token fits, stop and ask. Do not invent a token.",
+    "- Pair background and text tokens by name:",
+    "  color/bg/brand goes with color/text/on-brand.",
+    "",
+    "## Implementing a Figma frame",
+    "",
+    "1. Call get_design_context for the node.",
+    "2. Call get_variable_defs for the same node and use those tokens.",
+    "3. Reuse components returned by Code Connect before writing new ones.",
+    "4. Call get_screenshot and compare the result before finishing."
+  ].join("\n");
+  copy($("rCopy"), function () { return $("rules").textContent; });
+
+  /* ---------- lesson 7 ---------- */
+  var K = [
+    ["Structure", [
+      ["k1", "Primitives and semantic tokens are separate collections", "Modes live on the semantic collection only."],
+      ["k2", "Every semantic token aliases a primitive", "No raw values in the semantic tier."],
+      ["k3", "Primitives are hidden from publishing", "Library searches return jobs, not paint chips."]]],
+    ["Names", [
+      ["k4", "Names follow one segment order", "Category, property, job, emphasis, state."],
+      ["k5", "Semantic names contain no colour words or scale numbers", "They stay true after a rebrand."],
+      ["k6", "One word per idea across the whole file", "danger or error, never both."],
+      ["k7", "No . { } or leading $ in any name", "The file format reserves them."]]],
+    ["Metadata", [
+      ["k8", "Code syntax is filled in for every published token", "Copied from the codebase, prefix included."],
+      ["k9", "Scopes are narrowed from the default", "Each token appears only where it belongs."],
+      ["k10", "Descriptions say when to use the token and what to pair it with", "And anything essential is repeated in the rules file."]]],
+    ["Connection", [
+      ["k11", "Component layers are bound to variables, with no stray hex or pixel values", "Checked by asking the agent to list variables on a frame."],
+      ["k12", "A token file is exported to the repository and opened to confirm what survived", "Aliases, types, descriptions."],
+      ["k13", "The rules file states which tier to use and what to do when no token fits", "The agent reads it on every task."],
+      ["k14", "One component has been built end to end by the agent with no hard-coded values", "The real test."]]]
+  ];
+  var ticks = store.get("dta-ticks", {}), total = 0;
+  K.forEach(function (g) {
+    $("kList").appendChild(el("h3", { style: "margin:14px 0 4px" }, g[0]));
+    var ul = el("ul", { "class": "todo" });
+    g[1].forEach(function (it) {
+      total++;
+      var li = el("li"), lab = el("label", { "for": it[0] }), cb = el("input", { type: "checkbox", id: it[0] });
+      cb.checked = !!ticks[it[0]];
+      cb.addEventListener("change", function () { if (cb.checked) ticks[it[0]] = 1; else delete ticks[it[0]]; store.set("dta-ticks", ticks); paintK(); });
+      var t = el("span", null, it[1]); t.appendChild(el("small", null, it[2]));
+      lab.appendChild(cb); lab.appendChild(t); li.appendChild(lab); ul.appendChild(li);
+    });
+    $("kList").appendChild(ul);
+  });
+  function paintK() {
+    var n = Object.keys(ticks).length;
+    $("kCount").textContent = n + " of " + total + " ready";
+    if (n === total) markDone("checklist");
+  }
+  $("kReset").addEventListener("click", function () {
+    ticks = {}; store.set("dta-ticks", ticks);
+    document.querySelectorAll(".todo input").forEach(function (c) { c.checked = false; }); paintK();
+  });
+  /* ---------- glossary ---------- */
+  var LNAME = {}; LESSONS.forEach(function (l, i) { LNAME[l[0]] = "Lesson " + (i + 1) + ": " + l[1]; });
+  var G = [
+    ["Design token", "Tokens", "A named design decision: one value with a name, stored once and referenced everywhere. Colours, spacing, radii, type sizes and durations are all tokens.", "color/bg/brand = #2447D6", "model"],
+    ["Primitive", "Tokens", "A token that only names a raw value. Primitives are the full palette of options, with no opinion on where each is used. Also called a base, core or global token.", "color/blue/600", "tiers"],
+    ["Semantic", "Tokens", "A token that names a job and points at a primitive. It says what the value is for, so it stays correct when the value changes. Also called an alias or purpose token.", "color/bg/danger → color/red/600", "tiers"],
+    ["Component token", "Tokens", "An optional third level: a token for one part of one component, pointing at a semantic token. Useful when a component needs to be themed on its own.", "button/primary/bg → color/bg/brand", "tiers"],
+    ["Tier", "Tokens", "One level in the chain of references. This guide uses three: primitive, semantic, component.", "primitive → semantic → component", "tiers"],
+    ["Alias", "Tokens", "A token whose value is a reference to another token instead of a raw value. Change the target and everything pointing at it follows.", "\"$value\": \"{color.blue.600}\"", "tiers"],
+    ["Alias chain", "Tokens", "The path from a token through its references down to a raw value. Resolving a token means walking this chain to the end.", "button/primary/bg → color/bg/brand → blue/600 → #2447D6", "tiers"],
+    ["Raw value", "Tokens", "An actual colour, number or string, as opposed to a reference. Only primitives should hold raw values.", "#2447D6, 16px", "tiers"],
+    ["Hard-coded value", "Tokens", "A raw value typed straight into a design layer or into code, with no token behind it. The agent cannot tell what it means, and it will not follow a theme change.", "background: #2447D6;", "model"],
+    ["Mode", "Tokens", "One alternative set of values for the same tokens. Light and dark are modes, and so are brands or densities. The token names stay the same and only what they point at changes.", "Light → blue/600, Dark → blue/300", "tiers"],
+    ["Theme", "Tokens", "The whole look produced by choosing one mode for each set of tokens. Often used loosely to mean a mode.", "Brand A, dark", "tiers"],
+    ["Segment", "Tokens", "One part of a token name between slashes. A fixed segment order is what makes names predictable.", "color / bg / danger / subtle", "naming"],
+    ["Category, property, role, emphasis, state", "Tokens", "The five segments this guide uses, in order: the kind of value, what it applies to, what it means, how strong it is, and which interaction state it belongs to.", "color/bg/danger/subtle/hover", "naming"],
+    ["On-colour", "Tokens", "A naming convention for content that sits on top of a filled background, so the pair is obvious from the names.", "color/bg/brand with color/text/on-brand", "naming"],
+
+    ["Variable", "Figma", "Figma's name for a design token. A variable holds a colour, number, string or boolean and can be applied to layer properties.", "color/bg/brand", "anatomy"],
+    ["Collection", "Figma", "A group of variables that share the same modes. Keeping primitives and semantic tokens in separate collections lets only the semantic one carry modes.", "Primitives, Semantic", "tiers"],
+    ["Extended collection", "Figma", "A collection that inherits from a parent and overrides some values. Built for multi-brand systems that share one core.", "Core → Brand B", "format"],
+    ["Bound", "Figma", "A layer property is bound when it uses a variable instead of a raw value. Only bound properties are reported to the agent as tokens.", "Fill: color/bg/brand", "model"],
+    ["Scoping", "Figma", "A setting on each variable that limits which properties it is offered for, such as fills only or corner radius only.", "Fill: frame, shape", "anatomy"],
+    ["Code syntax", "Figma", "A field on each variable holding the exact text used for it in code, per platform. The MCP server passes it to the agent.", "Web: var(--ds-color-bg-brand)", "anatomy"],
+    ["Publishing", "Figma", "Making a file's variables, styles and components available to other files as a library. Individual variables can be hidden from it.", "Hide primitives from publishing", "anatomy"],
+    ["Library", "Figma", "A published file whose variables, styles and components other files can use. What an agent searches when it looks for a token.", "", "connect"],
+    ["Style", "Figma", "A saved bundle of properties such as a text style or an effect. Older than variables. A style can use variables inside it, and both are reported to the agent.", "Heading/Large", "connect"],
+    ["Frame, node", "Figma", "A frame is a container on the canvas. A node is any single layer, identified by an id in the link you copy. Tools ask for a link to one node.", "…?node-id=12-345", "connect"],
+    ["Dev Mode", "Figma", "Figma's inspection view for developers. It shows code syntax and Code Connect snippets, and the desktop MCP server runs from it.", "", "connect"],
+    ["Code Connect", "Figma", "A mapping from a Figma component to the real component in your codebase, so the agent reuses it instead of rebuilding it.", "Card → src/components/ui/Card.tsx", "connect"],
+
+    ["DTCG", "File format", "The Design Tokens Community Group, which publishes the open format for token files. People use the initials for the format itself.", "Version 2025.10", "format"],
+    ["Token file", "File format", "A JSON file of tokens in the DTCG format. It is the copy of your tokens that lives in the code repository.", "semantic.tokens.json", "format"],
+    ["JSON", "File format", "A plain-text format for structured data, made of nested name and value pairs in braces. Both people and programs can read it.", "{ \"name\": \"value\" }", "format"],
+    ["Group", "File format", "A nested object in a token file that holds tokens or other groups. Each slash in a Figma name becomes one group.", "color → bg → brand", "format"],
+    ["$value, $type, $description", "File format", "The properties of a token in the file. Anything starting with $ belongs to the format. $value is required and is what makes an object a token.", "\"$type\": \"color\"", "format"],
+    ["$deprecated", "File format", "A flag marking a token as one to stop using. It can be true or a sentence explaining what to use instead.", "\"$deprecated\": \"Use color/bg/brand\"", "format"],
+    ["$extensions", "File format", "A place in a token for tool-specific data the format has no field for, such as scoping or code syntax.", "\"$extensions\": { \"org.example.tool\": { } }", "format"],
+    ["Reference", "File format", "The file format's word for an alias: the path to another token, written in braces with dots between groups.", "{color.blue.600}", "format"],
+    ["Dimension", "File format", "The token type for sizes and distances. Written as a number plus a unit of px or rem.", "{ \"value\": 16, \"unit\": \"px\" }", "format"],
+    ["Composite token", "File format", "A token whose value is several values together, such as a shadow, border or typography setting.", "shadow: colour, offsets, blur, spread", "format"],
+    ["Resolver", "File format", "A companion part of the specification describing how to combine token files for different contexts, such as light and dark.", "", "format"],
+    ["Export", "File format", "Writing Figma variables out to a token file. Import is the reverse.", "Right-click a mode, Export mode", "format"],
+    ["Build tool", "File format", "A program that turns a token file into code for each platform. Style Dictionary and Terrazzo are two.", ".tokens.json → tokens.css", "format"],
+    ["CSS custom property", "File format", "How a token usually appears in web code: a name starting with two hyphens, read with var(). Also called a CSS variable.", "var(--ds-color-bg-brand)", "naming"],
+    ["Prefix", "File format", "A short string at the start of every code variable to avoid clashes with other code. It exists in code and usually not in Figma names, which is one reason code syntax matters.", "--ds-", "anatomy"],
+
+    ["Agent", "Agents and MCP", "An AI model that works through a task in steps and can use tools along the way: reading files, calling servers, writing code. Claude Code is one.", "", "model"],
+    ["MCP", "Agents and MCP", "Model Context Protocol. A standard way for an agent to connect to an outside system and use what it offers.", "", "model"],
+    ["MCP server", "Agents and MCP", "The program on the outside system's side that offers tools to the agent. Figma runs one for Figma files.", "https://mcp.figma.com/mcp", "model"],
+    ["MCP client", "Agents and MCP", "The app the agent runs in, which connects to servers on its behalf. Claude Code, Cursor and VS Code are clients.", "", "connect"],
+    ["Tool", "Agents and MCP", "One named action a server offers, with a description of what it does and what it needs. The agent decides when to call it.", "get_variable_defs", "model"],
+    ["Tool call", "Agents and MCP", "One use of a tool by the agent: a request with inputs, and a text reply.", "get_variable_defs(node 12:345)", "model"],
+    ["MCP prompt", "Agents and MCP", "A ready-made instruction a server offers for you to run, as opposed to a tool the agent picks for itself.", "create_design_system_rules", "connect"],
+    ["Remote and desktop server", "Agents and MCP", "Figma's two servers. The remote one runs on Figma's side and takes links. The desktop one runs inside the Figma app and reads your current selection. Some tools exist only on the remote one.", "", "connect"],
+    ["Design context", "Agents and MCP", "What the server sends about a selection: structure, layout, styles, variables and a code starting point.", "get_design_context", "connect"],
+    ["Rules file", "Agents and MCP", "A text file of standing instructions the agent reads on every task. Where token rules belong when a name cannot carry them.", "CLAUDE.md", "connect"],
+    ["Repository", "Agents and MCP", "The folder of code a project lives in, tracked by version control. Often shortened to repo. The agent can read every file in it without a server.", "", "connect"],
+    ["Source of truth", "Agents and MCP", "The one place whose version wins when two copies disagree. For tokens, decide whether that is Figma or the token file, and write it in the rules file.", "", "connect"]
+  ];
+  G.sort(function (a, b) { return a[0].toLowerCase() < b[0].toLowerCase() ? -1 : 1; });
+  var gGroup = "all";
+  function paintG() {
+    var q = $("gIn").value.trim().toLowerCase(), list = $("gList"), n = 0; list.textContent = "";
+    G.forEach(function (t) {
+      if (gGroup !== "all" && t[1] !== gGroup) return;
+      if (q && (t[0] + " " + t[2] + " " + t[3]).toLowerCase().indexOf(q) === -1) return;
+      n++;
+      var d = el("div", { "class": "term", "data-term": t[0] }), dt = el("dt");
+      dt.appendChild(el("span", null, t[0])); dt.appendChild(el("span", { "class": "grp" }, t[1]));
+      d.appendChild(dt); d.appendChild(el("dd", null, t[2]));
+      if (t[3]) d.appendChild(el("dd", { "class": "eg" }, t[3]));
+      var dd = el("dd", { style: "margin-top:auto" }); dd.appendChild(el("a", { href: "#" + t[4] }, LNAME[t[4]])); d.appendChild(dd);
+      list.appendChild(d);
+    });
+    $("gCount").textContent = n ? n + " of " + G.length + " terms" : "No terms match. Try a shorter word.";
+  }
+  function buildGSeg() {
+    seg($("gSeg"), [{ id: "all", label: "All" }, { id: "Tokens", label: "Tokens" }, { id: "Figma", label: "Figma" }, { id: "File format", label: "File format" }, { id: "Agents and MCP", label: "Agents and MCP" }], gGroup, function (g) { gGroup = g; paintG(); });
+  }
+  buildGSeg();
+  $("gIn").addEventListener("input", paintG); paintG();
+  focusTerm = function (name, from) {
+    gGroup = "all"; $("gIn").value = ""; buildGSeg(); paintG();
+    var back = $("gBack");
+    if (from && LNAME[from] && from !== "glossary") { back.href = "#" + from; back.textContent = "← Back to " + LNAME[from]; back.hidden = false; } else back.hidden = true;
+    var hit = null;
+    Array.prototype.forEach.call($("gList").children, function (c) { if (c.getAttribute("data-term") === name) hit = c; });
+    if (!hit) return;
+    hit.classList.add("flash");
+    try { hit.scrollIntoView({ block: "center" }); } catch (e) { hit.scrollIntoView(); }
+    setTimeout(function () { hit.classList.remove("flash"); }, 3000);
+  };
+
+  /* ---------- link the first use of each term, per lesson, to its glossary entry ---------- */
+  var TERMS = [
+    ["Extended collection", "extended collections?"], ["MCP server", "MCP servers?"], ["MCP prompt", "MCP prompts?"],
+    ["Tool call", "tool calls?"], ["Build tool", "build tools?"], ["Token file", "token files?"], ["Design token", "design tokens?"],
+    ["Component token", "component tokens?"], ["Semantic", "semantic tokens?|semantic"], ["Alias chain", "alias chains?|chain of references"],
+    ["Raw value", "raw values?"], ["Hard-coded value", "hard-cod(?:ed|es|e)"], ["Code syntax", "code syntax"], ["Code Connect", "Code Connect"],
+    ["Dev Mode", "Dev Mode"], ["Design context", "design context"], ["Rules file", "rules files?"], ["Source of truth", "source of truth"],
+    ["Remote and desktop server", "remote server|desktop server"], ["CSS custom property", "CSS variables?|CSS custom propert(?:y|ies)"],
+    ["Primitive", "primitives?"], ["Tier", "tiers?"], ["Alias", "alias(?:es)?"], ["Mode", "modes?"], ["Theme", "themes?"], ["Segment", "segments?"],
+    ["Variable", "variables?"], ["Collection", "collections?"], ["Bound", "bound|bind"], ["Scoping", "scoping|scopes?"], ["Publishing", "publishing|publish"],
+    ["Library", "librar(?:y|ies)"], ["Style", "styles?"], ["Frame, node", "frames?|nodes?"], ["DTCG", "DTCG"], ["JSON", "JSON"], ["Group", "groups?"],
+    ["Reference", "references?"], ["Dimension", "dimensions?"], ["Resolver", "Resolver"], ["Export", "export(?:ed|s)?"], ["Prefix", "prefix"],
+    ["Repository", "repositor(?:y|ies)"], ["MCP", "MCP"], ["Agent", "agents?"], ["Tool", "tools?"], ["Design token", "tokens?"]
+  ];
+  var TERM_RE = TERMS.map(function (t) { return { name: t[0], re: new RegExp("^(?:" + t[1] + ")$", "i") }; });
+  var ALL_RE = "(?<![\\w-])(?:" + TERMS.map(function (t) { return t[1]; }).join("|") + ")(?![\\w-])";
+  var SKIP = { A: 1, CODE: 1, PRE: 1, BUTTON: 1, H1: 1, H2: 1, H3: 1, LABEL: 1, INPUT: 1, SELECT: 1, TH: 1 };
+  document.querySelectorAll(".lesson:not(#L-glossary)").forEach(function (lesson) {
+    var seen = {}, nodes = [];
+    lesson.querySelectorAll(".prose, .note, .cols > .box > p, td").forEach(function (scope) {
+      if (scope.closest(".panel") || (scope.nodeName === "TD" && scope.closest("#L-setup"))) return;
+      var w = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, null), n;
+      while ((n = w.nextNode())) {
+        var p = n.parentNode, skip = false;
+        while (p && p !== scope) { if (SKIP[p.nodeName] || (p.classList && p.classList.contains("mono"))) { skip = true; break; } p = p.parentNode; }
+        if (!skip && nodes.indexOf(n) === -1) nodes.push(n);
+      }
+    });
+    nodes.forEach(function (node) {
+      var text = node.nodeValue, re = new RegExp(ALL_RE, "gi"), m, last = 0, frag = null;
+      while ((m = re.exec(text))) {
+        var name = null;
+        for (var i = 0; i < TERM_RE.length; i++) if (TERM_RE[i].re.test(m[0])) { name = TERM_RE[i].name; break; }
+        if (!name || seen[name]) continue;
+        seen[name] = 1;
+        frag = frag || document.createDocumentFragment();
+        frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        frag.appendChild(el("a", { "class": "gl", href: "#glossary", "data-term": name, title: "Glossary: " + name }, m[0]));
+        last = m.index + m[0].length;
+      }
+      if (frag) { frag.appendChild(document.createTextNode(text.slice(last))); node.parentNode.replaceChild(frag, node); }
+    });
+  });
+
+  paintK(); paintNav(); route();
+})();
+</script>
+</body>
+</html>

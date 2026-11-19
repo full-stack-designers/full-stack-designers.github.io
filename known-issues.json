@@ -1,0 +1,63 @@
+{
+  "_readme": [
+    "Known issues with the tutorials, shown on the progress log page (/learning-log/#issues).",
+    "Unlike the log entries, this list is not stamped: it is a living status list. Edit it as items are fixed.",
+    "status: Open, Decision pending, In progress or Fixed. When an item is fixed, set status to Fixed and fixed to the date (YYYY-MM-DD). Fixed items stay on the page, struck through, so the record is kept.",
+    "tutorials: tutorial slugs from nav.json. They are shown as links."
+  ],
+  "audit_date": "2026-11-19",
+  "intro": "On Nov 19, 2026 Claude audited the source of every published tutorial against the conventions I had been fixing one tutorial at a time. The audit found 4 problems that run across many tutorials. I rechecked the commit counts, the theme counts and the link count against the live files the same day. Until each one is fixed, it stays on this list.",
+  "issues": [
+    {
+      "id": "commit-reminders",
+      "title": "Commit and Branch Reminders",
+      "status": "Open",
+      "statement": "13 tutorials never tell the learner to make a branch, commit the work, or push it.",
+      "proof": "The source of each of these tutorials contains no git commit, no git push and no branch instruction. The tutorials that do have reminders were built after my own lesson commits went straight to main on the Kestrel build.",
+      "tutorials": ["business-logic", "docker", "fastapi", "http", "kubernetes", "nginx", "oauth", "observability", "playwright", "postgres", "react", "sqlalchemy", "test-cases"],
+      "note": "Test Cases from Zero has no terminal and writes no files, so it does not need them. Cloud Deploy from Zero pushes but never makes a branch. Tailwind + shadcn/ui and Wiring the Rules mention it only once.",
+      "meanwhile": "Make a branch before each lesson, then commit and push at the end of it. Git Basics Sandbox shows how."
+    },
+    {
+      "id": "command-prompt",
+      "title": "Windows Command Prompt",
+      "status": "Open",
+      "statement": "133 commands in 17 tutorials are written for bash and will fail in the Windows Command Prompt.",
+      "proof": "The commands use ls (55), cat (24), a VAR=value prefix (18), $var (17), pwd (7) and a few others. I found the first one myself, when ls -a failed on my own machine. Project Structure from Zero is the only tutorial that shows a Command Prompt form, and only for some steps.",
+      "table": {
+        "head": ["Tutorial", "Commands that fail"],
+        "rows": [["oauth", "35"], ["project-structure", "23"], ["cloud-deploy", "16"], ["fastapi", "14"], ["playwright", "7"], ["git-basics", "6"], ["kubernetes", "5"], ["business-logic", "4"], ["ci", "4"], ["react", "4"], ["wiring-rules", "4"], ["nginx", "3"], ["observability", "2"], ["sqlalchemy", "2"], ["tailwind", "2"], ["http", "1"], ["postgres", "1"]]
+      },
+      "note": "Most of the simulated terminals accept the Windows form too, so the lesson still works. The command only fails when it is typed on a real Windows machine. OAuth from Zero is a special case: its commands build a PKCE code with shell substitution, which has no clean Command Prompt form.",
+      "meanwhile": "On Windows, use Git Bash, which is installed with Git for Windows. It runs these commands as written."
+    },
+    {
+      "id": "links",
+      "title": "Further Reading Links",
+      "status": "Open",
+      "statement": "About 400 links to outside documentation have not been checked.",
+      "proof": "Some of the further reading links were written from memory rather than clicked, so some may have been wrong the day they were published. The rest have had weeks to go out of date. The audit could not reach the web, so none of them were tested.",
+      "tutorials": [],
+      "note": "The most linked sites are docs.docker.com, postgresql.org, kubernetes.io, react.dev and docs.github.com.",
+      "meanwhile": "If a link fails, search the documentation site for the page title."
+    },
+    {
+      "id": "theme",
+      "title": "Theme Consistency",
+      "status": "Decision pending",
+      "statement": "The Kestrel theme is not applied the same way in every tutorial.",
+      "proof": "CI from Zero and OAuth from Zero never mention the Kestrel, so a learner who follows the path in order loses the theme and finds it again. Kubernetes from Zero and NGINX from Zero name the suit without the Mk II mark. The blueprint drawing exists in 12 different versions across 14 tutorials, because each one carries the drawing as it was on the day it was built.",
+      "tutorials": ["ci", "oauth", "kubernetes", "nginx"],
+      "note": "This does not change what any lesson teaches. For CI and OAuth I still have to decide whether to retheme them or to say in each one that it sits outside the Kestrel story.",
+      "meanwhile": ""
+    }
+  ],
+  "not_checked_intro": "The audit only read the source text, so a problem that is not on this list may still exist. It did not check:",
+  "not_checked": [
+    "Whether the lessons teach correctly. That needs a person working through each tutorial, which is what the progress log records.",
+    "Whether the labs still pass. No tutorial was run in a browser.",
+    "Whether every step says which folder it runs from, and where a new file goes.",
+    "Whether every analogy gives the real term beside it.",
+    "Whether any link still works."
+  ]
+}

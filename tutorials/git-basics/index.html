@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git Basics Sandbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: lesson on the left; on the right a four-station "map" of where work lives, above a terminal that moves work between stations. */
+:root{
+  --bg:#ECEFF3; --surface:#FFFFFF; --sunk:#F4F6F8; --ink:#141D27; --muted:#566575; --line:#D2D9E0;
+  --accent:#C93A16; --accent-soft:#FBE4DC;
+  --add:#1B7447; --add-soft:#DDF2E6; --pr:#0B5CD6; --pr-soft:#DCE9FC; --del:#B4261C; --warn:#8A5A00; --warn-soft:#FBEFD0;
+  --term-bg:#121A23; --term-ink:#DCE4EC; --term-muted:#8496A8; --term-line:#263341;
+  --t-add:#6FD39A; --t-del:#FF8F84; --t-accent:#FF8A66; --t-coach:#F2C14E;
+  --font-display:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E141B; --surface:#17202A; --sunk:#121A23; --ink:#E4EAF0; --muted:#94A4B4; --line:#2A3743;
+    --accent:#FF7A55; --accent-soft:#3A2018;
+    --add:#5BC98C; --add-soft:#16301F; --pr:#7DB4FF; --pr-soft:#13294B; --del:#FF8A7E; --warn:#E3B341; --warn-soft:#33290F;
+    --term-bg:#090E14; --term-line:#1E2935;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E141B; --surface:#17202A; --sunk:#121A23; --ink:#E4EAF0; --muted:#94A4B4; --line:#2A3743;
+  --accent:#FF7A55; --accent-soft:#3A2018;
+  --add:#5BC98C; --add-soft:#16301F; --pr:#7DB4FF; --pr-soft:#13294B; --del:#FF8A7E; --warn:#E3B341; --warn-soft:#33290F;
+  --term-bg:#090E14; --term-line:#1E2935;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--font-body);-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+code,.mono{font-family:var(--font-mono);font-size:.9em}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.15}
+
+.app{display:flex;flex-direction:column;min-height:100%}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font:700 22px/1 var(--font-display);letter-spacing:.01em}
+.brand b i{font-style:normal;color:var(--accent)}
+.brand span{color:var(--muted);font-size:13px;display:none}
+@media (min-width:1500px){.brand span{display:inline}}
+.nav{display:flex;gap:6px;overflow-x:auto;flex:1 1 420px;padding:2px}
+.nav button{flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border:1px solid var(--line);background:var(--sunk);border-radius:999px;font-size:14px;white-space:nowrap}
+.nav button .n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font:600 12px/1 var(--font-mono)}
+.nav button.done .n{background:var(--add);border-color:var(--add);color:var(--surface)}
+.nav button[aria-current="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.nav button[aria-current="true"] .n{color:var(--ink)}
+.nav button[aria-current="true"].done .n{color:var(--surface)}
+.nav button.sheet{padding-left:12px}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+.lesson{padding:24px 20px 40px;background:var(--surface)}
+.lesson-in{max-width:66ch;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.eyebrow{margin:0;font:600 12px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lesson h1{font-size:34px;font-weight:700}
+.lesson h2{font-size:20px;font-weight:700;margin-top:8px}
+.prose{display:flex;flex-direction:column;gap:12px}
+.prose p,.prose ul,.prose dl{margin:0}
+.prose ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.prose dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
+.prose dt{font-weight:600}
+.prose dd{margin:0;color:var(--muted)}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:10px 14px;border-radius:0 6px 6px 0;font-size:15px}
+.note p{margin:0}
+.note p+p{margin-top:6px}
+
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.step .dot{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);font:600 13px/1 var(--font-mono);color:var(--muted)}
+.step.done .dot{background:var(--add);border-color:var(--add);color:var(--surface)}
+.step.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.step.now .dot{border-color:var(--accent);color:var(--accent)}
+.step.next{background:var(--sunk);color:var(--muted)}
+.step .body{display:flex;flex-direction:column;gap:8px;min-width:0}
+.step p{margin:0}
+.steps .part{font:600 12.5px/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.flow li{flex:1 1 150px;border:1px solid var(--line);border-top:3px solid var(--ink);border-radius:6px;padding:8px 10px;font-size:14px;line-height:1.4;background:var(--sunk)}
+.flow b{display:block;font:600 13px/1.5 var(--font-mono);color:var(--accent)}
+.owntoggle{display:flex;flex-direction:column;gap:8px;border:1px solid var(--pr);border-left-width:3px;background:var(--pr-soft);border-radius:0 8px 8px 0;padding:10px 12px;font-size:15px;cursor:pointer}
+.owntoggle label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.step .own.ide{border-left-color:var(--ink)}
+.owntoggle input{margin-top:4px;width:16px;height:16px;flex:none;accent-color:var(--pr)}
+.step.next .own{color:var(--muted)}
+.step .own{font-size:14.5px;border-left:3px solid var(--pr);padding-left:10px}
+.step .after{font-size:14.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.cmd{display:inline-block;max-width:100%;text-align:left;font:500 13.5px/1.4 var(--font-mono);padding:3px 8px;margin:1px 0;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--sunk);color:var(--ink);overflow-wrap:anywhere}
+.cmd:hover{border-color:var(--accent);color:var(--accent)}
+.hint{font-size:13px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:14.5px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#1a0d08}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#1a0d08}}
+.btn.primary:hover{filter:brightness(1.08)}
+.complete{border:1px solid var(--add);background:var(--add-soft);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.complete h3{font-size:18px}
+.complete ul{margin:0;padding-left:20px}
+.reading ul{margin:6px 0 0;padding-left:20px;font-size:15px}
+.sheet-table{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.2 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap}
+
+.bench{display:flex;flex-direction:column;gap:12px;padding:16px 20px 24px;min-width:0}
+.map{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:auto}
+.map-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.map-head b{font:700 14px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.zones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.zone.wide{grid-column:span 2}
+.zone{display:flex;flex-direction:column;gap:8px;padding:10px 12px 8px;border-top:3px solid var(--ink);border-right:1px solid var(--line);min-width:0;transition:background-color .6s}
+.zone.flash{background:var(--accent-soft);transition:none}
+.zone h3{font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+.zone .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.zone .list{display:flex;flex-direction:column;gap:6px;flex:1;font-size:13px}
+.zone .empty{color:var(--muted);font-size:13px}
+.zone .exit{font:500 12px/1.3 var(--font-mono);color:var(--accent);border-top:1px dashed var(--line);padding-top:6px}
+.file{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.file .mono{overflow-wrap:anywhere}
+.chip{font:500 11px/1 var(--font-mono);padding:3px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.untracked{border-style:dashed;border-color:var(--accent);color:var(--accent)}
+.chip.changed{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.chip.staged,.chip.new{border-color:var(--add);color:var(--add);background:var(--add-soft)}
+.chip.head{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.chip.merged{background:var(--add);border-color:var(--add);color:var(--surface)}
+.file.ignored .mono{color:var(--muted);text-decoration:line-through}
+.commit{display:grid;grid-template-columns:12px minmax(0,1fr);gap:8px;position:relative}
+.commit::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);background:var(--surface);margin-top:4px;z-index:1}
+.commit.side::before{border-color:var(--accent);margin-left:0}
+.commit:not(:last-child)::after{content:"";position:absolute;left:4px;top:14px;bottom:-10px;width:2px;background:var(--line)}
+.commit .c-body{display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;min-width:0}
+.commit .hash{font:400 12px/1.3 var(--font-mono);color:var(--muted)}
+.commit .msg{overflow-wrap:anywhere}
+.commit .chip,.pr .chip{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+.ico{width:14px;height:14px;flex:none;color:var(--muted)}
+.ico.dir{color:var(--accent)}
+.win,.repo{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);font-size:12.5px}
+.win{box-shadow:0 2px 8px rgba(20,29,39,.10)}
+.win-bar{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.win-bar .dots{display:flex;gap:4px}
+.win-bar .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.win-title{display:flex;gap:5px;align-items:center;font-weight:600}
+.win-path{padding:4px 8px;color:var(--muted);font:400 11.5px/1.4 var(--font-mono);border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.win-cols{display:flex;justify-content:space-between;padding:4px 8px;font:600 10.5px/1.2 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.win-row{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;width:100%;padding:5px 8px;border:0;background:none;text-align:left;font-size:12.5px;color:var(--ink)}
+button.win-row:hover{background:var(--accent-soft)}
+.win-row .mono{overflow-wrap:anywhere}
+.win-row .chip{margin-left:auto}
+.win-row.dotfile .ico,.win-row.dotfile .mono{opacity:.72}
+.win-row.empty{color:var(--muted)}
+.snip{tab-size:4;max-height:190px;overflow:auto}
+.win-row.ignored .mono{color:var(--muted);text-decoration:line-through}
+.win-foot{padding:4px 8px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px}
+.repo-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:8px 10px 4px;font-size:13.5px}
+.repo-head .owner{color:var(--muted)}
+.repo-tabs{display:flex;flex-wrap:wrap;gap:2px;padding:0 6px;border-bottom:1px solid var(--line)}
+.repo-tabs button{display:flex;gap:4px;align-items:center;border:0;border-bottom:2px solid transparent;background:none;padding:6px 6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.repo-tabs button[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
+.count{background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:0 6px;font:500 11px/1.5 var(--font-mono);color:var(--ink)}
+.repo-body{display:flex;flex-direction:column;gap:8px;padding:8px}
+.repo-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;color:var(--muted);font-size:12px}
+.repo select{font:600 12px/1.3 var(--font-body);padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--sunk);color:var(--ink);max-width:100%}
+.repo-box{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.repo-latest{display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;padding:6px 8px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.repo-latest .msg{overflow-wrap:anywhere}
+.repo-latest .hash{font:400 11.5px/1.3 var(--font-mono);color:var(--muted);margin-left:auto}
+.avatar{display:grid;place-items:center;width:18px;height:18px;flex:none;border-radius:50%;background:var(--ink);color:var(--surface);font:600 10px/1 var(--font-body)}
+.repo-file{display:grid;grid-template-columns:14px minmax(0,auto) minmax(0,1fr);gap:6px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--line)}
+.repo-file:last-child{border-bottom:0}
+.repo-file .mono{overflow-wrap:anywhere}
+.repo-file .m{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-size:11.5px}
+.pr{border:1px solid var(--line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--sunk);font-size:13px}
+.pr.open{border-color:var(--pr);border-left-width:3px}
+.pr-name{display:inline-block;background:var(--pr-soft);color:var(--pr);border:1px solid var(--pr);border-radius:5px;padding:2px 8px;font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.pr label{font-weight:600;color:var(--pr)}
+.pr .pr-input{border-color:var(--pr);color:var(--pr);font-weight:600}
+.count.hot{background:var(--pr);border-color:var(--pr);color:var(--surface)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.term-out .pr{color:#8FC0FF;border:0;padding:0;display:block;background:none;font-size:inherit}
+.pr.banner{border-color:var(--warn);background:var(--warn-soft)}
+.pr input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--surface)}
+.pr .btn{font-size:13px;padding:6px 10px}
+.pr .btn.merge{background:var(--add);border-color:var(--add);color:var(--surface)}
+.diff{font:400 12px/1.5 var(--font-mono);border:1px solid var(--line);border-radius:5px;background:var(--surface);overflow-x:auto}
+.diff div{padding:0 8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.diff .f{color:var(--muted);border-bottom:1px solid var(--line)}
+.diff .a{color:var(--add);background:var(--add-soft)}
+.diff .d{color:var(--del)}
+
+.term{display:flex;flex-direction:column;border-radius:8px;background:var(--term-bg);color:var(--term-ink);font:400 13.5px/1.5 var(--font-mono);min-height:300px;border:1px solid var(--term-line);overflow:hidden}
+.term-bar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--term-line);color:var(--term-muted);font-size:12px}
+.term-bar button{background:none;border:1px solid var(--term-line);color:var(--term-muted);border-radius:4px;padding:2px 8px;font-size:12px}
+.term-bar select{background:var(--term-bg);border:1px solid var(--term-line);color:var(--term-muted);border-radius:4px;padding:2px 4px;font:inherit;font-size:12px;max-width:150px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.errs{display:flex;flex-direction:column;gap:10px}
+.err{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.err p{margin:0}
+.err .m{font:500 12.5px/1.5 var(--font-mono);color:var(--del);background:var(--sunk);border-radius:5px;padding:6px 8px;overflow-wrap:anywhere}
+.fix{font:500 13px/1.5 var(--font-mono);background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:1px 6px;overflow-wrap:anywhere}
+.note .mono{overflow-wrap:anywhere}
+.shellbox{border:1px solid var(--line);border-left:3px solid var(--pr);border-radius:0 8px 8px 0;background:var(--sunk);padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px}
+.shellbox p{margin:0}
+.shellbox h3{font-size:17px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.term-bar button:hover{color:var(--term-ink);border-color:var(--term-muted)}
+.pane{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:4px}
+.term-bar .tabs button{border-color:transparent;font:600 13px/1.4 var(--font-body);padding:4px 12px}
+.term-bar .tabs button[aria-selected="true"]{color:var(--term-ink);background:var(--term-line);border-color:var(--term-line)}
+.ed-files{display:flex;gap:2px;align-items:center;overflow-x:auto;padding:6px 8px 0;border-bottom:1px solid var(--term-line)}
+.ed-files button,.ed-files input{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--term-muted);font:inherit;font-size:12.5px;padding:5px 9px;white-space:nowrap}
+.ed-files button:hover{color:var(--term-ink)}
+.ed-files button[aria-selected="true"]{color:var(--term-ink);border-bottom-color:var(--t-accent)}
+.ed-files form{display:flex;gap:4px;align-items:center}
+.ed-files input{border:1px solid var(--term-line);border-radius:4px;color:var(--term-ink);width:130px}
+.ed-files #ed-add,.ed-files form button{color:var(--t-accent)}
+#ed-text{flex:1 1 240px;min-height:240px;width:100%;resize:none;border:0;background:transparent;color:var(--term-ink);font:inherit;line-height:1.6;padding:10px 12px;tab-size:4;white-space:pre;overflow:auto}
+#ed-text:focus{outline:none;box-shadow:inset 0 0 0 2px var(--t-accent)}
+.ed-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--term-line);color:var(--term-muted);font-size:12.5px}
+.ed-foot button{background:var(--t-accent);color:#1a0d08;border:0;border-radius:5px;padding:5px 14px;font:600 13px/1.4 var(--font-body)}
+.ed-foot button:disabled{opacity:.45;cursor:default}
+.ed-foot button{white-space:nowrap}
+.ed-foot button.ghost{background:none;border:1px solid var(--term-muted);color:var(--term-ink)}
+.ed-foot .row{flex-wrap:nowrap;gap:8px}
+.chip.conflict{border-color:var(--del);color:var(--del);align-self:flex-start}
+.snip{display:block;width:100%;text-align:left;font:500 13.5px/1.5 var(--font-mono);padding:6px 10px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:5px;background:var(--sunk);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.snip:hover{border-color:var(--accent);color:var(--accent)}
+.term-out{flex:1 1 240px;height:240px;overflow:auto;padding:10px 12px}
+.term-out div{white-space:pre-wrap;overflow-wrap:anywhere;min-height:1.5em}
+.term-out .in{color:var(--term-ink);font-weight:600}
+.term-out .in span,.term-form label{color:var(--t-accent)}
+.term-out .add{color:var(--t-add)}
+.term-out .del{color:var(--t-del)}
+.term-out .meta{color:var(--term-muted)}
+.term-out .coach{color:var(--t-coach)}
+.term-out .ok{color:var(--t-add);font-weight:600}
+.term-form{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--term-line)}
+.term-form label{white-space:nowrap;font-weight:600}
+.term-form input{flex:1;min-width:0;background:transparent;border:0;color:var(--term-ink);font:inherit;padding:6px 0}
+.term-form input:focus{outline:none}
+.term-form:focus-within{box-shadow:inset 0 0 0 2px var(--t-accent)}
+.term-form button{background:var(--t-accent);color:#1a0d08;border:0;border-radius:5px;padding:5px 12px;font:600 13px/1.4 var(--font-body)}
+
+@media (min-width:720px){
+  .zones{grid-template-columns:minmax(0,1.3fr) minmax(0,.8fr) minmax(0,1.05fr) minmax(0,1.75fr)}
+  .zone.wide{grid-column:auto}
+  .zone:last-child{border-right:0}
+}
+@media (min-width:1040px){
+  .app{height:100%}
+  .work{grid-template-columns:minmax(0,4fr) minmax(0,7fr);min-height:0}
+  .lesson{overflow:auto;border-right:1px solid var(--line)}
+  .bench{min-height:0;overflow:hidden;padding:16px}
+  .map{flex:0 1 auto;max-height:62%}
+  .term{flex:1 1 0;min-height:210px}
+  .term-out{height:auto;flex:1 1 0;min-height:0}
+  #ed-text{flex:1 1 0;min-height:0}
+}
+@media (prefers-reduced-motion: reduce){.zone{transition:none}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>Git<i>/</i>Basics</b><span>A safe practice sandbox</span></div>
+    <nav class="nav" id="nav" aria-label="Lessons"></nav>
+  </header>
+  <div class="work">
+    <main class="lesson" id="lesson" tabindex="-1"></main>
+    <aside class="bench" aria-label="Sandbox">
+      <section class="map" id="map" aria-label="Where your work lives"></section>
+      <section class="term" aria-label="Terminal and editor">
+        <div class="term-bar">
+          <div class="tabs" role="tablist" aria-label="Sandbox tools">
+            <button type="button" role="tab" id="tab-term" data-panel="term" aria-selected="true" aria-controls="pane-term">Terminal</button>
+            <button type="button" role="tab" id="tab-ed" data-panel="ed" aria-selected="false" aria-controls="pane-ed">Editor</button>
+          </div>
+          <span class="row" id="term-tools"><label class="sr" for="shell-sel">Terminal type</label><select id="shell-sel"><option value="bash">Mac / Linux / Git Bash</option><option value="cmd">Windows Command Prompt</option><option value="ps">Windows PowerShell</option></select><button type="button" id="btn-help">help</button><button type="button" id="btn-clear">clear</button></span>
+        </div>
+        <div class="pane" id="pane-term" role="tabpanel" aria-labelledby="tab-term">
+          <div class="term-out" id="tout" aria-live="polite"></div>
+          <form class="term-form" id="tform" autocomplete="off">
+            <label for="tin" id="tprompt">hello-api $</label>
+            <input id="tin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type a command">
+            <button type="submit">Run</button>
+          </form>
+        </div>
+        <div class="pane" id="pane-ed" role="tabpanel" aria-labelledby="tab-ed" hidden>
+          <div class="ed-files" id="ed-tabs"></div>
+          <textarea id="ed-text" spellcheck="false" autocapitalize="off" autocorrect="off" aria-label="File contents"></textarea>
+          <div class="ed-foot"><span id="ed-status" aria-live="polite"></span><span class="row"><span class="row" id="ed-conf" hidden><button type="button" class="ghost" data-keep="ours">Keep mine</button><button type="button" class="ghost" data-keep="theirs">Keep theirs</button></span><button type="button" id="ed-save">Save</button></span></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script id="engine">
+/* ---------- Simulated git: pure functions, no DOM ---------- */
+const Engine = (() => {
+  const dirOf = s => '/home/you/' + (s.proj || 'hello-api');
+  const INIT = {
+    'README.md': '# hello-api\nA tiny API for learning Git.\n',
+    'main.py': 'from fastapi import FastAPI\n\napp = FastAPI()\n'
+  };
+  const fresh = () => ({ files: {}, repo: null, commits: {}, seq: 0, remote: null, hooks: {}, dir: 'home', proj: null });
+
+  function hid(n, msg) {
+    let h = 2166136261; const s = n + ':' + msg;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16).padStart(8, '0').slice(0, 7);
+  }
+  function mkCommit(s, msg, parents, tree, author) {
+    const n = ++s.seq; let id = hid(n, msg);
+    while (s.commits[id]) id = hid(n + 1000, msg + id);
+    s.commits[id] = { id, n, msg, parents: parents.filter(Boolean), tree: { ...tree }, author: author || 'You' };
+    return id;
+  }
+  const tree = (s, id) => (id ? s.commits[id].tree : {});
+  const headId = s => (s.repo ? (s.repo.branches[s.repo.head] || null) : null);
+  function ancestors(s, id) {
+    const set = new Set(), st = id ? [id] : [];
+    while (st.length) { const x = st.pop(); if (set.has(x)) continue; set.add(x); st.push(...s.commits[x].parents); }
+    return set;
+  }
+  const isAnc = (s, a, b) => !a || (!!b && ancestors(s, b).has(a));
+  function aheadBehind(s, a, b) {
+    const A = ancestors(s, a), B = ancestors(s, b); let ah = 0, be = 0;
+    A.forEach(x => { if (!B.has(x)) ah++; }); B.forEach(x => { if (!A.has(x)) be++; });
+    return [ah, be];
+  }
+  function patterns(s) {
+    return (s.files['.gitignore'] || '').split('\n').map(l => l.trim())
+      .filter(l => l && !l.startsWith('#') && !l.startsWith('!'))
+      .map(l => l.replace(/^\//, '').replace(/\/$/, ''));
+  }
+  function ignored(s, p) {
+    return patterns(s).some(pt => new RegExp('^' + pt.replace(/[.+^${}()|[\]\\?]/g, '\\$&').replace(/\*/g, '.*') + '$').test(p));
+  }
+  function status(s) {
+    const r = s.repo, H = tree(s, headId(s)), I = r.index;
+    const staged = [], unstaged = [], untracked = [], ign = [], um = r.merging ? r.merging.conflicts : [];
+    [...new Set([...Object.keys(I), ...Object.keys(H)])].sort().forEach(p => {
+      if (um.includes(p)) return;
+      if (!(p in H)) staged.push(['new file', p]);
+      else if (!(p in I)) staged.push(['deleted', p]);
+      else if (I[p] !== H[p]) staged.push(['modified', p]);
+    });
+    Object.keys(I).sort().forEach(p => {
+      if (um.includes(p)) return;
+      if (!(p in s.files)) unstaged.push(['deleted', p]);
+      else if (s.files[p] !== I[p]) unstaged.push(['modified', p]);
+    });
+    Object.keys(s.files).sort().forEach(p => { if (!(p in I)) (ignored(s, p) ? ign : untracked).push(p); });
+    return { staged, unstaged, untracked, ignored: ign, unmerged: um };
+  }
+  function splitLines(t) { if (!t) return []; return t.replace(/\n$/, '').split('\n'); }
+  function diffLines(a, b) {
+    const A = splitLines(a), B = splitLines(b), n = A.length, m = B.length;
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const out = []; let i = 0, j = 0;
+    while (i < n && j < m) {
+      if (A[i] === B[j]) { out.push({ k: ' ', t: A[i] }); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) out.push({ k: '-', t: A[i++] });
+      else out.push({ k: '+', t: B[j++] });
+    }
+    while (i < n) out.push({ k: '-', t: A[i++] });
+    while (j < m) out.push({ k: '+', t: B[j++] });
+    return out;
+  }
+  function lcsPairs(A, B) {
+    const n = A.length, m = B.length, dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    const out = []; let i = 0, j = 0;
+    while (i < n && j < m) { if (A[i] === B[j]) out.push([i++, j++]); else if (dp[i + 1][j] >= dp[i][j + 1]) i++; else j++; }
+    return out;
+  }
+  /* three-way merge of one file: o = common ancestor, a = ours, b = theirs */
+  function merge3(o, a, b, label) {
+    const O = splitLines(o), A = splitLines(a), B = splitLines(b), ma = new Map(lcsPairs(O, A)), mb = new Map(lcsPairs(O, B));
+    const out = []; let conflict = false, oi = 0, ai = 0, bi = 0;
+    const eq = (x, y) => x.length === y.length && x.every((v, k) => v === y[k]);
+    const flush = (oe, ae, be) => {
+      const oc = O.slice(oi, oe), ac = A.slice(ai, ae), bc = B.slice(bi, be);
+      if (eq(ac, bc) || eq(bc, oc)) out.push(...ac);
+      else if (eq(ac, oc)) out.push(...bc);
+      else { conflict = true; out.push('<<<<<<< HEAD', ...ac, '=======', ...bc, '>>>>>>> ' + label); }
+    };
+    for (let i = 0; i < O.length; i++) if (ma.has(i) && mb.has(i)) {
+      flush(i, ma.get(i), mb.get(i)); out.push(O[i]); oi = i + 1; ai = ma.get(i) + 1; bi = mb.get(i) + 1;
+    }
+    flush(O.length, A.length, B.length);
+    return { text: out.length ? out.join('\n') + '\n' : '', conflict };
+  }
+  const hasMarkers = t => /^(<<<<<<<|=======$|>>>>>>>)/m.test(t || '');
+  function resolve(text, side) {
+    let mode = null; const out = [];
+    splitLines(text).forEach(l => {
+      if (l.startsWith('<<<<<<<')) mode = 'ours';
+      else if (l === '=======' && mode) mode = 'theirs';
+      else if (l.startsWith('>>>>>>>') && mode) mode = null;
+      else if (!mode || mode === side) out.push(l);
+    });
+    return out.length ? out.join('\n') + '\n' : '';
+  }
+  function treeDiff(a, b) {
+    return [...new Set([...Object.keys(a), ...Object.keys(b)])].sort().filter(p => a[p] !== b[p]).map(p => {
+      const lines = diffLines(a[p], b[p]);
+      return { path: p, isNew: !(p in a), gone: !(p in b), lines, add: lines.filter(l => l.k === '+').length, del: lines.filter(l => l.k === '-').length };
+    });
+  }
+  function statText(d) {
+    const add = d.reduce((x, f) => x + f.add, 0), del = d.reduce((x, f) => x + f.del, 0);
+    let t = ` ${d.length} file${d.length === 1 ? '' : 's'} changed`;
+    if (add) t += `, ${add} insertion${add === 1 ? '' : 's'}(+)`;
+    if (del) t += `, ${del} deletion${del === 1 ? '' : 's'}(-)`;
+    return t;
+  }
+  function moveTo(s, targetId) {
+    const r = s.repo, H = tree(s, headId(s)), T = tree(s, targetId);
+    const paths = [...new Set([...Object.keys(H), ...Object.keys(T)])], clash = [];
+    paths.forEach(p => { if (H[p] !== T[p] && (r.index[p] !== H[p] || s.files[p] !== H[p])) clash.push(p); });
+    if (clash.length) return clash;
+    paths.forEach(p => {
+      if (H[p] === T[p]) return;
+      if (p in T) { r.index[p] = T[p]; s.files[p] = T[p]; } else { delete r.index[p]; delete s.files[p]; }
+    });
+    return null;
+  }
+  function tokenize(line) {
+    const out = []; let cur = '', has = false, q = null;
+    const flush = () => { if (has || cur) { out.push({ v: cur }); cur = ''; has = false; } };
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === q) q = null; else cur += ch; continue; }
+      if (ch === '"' || ch === "'") { q = ch; has = true; continue; }
+      if (ch === ' ' || ch === '\t') { flush(); continue; }
+      if (ch === '>') { flush(); if (line[i + 1] === '>') { out.push({ op: '>>' }); i++; } else out.push({ op: '>' }); continue; }
+      cur += ch;
+    }
+    flush(); return out;
+  }
+  const clean = p => (p || '').replace(/^\.\//, '');
+
+  /* ----- GitHub side ----- */
+  function teammateCommit(s, msg, changes, who) {
+    const base = s.remote.branches.main;
+    s.remote.branches.main = mkCommit(s, msg, [base], { ...tree(s, base), ...changes }, who || 'Maya');
+  }
+  function createRepo(s) {
+    if (!s.remote) s.remote = { url: `https://github.com/you/${s.proj || 'hello-api'}.git`, branches: {}, prs: [], nextPr: 1 };
+    return s.remote;
+  }
+  function prCandidates(s) {
+    if (!s.remote) return [];
+    const main = s.remote.branches.main;
+    return Object.keys(s.remote.branches).filter(b => b !== 'main' && !isAnc(s, s.remote.branches[b], main) && !s.remote.prs.some(p => p.branch === b && p.status === 'open'));
+  }
+  function mergeBase(s, a, b) {
+    const A = ancestors(s, a); let best = null;
+    ancestors(s, b).forEach(x => { if (A.has(x) && (!best || s.commits[x].n > s.commits[best].n)) best = x; });
+    return best;
+  }
+  function openPR(s, branch, title) {
+    if (!s.remote || !(branch in s.remote.branches) || branch === 'main') return null;
+    const pr = { id: s.remote.nextPr++, branch, title: title || s.commits[s.remote.branches[branch]].msg, status: 'open' };
+    s.remote.prs.push(pr); return pr;
+  }
+  function prDiff(s, pr) {
+    const bid = s.remote.branches[pr.branch]; if (!bid) return [];
+    return treeDiff(tree(s, mergeBase(s, s.remote.branches.main, bid)), tree(s, bid));
+  }
+  function mergePR(s, id) {
+    const pr = s.remote && s.remote.prs.find(p => p.id === id && p.status === 'open'); if (!pr) return null;
+    const main = s.remote.branches.main, bid = s.remote.branches[pr.branch];
+    const t = { ...tree(s, main) };
+    prDiff(s, pr).forEach(f => { if (f.gone) delete t[f.path]; else t[f.path] = tree(s, bid)[f.path]; });
+    s.remote.branches.main = mkCommit(s, `Merge pull request #${pr.id} from you/${pr.branch}`, [main, bid], t, 'You');
+    pr.status = 'merged'; return pr;
+  }
+
+  /* ----- command runner ----- */
+  function run(s, line) {
+    const out = [], res = { out, event: null, clear: false };
+    const say = (t, c) => String(t).split('\n').forEach(x => out.push({ t: x, c: c || '' }));
+    const tk = tokenize(line.trim()); if (!tk.length) return res;
+    const cmd = tk[0].v, args = tk.slice(1).filter(t => !t.op).map(t => t.v);
+
+    if (cmd === 'clear') { res.clear = true; return res; }
+    if (cmd === 'help') {
+      say('Folders: pwd · mkdir <name> · cd <name> · cd ..');
+      say('Files:  ls -a · cat <file> · echo "text" > file (replace) · echo "text" >> file (append) · touch · rm');
+      say('Git:    init · status · add · commit -m · log --oneline · diff · restore · rm --cached');
+      say('        branch · switch -c · remote add · push · pull · fetch · merge · merge --abort');
+      say('Tip:    up arrow recalls your last command.', 'meta');
+      return res;
+    }
+    const home = s.dir === 'home';
+    if (cmd === 'pwd') { say(home ? '/home/you' : dirOf(s)); return res; }
+    if (cmd === 'mkdir') {
+      const n = clean(args.find(x => !x.startsWith('-'))).replace(/\/$/, '');
+      if (!n) { say('usage: mkdir <folder-name>'); return res; }
+      if (!home) { say('This sandbox keeps one project folder, without subfolders.'); return res; }
+      if (/[\s\/]/.test(n)) { say('Use a folder name without spaces or slashes, for example hello-api'); return res; }
+      if (s.proj) { say(n === s.proj ? `mkdir: cannot create directory '${n}': File exists` : `This sandbox holds one project folder, and you already have ${s.proj}.`); return res; }
+      s.proj = n; return res;
+    }
+    if (cmd === 'cd') {
+      const n = (args[0] || '~').replace(/^\.\//, '').replace(/\/$/, '');
+      if (n === '.') return res;
+      if (n === '..' || n === '~' || n === '/home/you') { if (!s.proj) s.proj = 'hello-api'; s.dir = 'home'; return res; }
+      if (home && s.proj && n === s.proj) { s.dir = 'project'; return res; }
+      say(`cd: no such file or directory: ${n}`); return res;
+    }
+    if (home) {
+      if (cmd === 'ls') { say(s.proj ? s.proj + '/' : ''); return res; }
+      if (cmd === 'git' && !['--version', 'version', 'help', '--help', 'config', 'clone', undefined].includes(args[0])) { say('fatal: not a git repository (or any of the parent directories): .git'); say(`(You are in your home folder. Move into the project first: cd ${s.proj || '<folder>'})`, 'meta'); return res; }
+      if (['cat', 'touch', 'rm', 'gh'].includes(cmd) || (cmd === 'echo' && tk.some(t => t.op))) { say(`You are in your home folder, and this sandbox keeps files inside the project folder. ${s.proj ? 'Move into it first: cd ' + s.proj : 'Create one first: mkdir hello-api'}`); return res; }
+    }
+    if (cmd === 'ls') {
+      const all = args.some(a => /^-\w*a/.test(a));
+      let names = Object.keys(s.files); if (all && s.repo) names.push('.git');
+      names = names.filter(n => all || !n.startsWith('.')).sort();
+      say(names.join('  ') || ''); if (!all && Object.keys(s.files).some(n => n.startsWith('.'))) say('(hidden files exist; try ls -a)', 'meta');
+      return res;
+    }
+    if (cmd === 'cat') {
+      const p = clean(args[0]); if (!p) { say('usage: cat <file>'); return res; }
+      if (!(p in s.files)) say(`cat: ${p}: No such file or directory`); else say(s.files[p].replace(/\n$/, ''));
+      return res;
+    }
+    if (cmd === 'echo') {
+      const oi = tk.findIndex(t => t.op);
+      const text = tk.slice(1, oi < 0 ? undefined : oi).map(t => t.v).join(' ');
+      if (oi < 0) { say(text); return res; }
+      const p = clean(tk[oi + 1] && tk[oi + 1].v); if (!p) { say('echo: missing file name after ' + tk[oi].op); return res; }
+      if (tk[oi].op === '>') s.files[p] = text + '\n';
+      else { const old = s.files[p] || ''; s.files[p] = old + (old && !old.endsWith('\n') ? '\n' : '') + text + '\n'; }
+      return res;
+    }
+    if (cmd === 'touch') { args.map(clean).forEach(p => { if (!(p in s.files)) s.files[p] = ''; }); return res; }
+    if (cmd === 'rm') {
+      args.filter(a => !a.startsWith('-')).map(clean).forEach(p => { if (p in s.files) delete s.files[p]; else say(`rm: ${p}: No such file or directory`); });
+      return res;
+    }
+    if (['code', 'nano', 'vim', 'vi', 'open', 'notepad'].includes(cmd)) { say('This sandbox has no editor. Change a file with:  echo "some text" >> ' + (clean(args[0]) || 'file')); return res; }
+    if (cmd === 'gh') return gh(s, args, say, res);
+    if (cmd !== 'git') { say(`${cmd}: command not found. Type help to see what this sandbox understands.`); return res; }
+
+    const sub = args[0], a = args.slice(1);
+    if (!sub || sub === 'help' || sub === '--help') { say('usage: git <command>. Type help for the commands this sandbox knows.'); return res; }
+    if (sub === '--version' || sub === 'version') { say('git version 2.47.0 (sandbox)'); return res; }
+    if (sub === 'config') return res;
+    if (sub === 'clone') { say('git clone downloads an existing repository into a new folder. You already have this project, so there is nothing to clone here.', 'meta'); return res; }
+    if (sub === 'init') {
+      if (s.repo) { say(`Reinitialized existing Git repository in ${dirOf(s)}/.git/`); return res; }
+      s.repo = { index: {}, branches: { master: null }, head: 'master', remotes: {}, upstream: {}, tracking: {} };
+      say("hint: Using 'master' as the name for the initial branch. This default branch name\nhint: is subject to change. To configure the initial branch name to use in all\nhint: of your new repositories, which will suppress this warning, call:\nhint:\nhint: \tgit config --global init.defaultBranch <name>", 'meta');
+      say(`Initialized empty Git repository in ${dirOf(s)}/.git/`); return res;
+    }
+    if (!s.repo) { say('fatal: not a git repository (or any of the parent directories): .git'); return res; }
+    const r = s.repo, cur = headId(s);
+
+    const trackLine = () => {
+      const up = r.upstream[r.head]; if (!up) return null;
+      const t = r.tracking[r.head]; if (!t) return null;
+      const [ah, be] = aheadBehind(s, cur, t), n = x => `${x} commit${x === 1 ? '' : 's'}`;
+      if (ah && be) return `Your branch and '${up}' have diverged,\nand have ${ah} and ${be} different commits each, respectively.`;
+      if (ah) return `Your branch is ahead of '${up}' by ${n(ah)}.\n  (use "git push" to publish your local commits)`;
+      if (be) return `Your branch is behind '${up}' by ${n(be)}, and can be fast-forwarded.\n  (use "git pull" to update your local branch)`;
+      return `Your branch is up to date with '${up}'.`;
+    };
+    const ff = target => {
+      if (isAnc(s, target, cur)) { say('Already up to date.'); return false; }
+      if (!isAnc(s, cur, target)) { say('fatal: Not possible to fast-forward, aborting.\n(Both sides have new commits. This sandbox only handles the simple case.)'); return false; }
+      const d = treeDiff(tree(s, cur), tree(s, target)), clash = moveTo(s, target);
+      if (clash) { say('error: Your local changes to the following files would be overwritten by merge:\n\t' + clash.join('\n\t') + '\nPlease commit your changes or stash them before you merge.\nAborting'); return false; }
+      r.branches[r.head] = target;
+      say(`Updating ${cur || '0000000'}..${target}\nFast-forward`);
+      d.forEach(f => say(` ${f.path} | ${f.add + f.del} ${'+'.repeat(f.add)}${'-'.repeat(f.del)}`));
+      say(statText(d)); return true;
+    };
+    const merge = (target, label, msg) => {
+      if (r.merging) { say('fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.'); return false; }
+      if (isAnc(s, target, cur) || isAnc(s, cur, target)) return ff(target);
+      const st = status(s);
+      if (st.staged.length || st.unstaged.length) { say('error: Your local changes would be overwritten by merge.\nPlease commit your changes before you merge.\nAborting'); return false; }
+      const O = tree(s, mergeBase(s, cur, target)), A = tree(s, cur), T = tree(s, target), conf = [];
+      [...new Set([...Object.keys(O), ...Object.keys(A), ...Object.keys(T)])].sort().forEach(p => {
+        const o = O[p], a = A[p], b = T[p];
+        if (a === b || b === o) return;
+        if (a === o) { if (b === undefined) { delete r.index[p]; delete s.files[p]; } else { r.index[p] = b; s.files[p] = b; } return; }
+        const m = merge3(o || '', a || '', b || '', label);
+        say('Auto-merging ' + p); s.files[p] = m.text;
+        if (m.conflict) { conf.push(p); say(`CONFLICT (content): Merge conflict in ${p}`, 'del'); } else r.index[p] = m.text;
+      });
+      if (conf.length) { r.merging = { target, msg, conflicts: conf }; say('Automatic merge failed; fix conflicts and then commit the result.'); return 'conflict'; }
+      const d = treeDiff(A, r.index);
+      r.branches[r.head] = mkCommit(s, msg, [cur, target], r.index);
+      say("Merge made by the 'ort' strategy.");
+      d.forEach(f => say(` ${f.path} | ${f.add + f.del} ${'+'.repeat(f.add)}${'-'.repeat(f.del)}`));
+      say(statText(d)); return true;
+    };
+    const fetch = quiet => {
+      if (!s.remote) return;
+      Object.keys(s.remote.branches).forEach(b => {
+        if (r.tracking[b] !== s.remote.branches[b]) {
+          if (!quiet) say(`   ${r.tracking[b] || '[new]  '}..${s.remote.branches[b]}  ${b} -> origin/${b}`);
+          r.tracking[b] = s.remote.branches[b];
+        }
+      });
+    };
+
+    switch (sub) {
+      case 'status': {
+        const st = status(s);
+        say(`On branch ${r.head}`);
+        if (!cur) say('\nNo commits yet\n');
+        const tl = trackLine(); if (tl) say(tl + '\n');
+        if (r.merging) say(st.unmerged.length ? 'You have unmerged paths.\n  (fix conflicts and run "git commit")\n  (use "git merge --abort" to abort the merge)\n' : 'All conflicts fixed but you are still merging.\n  (use "git commit" to conclude merge)\n');
+        if (st.staged.length) {
+          say('Changes to be committed:\n  (use "git restore --staged <file>..." to unstage)');
+          st.staged.forEach(([k, p]) => say(`\t${(k + ':').padEnd(12)}${p}`, 'add')); say('');
+        }
+        if (st.unmerged.length) {
+          say('Unmerged paths:\n  (use "git add <file>..." to mark resolution)');
+          st.unmerged.forEach(p => say(`\t${'both modified:'.padEnd(18)}${p}`, 'del')); say('');
+        }
+        if (st.unstaged.length) {
+          say('Changes not staged for commit:\n  (use "git add <file>..." to update what will be committed)');
+          st.unstaged.forEach(([k, p]) => say(`\t${(k + ':').padEnd(12)}${p}`, 'del')); say('');
+        }
+        if (st.untracked.length) {
+          say('Untracked files:\n  (use "git add <file>..." to include in what will be committed)');
+          st.untracked.forEach(p => say('\t' + p, 'del')); say('');
+        }
+        if (!st.staged.length && !(r.merging && !st.unmerged.length)) {
+          if (st.unstaged.length || st.unmerged.length) say('no changes added to commit (use "git add" and/or "git commit -a")');
+          else if (st.untracked.length) say('nothing added to commit but untracked files present (use "git add" to track)');
+          else say(cur ? 'nothing to commit, working tree clean' : 'nothing to commit (create/copy files and use "git add" to track)');
+        }
+        return res;
+      }
+      case 'add': {
+        if (!a.length) { say("Nothing specified, nothing added.\nhint: Maybe you wanted to say 'git add .'?"); return res; }
+        if (a.some(x => x === '.' || x === '-A' || x === '--all')) {
+          Object.keys(s.files).forEach(p => { if (p in r.index || !ignored(s, p)) r.index[p] = s.files[p]; });
+          Object.keys(r.index).forEach(p => { if (!(p in s.files)) delete r.index[p]; });
+          if (r.merging) r.merging.conflicts = [];
+          res.event = 'add'; return res;
+        }
+        const force = a.includes('-f') || a.includes('--force'), ign = [];
+        for (const raw of a.filter(x => !x.startsWith('-'))) {
+          const p = clean(raw);
+          if (!(p in s.files) && !(p in r.index)) { say(`fatal: pathspec '${p}' did not match any files`); return res; }
+          if (!(p in r.index) && ignored(s, p) && !force) { ign.push(p); continue; }
+          if (p in s.files) r.index[p] = s.files[p]; else delete r.index[p];
+          if (r.merging) r.merging.conflicts = r.merging.conflicts.filter(x => x !== p);
+          res.event = 'add';
+        }
+        if (ign.length) say('The following paths are ignored by one of your .gitignore files:\n' + ign.join('\n') + '\nhint: Use -f if you really want to add them.');
+        return res;
+      }
+      case 'commit': {
+        let msg = null, all = false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] === '-m') msg = a[++i] ?? '';
+          else if (a[i] === '-am') { all = true; msg = a[++i] ?? ''; }
+          else if (a[i] === '-a') all = true;
+          else if (a[i] === '--amend') { say('--amend rewrites the last commit. This sandbox leaves that out.', 'meta'); return res; }
+        }
+        if (r.merging) {
+          if (r.merging.conflicts.length) { say("error: Committing is not possible because you have unmerged files.\nhint: Fix them up in the work tree, and then use 'git add <file>'\nhint: as appropriate to mark resolution and make a commit.\nfatal: Exiting because of an unresolved conflict."); return res; }
+          const m = (msg && msg.trim()) || r.merging.msg, id = mkCommit(s, m, [cur, r.merging.target], r.index);
+          r.branches[r.head] = id; delete r.merging; say(`[${r.head} ${id}] ${m}`); res.event = 'commit'; return res;
+        }
+        if (all) Object.keys(r.index).forEach(p => { if (p in s.files) r.index[p] = s.files[p]; else delete r.index[p]; });
+        const st = status(s);
+        if (!st.staged.length) {
+          say(`On branch ${r.head}`);
+          if (st.unstaged.length) { say('Changes not staged for commit:'); st.unstaged.forEach(([k, p]) => say(`\t${(k + ':').padEnd(12)}${p}`, 'del')); say('\nno changes added to commit (use "git add" and/or "git commit -a")'); }
+          else if (st.untracked.length) { say('Untracked files:'); st.untracked.forEach(p => say('\t' + p, 'del')); say('\nnothing added to commit but untracked files present (use "git add" to track)'); }
+          else say('nothing to commit, working tree clean');
+          return res;
+        }
+        if (msg === null) { say('Without -m, Git opens a text editor for the message. In this sandbox, write it inline:\n  git commit -m "Describe the change"', 'meta'); return res; }
+        if (!msg.trim()) { say('Aborting commit due to empty commit message.'); return res; }
+        const d = treeDiff(tree(s, cur), r.index), id = mkCommit(s, msg, [cur], r.index);
+        r.branches[r.head] = id;
+        say(`[${r.head} ${cur ? '' : '(root-commit) '}${id}] ${msg}`); say(statText(d));
+        d.filter(f => f.isNew).forEach(f => say(` create mode 100644 ${f.path}`));
+        d.filter(f => f.gone).forEach(f => say(` delete mode 100644 ${f.path}`));
+        res.event = 'commit'; return res;
+      }
+      case 'log': {
+        if (!cur) { say(`fatal: your current branch '${r.head}' does not have any commits yet`); return res; }
+        const one = a.includes('--oneline');
+        const deco = id => {
+          const d = [];
+          if (id === cur) d.push('HEAD -> ' + r.head);
+          Object.keys(r.branches).forEach(b => { if (b !== r.head && r.branches[b] === id) d.push(b); });
+          Object.keys(r.tracking).forEach(b => { if (r.tracking[b] === id) d.push('origin/' + b); });
+          return d.length ? ` (${d.join(', ')})` : '';
+        };
+        [...ancestors(s, cur)].map(x => s.commits[x]).sort((x, y) => y.n - x.n).forEach(c => {
+          if (one) say(`${c.id}${deco(c.id)} ${c.msg}`);
+          else { say(`commit ${c.id}${deco(c.id)}`, 'coach'); say(`Author: ${c.author} <${c.author.toLowerCase()}@example.com>\n\n    ${c.msg}\n`); }
+        });
+        return res;
+      }
+      case 'diff': {
+        const stg = a.includes('--staged') || a.includes('--cached');
+        const from = stg ? tree(s, cur) : r.index, to = {};
+        if (stg) Object.assign(to, r.index); else Object.keys(r.index).forEach(p => { if (p in s.files) to[p] = s.files[p]; });
+        treeDiff(from, to).forEach(f => {
+          say(`diff --git a/${f.path} b/${f.path}`, 'meta');
+          say(`--- ${f.isNew ? '/dev/null' : 'a/' + f.path}\n+++ ${f.gone ? '/dev/null' : 'b/' + f.path}`, 'meta');
+          f.lines.forEach(l => say(l.k + l.t, l.k === '+' ? 'add' : l.k === '-' ? 'del' : ''));
+        });
+        return res;
+      }
+      case 'restore': {
+        const stg = a.includes('--staged'), H = tree(s, cur);
+        for (const raw of a.filter(x => !x.startsWith('-'))) {
+          const p = clean(raw);
+          if (stg) { if (p in H) r.index[p] = H[p]; else if (p in r.index) delete r.index[p]; else say(`error: pathspec '${p}' did not match any file(s) known to git`); }
+          else if (p in r.index) s.files[p] = r.index[p];
+          else say(`error: pathspec '${p}' did not match any file(s) known to git`);
+        }
+        return res;
+      }
+      case 'rm': {
+        const cached = a.includes('--cached');
+        for (const raw of a.filter(x => !x.startsWith('-'))) {
+          const p = clean(raw);
+          if (!(p in r.index)) { say(`fatal: pathspec '${p}' did not match any files`); return res; }
+          delete r.index[p]; if (!cached) delete s.files[p]; say(`rm '${p}'`);
+        }
+        return res;
+      }
+      case 'branch': {
+        const del = a.find(x => x === '-d' || x === '-D'), name = a.find(x => !x.startsWith('-'));
+        if ((a.includes('-M') || a.includes('-m')) && name) {
+          if (name !== r.head) { r.branches[name] = r.branches[r.head]; delete r.branches[r.head]; if (r.upstream[r.head]) { r.upstream[name] = r.upstream[r.head]; delete r.upstream[r.head]; } r.head = name; }
+          return res;
+        }
+        if (!name) { Object.keys(r.branches).sort().forEach(b => { if (r.branches[b] || b === r.head) say((b === r.head ? '* ' : '  ') + b, b === r.head ? 'add' : ''); }); return res; }
+        if (del) {
+          if (!(name in r.branches)) { say(`error: branch '${name}' not found`); return res; }
+          if (name === r.head) { say(`error: cannot delete branch '${name}' used by worktree at '${dirOf(s)}'`); return res; }
+          const id = r.branches[name];
+          if (del === '-d' && !isAnc(s, id, cur)) { say(`error: the branch '${name}' is not fully merged\nhint: If you are sure you want to delete it, run 'git branch -D ${name}'`); return res; }
+          delete r.branches[name]; delete r.upstream[name];
+          say(`Deleted branch ${name} (was ${id}).`); return res;
+        }
+        if (name in r.branches) { say(`fatal: a branch named '${name}' already exists`); return res; }
+        if (!cur) { say(`fatal: not a valid object name: '${r.head}'`); return res; }
+        r.branches[name] = cur; return res;
+      }
+      case 'switch': case 'checkout': {
+        const create = a.includes('-c') || a.includes('-b'), name = a.find(x => !x.startsWith('-'));
+        if (!name) { say('fatal: missing branch name'); return res; }
+        if (create) {
+          if (name in r.branches) { say(`fatal: a branch named '${name}' already exists`); return res; }
+          if (!cur) delete r.branches[r.head];
+          r.branches[name] = cur; r.head = name; say(`Switched to a new branch '${name}'`); return res;
+        }
+        if (!(name in r.branches)) { say(`fatal: invalid reference: ${name}\n(To create it, use: git switch -c ${name})`); return res; }
+        if (name === r.head) { say(`Already on '${name}'`); return res; }
+        if (r.merging) { say('error: you need to resolve your current index first\n(Finish the merge with git commit, or cancel it with git merge --abort.)'); return res; }
+        const clash = moveTo(s, r.branches[name]);
+        if (clash) { say('error: Your local changes to the following files would be overwritten by checkout:\n\t' + clash.join('\n\t') + '\nPlease commit your changes or stash them before you switch branches.\nAborting'); return res; }
+        r.head = name; say(`Switched to branch '${name}'`);
+        const up = r.upstream[name] && r.tracking[name];
+        if (up) { const [ah, be] = aheadBehind(s, r.branches[name], up); say(ah ? `Your branch is ahead of 'origin/${name}' by ${ah} commit${ah === 1 ? '' : 's'}.` : be ? `Your branch is behind 'origin/${name}' by ${be} commit${be === 1 ? '' : 's'}, and can be fast-forwarded.` : `Your branch is up to date with 'origin/${name}'.`); }
+        return res;
+      }
+      case 'remote': {
+        if (a[0] === 'add') {
+          if (!a[1] || !a[2]) { say('usage: git remote add <name> <url>'); return res; }
+          if (r.remotes[a[1]]) { say(`error: remote ${a[1]} already exists.`); return res; }
+          r.remotes[a[1]] = a[2];
+          return res;
+        }
+        if (a[0] === 'set-url') {
+          if (!a[1] || !a[2]) { say('usage: git remote set-url <name> <newurl>'); return res; }
+          if (!r.remotes[a[1]]) { say(`error: No such remote '${a[1]}'`); return res; }
+          r.remotes[a[1]] = a[2]; return res;
+        }
+        Object.keys(r.remotes).forEach(n => { if (a.includes('-v')) { say(`${n}\t${r.remotes[n]} (fetch)`); say(`${n}\t${r.remotes[n]} (push)`); } else say(n); });
+        return res;
+      }
+      case 'push': {
+        const setUp = a.includes('-u') || a.includes('--set-upstream'), pos = a.filter(x => !x.startsWith('-'));
+        if (!r.remotes.origin) { say('fatal: No configured push destination.\nEither specify the URL from the command-line or configure a remote repository using\n\n    git remote add <name> <url>\n\nand then push using the remote name\n\n    git push <name>'); return res; }
+        if (pos[0] && pos[0] !== 'origin') { say(`fatal: '${pos[0]}' does not appear to be a git repository`); return res; }
+        if (!s.remote) { say(`remote: Repository not found.\nfatal: repository '${r.remotes.origin}' not found\n(Create the repository on GitHub first.)`); return res; }
+        const b = pos[1] || r.head;
+        if (!pos.length && !r.upstream[r.head]) { say(`fatal: The current branch ${r.head} has no upstream branch.\nTo push the current branch and set the remote as upstream, use\n\n    git push --set-upstream origin ${r.head}\n`); return res; }
+        const local = r.branches[b];
+        if (!local) { say(`error: src refspec ${b} does not match any\nerror: failed to push some refs to '${r.remotes.origin}'`); return res; }
+        const rid = s.remote.branches[b];
+        if (rid === local) { say('Everything up-to-date'); }
+        else if (rid && !isAnc(s, rid, local)) {
+          say(`To ${r.remotes.origin}\n ! [rejected]        ${b} -> ${b} (fetch first)\nerror: failed to push some refs to '${r.remotes.origin}'\nhint: Updates were rejected because the remote contains work that you do not\nhint: have locally. Run 'git pull' first, then push again.`); return res;
+        } else {
+          if (!rid && b !== 'main') say(`remote:\nremote: Create a pull request for '${b}' on GitHub by visiting:\nremote:      ${r.remotes.origin.replace(/\.git$/, '')}/pull/new/${b}\nremote:`, 'meta');
+          say(`To ${r.remotes.origin}`);
+          say(rid ? `   ${rid}..${local}  ${b} -> ${b}` : ` * [new branch]      ${b} -> ${b}`);
+          s.remote.branches[b] = local; res.event = 'push';
+        }
+        r.tracking[b] = local;
+        if (setUp) { r.upstream[b] = 'origin/' + b; say(`branch '${b}' set up to track 'origin/${b}'.`); }
+        return res;
+      }
+      case 'fetch': {
+        if (!r.remotes.origin) { say('fatal: No remote repository specified.'); return res; }
+        fetch(false); return res;
+      }
+      case 'pull': {
+        const pos = a.filter(x => !x.startsWith('-'));
+        if (!r.remotes.origin) { say('fatal: No remote repository specified. Add one with git remote add origin <url>.'); return res; }
+        const b = pos[1] || (r.upstream[r.head] ? r.head : null);
+        if (!b) { say(`There is no tracking information for the current branch.\nPlease specify which branch you want to merge with.\n\n    git pull origin ${r.head}\n\nIf you wish to set tracking information for this branch you can do so with:\n\n    git push -u origin ${r.head}`); return res; }
+        if (!s.remote) { say(`remote: Repository not found.\nfatal: repository '${r.remotes.origin}' not found`); return res; }
+        fetch(true);
+        if (!(b in s.remote.branches)) { say(`fatal: couldn't find remote ref ${b}`); return res; }
+        if (b !== r.head || !isAnc(s, cur, s.remote.branches[b])) say(`From ${r.remotes.origin.replace(/\.git$/, '')}\n * branch            ${b.padEnd(10)} -> FETCH_HEAD`);
+        if (merge(s.remote.branches[b], s.remote.branches[b], `Merge branch '${b}' of ${r.remotes.origin.replace(/\.git$/, '')} into ${r.head}`)) res.event = 'pull';
+        return res;
+      }
+      case 'merge': {
+        if (a.includes('--abort')) {
+          if (!r.merging) { say('fatal: There is no merge to abort (MERGE_HEAD missing).'); return res; }
+          const H = tree(s, cur);
+          [...new Set([...Object.keys(H), ...Object.keys(r.index)])].forEach(p => { if (p in H) { r.index[p] = H[p]; s.files[p] = H[p]; } else { delete r.index[p]; delete s.files[p]; } });
+          delete r.merging; return res;
+        }
+        const name = a.find(x => !x.startsWith('-'));
+        const target = name && (r.branches[name] || (name.startsWith('origin/') && r.tracking[name.slice(7)]));
+        if (!target) { say(`merge: ${name || ''} - not something we can merge`); return res; }
+        if (merge(target, name, `Merge branch '${name}' into ${r.head}`)) res.event = 'commit';
+        return res;
+      }
+      default:
+        say(`git: '${sub}' is not a git command this sandbox knows. Type help for the list.`); return res;
+    }
+  }
+  function gh(s, args, say, res) {
+    if (args[0] !== 'pr') { say('This sandbox only knows: gh pr create, gh pr merge'); return res; }
+    if (!s.remote) { say('No GitHub repository linked yet. Run git remote add origin <url> first.'); return res; }
+    if (args[1] === 'create') {
+      const b = s.repo.head, ti = args.indexOf('--title');
+      if (b === 'main' || !(b in s.remote.branches)) { say('Push a branch other than main first, then open a pull request from it.'); return res; }
+      if (s.remote.prs.some(p => p.branch === b && p.status === 'open')) { say(`a pull request for branch "${b}" already exists`); return res; }
+      const pr = openPR(s, b, ti >= 0 ? args[ti + 1] : null);
+      say(`Creating pull request for ${b} into main in you/hello-api\n\nhttps://github.com/you/hello-api/pull/${pr.id}`); res.event = 'pr';
+    } else if (args[1] === 'merge') {
+      const pr = s.remote.prs.find(p => p.status === 'open');
+      if (!pr) { say('no open pull requests'); return res; }
+      mergePR(s, pr.id); say(`✓ Merged pull request #${pr.id} (${pr.title})`, 'add'); res.event = 'pr';
+    } else say('This sandbox only knows: gh pr create, gh pr merge');
+    return res;
+  }
+  return { fresh, run, status, ignored, headId, tree, isAnc, ancestors, aheadBehind, teammateCommit, createRepo, prCandidates, openPR, mergePR, prDiff, hasMarkers, resolve, tokenize, INIT };
+})();
+
+/* ---------- Course content ---------- */
+const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const ed = (file, text, mode, find) => `<button type="button" class="snip" data-file="${esc(file)}" data-text="${esc(text)}" data-mode="${mode || 'append'}" data-find="${esc(find || '')}" title="Put this in the editor">${esc(text)}</button>`;
+const c = cmd => `<button type="button" class="cmd" data-cmd="${esc(cmd)}" title="Put this in the terminal">${esc(cmd)}</button>`;
+const E = Engine, HT = s => E.tree(s, E.headId(s));
+const trackedClean = s => { const st = E.status(s); return !st.staged.length && !st.unstaged.length; };
+
+const LESSONS = [
+  {
+    short: 'Set up', title: 'Create a working folder',
+    intro: `
+      <p>Every project starts as an ordinary folder on your computer. Git calls it the <strong>working folder</strong> (or working directory): the place where you create and edit the project's files. Nothing about it is special yet. It becomes a Git project in the next lesson.</p>
+      <p>You will use the same two tools a real project uses, both below the map:</p>
+      <dl>
+        <dt>Terminal</dt><dd>Where you type commands. It is always "in" one folder, and commands act on that folder.</dd>
+        <dt>Editor</dt><dd>Where you create and change files.</dd>
+      </dl>
+      <p>Three terminal commands are enough to get around: one shows which folder you are in (<code>pwd</code>), one makes a folder (<code>mkdir</code>), and one moves into a folder (<code>cd hello-api</code>).</p>
+      <p>Type each command in the terminal, or click a command to place it there, then press Enter. Lessons run strictly in order, so you cannot break the sandbox by skipping ahead. When you want to experiment, <strong>Free play</strong> has no restrictions.</p>`,
+    steps: [
+      { do: `Find out where the terminal is: ${c('pwd')}`, cmd: 'pwd', check: (s, x) => /^pwd\b/.test(x),
+        after: `The terminal answers with the folder it is in, its "working directory". You are in your home folder, <code>/home/you</code>. The Working folder window on the map shows it, empty for now.` },
+      { own: `use your project's name in place of <span class="mono">hello-api</span>. If the folder already exists, skip this command and go straight to the next step.`, do: `Make a folder for the project: ${c('mkdir hello-api')}`, cmd: 'mkdir hello-api', check: s => !!s.proj,
+        after: `The folder appears in the window. Project folders are usually named in lowercase with hyphens and no spaces, because the name often becomes part of a web address.` },
+      { do: `Move into it: ${c('cd hello-api')}`, cmd: 'cd hello-api', check: s => s.dir === 'project',
+        after: `<code>cd hello-api</code> means "change directory to hello-api". The prompt now shows <code>hello-api</code>, and every command from here on acts inside this folder. <code>cd ..</code> would take you back up.` },
+      { own: `create a real <span class="mono">README.md</span> now. Open the project folder in your code editor (in VS Code: File, then Open Folder), make a new file named exactly <span class="mono">README.md</span>, type a title line, and save it inside the project folder. Avoid Notepad, which tends to save it as <span class="mono">README.md.txt</span>. Git can only add files that exist, and the next lessons add this one.`, do: `<strong>Create the README file.</strong> The following lessons use it, so do not skip this step. In the <strong>Editor</strong> tab, choose <strong>+ New file</strong>, name it <code>README.md</code>, enter these two lines and press <strong>Save</strong>. Clicking the block sets it up for you: ${ed('README.md', '# hello-api\nA tiny API for learning Git.', 'replace')}`,
+        moves: [{ t: 'edit', file: 'README.md', text: '# hello-api\nA tiny API for learning Git.', mode: 'replace' }], check: s => 'README.md' in s.files,
+        after: `A <code>README.md</code> is the front page of a project: what it is and how to run it. GitHub displays it automatically.` },
+      { own: `you do not need this exact file. Any file of your own will do. Use its name wherever the lessons say <span class="mono">main.py</span>.`, do: `Now the code. Create a second file named <code>main.py</code> with this content and save: ${ed('main.py', 'from fastapi import FastAPI\n\napp = FastAPI()', 'replace')}`,
+        moves: [{ t: 'edit', file: 'main.py', text: 'from fastapi import FastAPI\n\napp = FastAPI()', mode: 'replace' }], check: s => 'main.py' in s.files },
+      { own: `run this in your real terminal and confirm that <span class="mono">README.md</span> is in the list before you go on.`, do: `List what the folder contains: ${c('ls')}`, cmd: 'ls', check: (s, x) => /^ls\b/.test(x),
+        after: `A working folder with two files. Git is not involved yet: there is no history and nothing is being tracked.` }
+    ],
+    extra: `<div class="note"><p><strong>The other way to start: clone</strong></p><p>If the project already exists on GitHub, you do not make the folder yourself. <code>git clone &lt;address&gt;</code> creates the folder, downloads every file and the full history, and connects it to GitHub in one step. You then <code>cd</code> into it and start work. Joining an existing project almost always starts with a clone. Starting a brand-new one starts the way this lesson does.</p></div>
+      <div class="note"><p><strong>Following along with your own project?</strong></p><p>Use your own folder and file names wherever the lessons say <span class="mono">hello-api</span>, <span class="mono">README.md</span> or <span class="mono">main.py</span>. Open your terminal the normal way, not with "Run as administrator". Tick <em>I am also doing this on my own project</em> above the steps of any lesson, and every step gains a line saying what to do on your own computer or on github.com. If you work in VS Code, tick <em>I use VS Code</em> as well to see the button for each step. If your machine answers with a message the sandbox did not show, look it up under the <strong>Help</strong> tab.</p></div>`,
+    recap: ['A working folder is an ordinary folder that holds the project\'s files.', '<code>pwd</code> shows where you are, <code>mkdir</code> makes a folder, <code>cd hello-api</code> moves into it.', 'New project: make a folder. Existing project: <code>git clone</code> it.'],
+    reading: [['Pro Git: Getting a Git Repository', 'https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository'], ['GitHub Docs: Cloning a repository', 'https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository']]
+  },
+  {
+    short: 'Repo', title: 'Create a repository',
+    intro: `
+      <p>A <strong>repository</strong> (repo) is a working folder plus Git's record of its history. You create one by running a single command inside the folder. From then on Git can save snapshots of the project, so you can see what changed, go back to an earlier version, and combine your work with other people's.</p>
+      <p>The one idea that makes every later command make sense: your work is always in one of <strong>four places</strong>, and each command moves it from one place to the next. The map on this page shows all four, live.</p>
+      <dl>
+        <dt>Working folder</dt><dd>The ordinary files you open and edit. You made this in lesson 1.</dd>
+        <dt>Staging area</dt><dd>The changes you have picked for your next save.</dd>
+        <dt>Local repository</dt><dd>The history of saves, kept on your computer in a hidden <code>.git</code> folder.</dd>
+        <dt>Remote</dt><dd>A copy of that history on GitHub, which the team shares. You create that one in lesson 5.</dd>
+      </dl>`,
+    steps: [
+      { do: `Turn the folder into a Git repository: ${c('git init')}`, cmd: 'git init', check: s => !!s.repo,
+        after: `You run <code>git init</code> once per project, from inside its folder. The staging area and local repository on the map now exist, both empty. The grey <em>hint</em> lines are about the branch name, which you will deal with in step 4.` },
+      { do: `See what Git added. This form of the list command includes hidden files: ${c('ls -a')}`, cmd: 'ls -a', check: (s, x) => /^ls\b/.test(x),
+        after: `The hidden <code>.git</code> folder <em>is</em> the local repository: Git keeps the whole history in there. It also shows, greyed out, in the Working folder window. You never edit it by hand, and deleting it would delete the history while leaving your files.` },
+      { do: `Ask Git what it sees: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `<code>git status</code> only reads, it never changes anything, so run it as often as you like. Both files are <strong>untracked</strong>: Git can see them but has not been told to save them. Now read its first line: <em>On branch master</em>.` },
+      { own: `run <span class="mono">git status</span> and read the first line. If it already says <span class="mono">On branch main</span> you can skip this, though running it anyway does no harm.`,
+        do: `<strong>Name the branch <code>main</code>.</strong> A branch is the named line of history your commits go onto. Git called yours <code>master</code>, its older default, but GitHub and this course call the first branch <code>main</code>, and the two must match when you push. Rename it: ${c('git branch -M main')}`, cmd: 'git branch -M main', check: s => s.repo.head === 'main',
+        after: `It prints nothing when it works. The prompt and the Local repository panel now say <code>main</code>. <code>git branch -M &lt;name&gt;</code> renames the branch you are on to any name you give it. To make every future repository start as <code>main</code>, run <span class="mono">git config --global init.defaultBranch main</span> once on your computer. If you skip the rename, <span class="mono">git push -u origin main</span> later fails with <span class="mono">src refspec main does not match any</span>.` }
+    ],
+    extra: `<div class="note"><p><strong>On your own machine</strong></p>
+      <p><span class="mono">fatal: not a git repository</span> means the terminal is not inside the project folder, or <span class="mono">git init</span> has not been run there yet. Move into the folder first.</p>
+      <p><span class="mono">fatal: detected dubious ownership in repository</span> appears on Windows when the repository was created from a terminal opened as administrator. Git prints the exact fix: copy the <span class="mono">git config --global --add safe.directory ...</span> line it shows, run it, then repeat your command.</p><p>The full list of common messages and fixes is under the <strong>Help</strong> tab.</p></div>`,
+    recap: ['A repository is a working folder plus its history. <code>git init</code> creates it, in a hidden <code>.git</code> folder.', 'Work moves through four places: working folder, staging area, local repository, remote.', '<code>git status</code> tells you where everything is, starting with which branch you are on.', 'Name the first branch <code>main</code> with <code>git branch -M main</code>, so it matches GitHub.'],
+    reading: [['Pro Git: What is Git?', 'https://git-scm.com/book/en/v2/Getting-Started-What-is-Git%3F'], ['GitHub Docs: About Git', 'https://docs.github.com/en/get-started/using-git/about-git']]
+  },
+  {
+    short: 'Commits', title: 'Commits: saving a snapshot',
+    intro: `
+      <p>A <strong>commit</strong> is one saved snapshot of the whole project, with a short message, an author, a time, and a link to the commit before it. That chain of commits is the project's history.</p>
+      <p>Saving takes two commands on purpose:</p>
+      <ul>
+        <li><code>git add</code> picks which changes go into the next snapshot (it <em>stages</em> them).</li>
+        <li><code>git commit</code> saves everything that is staged.</li>
+      </ul>
+      <p>The staging step lets you keep each commit about one thing, even if you changed five files for three different reasons. A good message says what the commit does, in the imperative, like an instruction: <em>Add health check endpoint</em>, <em>Fix date format on invoices</em>.</p>
+      <p><strong>The sequence, however many files are involved:</strong></p>
+      <ol class="flow">
+        <li><b>1. Edit and save</b>Change as many files as you like. Nothing is recorded yet.</li>
+        <li><b>2. git status</b>See the list of files that changed.</li>
+        <li><b>3. git add</b>Pick the files that belong to one idea: one, several, or all.</li>
+        <li><b>4. git commit</b>Save everything you picked as one snapshot.</li>
+        <li><b>5. Repeat</b>Files you did not pick are still waiting. Go back to step 2 for the next idea.</li>
+      </ol>
+      <ul>
+        <li><code>git add README.md</code> stages one file. <code>git add README.md main.py</code> stages several. <code>git add .</code> stages every changed file in the folder.</li>
+        <li><strong>Staging adds up.</strong> Each <code>git add</code> puts a file into the staging area alongside whatever is already there. Running <code>git add README.md</code> and then <code>git add main.py</code> leaves <em>both</em> staged, exactly as if you had named them in one command. Nothing leaves the staging area until you commit.</li>
+        <li>One <code>git commit</code> saves <em>all</em> staged files together. Files you did not stage are left exactly as they are, still marked as changed.</li>
+        <li>Staging is not permanent. If you edit a file again after <code>git add</code>, run <code>git add</code> on it again, or the commit will contain the older version.</li>
+        <li>Group by purpose, not by file: two files changed for the same reason go in one commit, and two unrelated changes go in two commits.</li>
+      </ul>
+      <p>The steps below go through this three times: one new file, one change to an existing file, then several files at once.</p>`,
+    steps: [
+      { part: 'Part A: one file, one commit', own: `this works only if a file named <span class="mono">README.md</span> exists in the folder (lesson 1, step 4). If Git answers <span class="mono">pathspec 'README.md' did not match any files</span>, create the file first, or add a file you do have.`, do: `Stage the README file you created in lesson 1: ${c('git add README.md')}`, cmd: 'git add README.md', check: s => s.repo && 'README.md' in s.repo.index,
+        after: `Watch the map: <code>README.md</code> now also sits in the staging area. Git prints nothing when <code>add</code> works.` },
+      { do: `Check the state: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `Green lines under <em>Changes to be committed</em> are staged. Red lines are not. <code>main.py</code> is still untracked and will not be part of this commit.` },
+      { do: `Save the snapshot: ${c('git commit -m "Add README"')}`, cmd: 'git commit -m "Add README"', check: s => !!E.headId(s),
+        after: `Your first commit. The seven characters in the output are its ID (a short hash). <code>-m</code> supplies the message inline.` },
+      { do: `Now the second file. Stage it: ${c('git add main.py')}`, cmd: 'git add main.py', check: s => 'main.py' in s.repo.index },
+      { do: `Commit it: ${c('git commit -m "Add API entry point"')}`, cmd: 'git commit -m "Add API entry point"', check: s => 'main.py' in HT(s),
+        after: `Two commits, each about one thing.` },
+      { part: 'Part B: changing a file Git already tracks', do: `Change a file. Open the <strong>Editor</strong> tab, pick <code>main.py</code>, add this line at the bottom and press <strong>Save</strong>. Clicking the line places it for you: ${ed('main.py', '# TODO: add a health check')}`, cmd: 'echo "# TODO: add a health check" >> main.py', check: s => s.files['main.py'] !== HT(s)['main.py'],
+        after: `Saving in an editor only changes the working folder. The map marks <code>main.py</code> as <em>changed</em>: the file no longer matches the last commit, and Git has recorded nothing yet.` },
+      { do: `See exactly what changed: ${c('git diff')}`, cmd: 'git diff', check: (s, x) => /^git\s+diff/.test(x),
+        after: `Lines starting with <code>+</code> were added, lines with <code>-</code> were removed. Reading the diff before you commit is the habit that catches most mistakes.` },
+      { do: `Stage and commit the change: ${c('git add main.py')} then ${c('git commit -m "Note the health check TODO"')}`, cmd: ['git add main.py', 'git commit -m "Note the health check TODO"'], check: s => HT(s)['main.py'] !== E.INIT['main.py'] && HT(s)['main.py'] === s.files['main.py'] },
+      { part: 'Part C: several files at once',
+        own: `edit and save two or three of your own files before you look at the status.`,
+        do: `Sequence step 1: edit and save. This time three files change before you commit anything. In the <strong>Editor</strong>, make these three saves, in this order. Create <code>requirements.txt</code>: ${ed('requirements.txt', 'fastapi\nuvicorn', 'replace')} Add this line to <code>README.md</code>: ${ed('README.md', 'Install with: pip install -r requirements.txt')} Add this line to <code>main.py</code>: ${ed('main.py', '# TODO: add logging')}`,
+        moves: [{ t: 'edit', file: 'requirements.txt', text: 'fastapi\nuvicorn', mode: 'replace' }, { t: 'edit', file: 'README.md', text: 'Install with: pip install -r requirements.txt', mode: 'append' }, { t: 'edit', file: 'main.py', text: '# TODO: add logging', mode: 'append' }],
+        check: s => 'requirements.txt' in s.files && s.files['README.md'].includes('requirements.txt') && s.files['main.py'].includes('add logging'),
+        after: `Three files now differ from the last commit, and Git has recorded none of it. Two of the changes are one idea (listing the dependencies and telling readers how to install them). The <code>main.py</code> note is a different idea.` },
+      { do: `Sequence step 2: see everything that changed. ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `Two files are <em>modified</em> and one is <em>untracked</em> (new). All three are red: nothing is staged. The Working folder window shows the same thing.` },
+      { do: `Sequence step 3: stage only the two files that belong together, one command each. ${c('git add README.md')} then ${c('git add requirements.txt')}`, cmd: ['git add README.md', 'git add requirements.txt'],
+        check: s => 'requirements.txt' in s.repo.index && s.repo.index['README.md'] === s.files['README.md'] && s.repo.index['main.py'] !== s.files['main.py'],
+        after: `Watch the Staging area on the map: the second <code>git add</code> did not replace the first. Both files are staged, and the next commit will contain both. You could have typed it as one command, <code>git add README.md requirements.txt</code>, with the same result. <code>git add .</code> would have taken all three files, which is not what you want here.` },
+      { do: `Check what the commit will contain before you make it: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `Both files you added are green, even though you added them separately. Green files, under <em>Changes to be committed</em>, go into the next commit. <code>main.py</code> is still red, under <em>Changes not staged</em>, and will be left out. This check before every commit is the habit that prevents surprises.` },
+      { do: `Sequence step 4: commit the two staged files as one snapshot. ${c('git commit -m "List the dependencies"')}`, cmd: 'git commit -m "List the dependencies"', check: s => 'requirements.txt' in HT(s) && HT(s)['main.py'] !== s.files['main.py'],
+        after: `One commit, two files. On the map, <code>README.md</code> and <code>requirements.txt</code> are <em>committed</em> and <code>main.py</code> is still <em>changed</em>: your edit is safe in the working folder, waiting.` },
+      { do: `Sequence step 5: repeat for the next idea. Stage and commit the file that was left. ${c('git add main.py')} then ${c('git commit -m "Note the logging TODO"')}`, cmd: ['git add main.py', 'git commit -m "Note the logging TODO"'], check: s => 'requirements.txt' in HT(s) && HT(s)['main.py'] === s.files['main.py'] && trackedClean(s),
+        after: `Three changed files became two commits, each about one thing. Anyone reading the history can understand, or undo, either one without touching the other.` },
+      { do: `Read the history: ${c('git log --oneline')}`, cmd: 'git log --oneline', check: (s, x) => /^git\s+log/.test(x),
+        after: `Newest first. <code>HEAD -&gt; main</code> marks where you are: on a branch called <code>main</code>, at its latest commit.` }
+    ],
+    extra: `<div class="note"><p><strong>On your own machine</strong></p>
+      <p><span class="mono">fatal: pathspec 'README.md' did not match any files</span> means there is no file with that exact name in the folder. Run <span class="mono">git status</span> to see the real names, and add those. On Windows, Notepad may have saved the file as <span class="mono">README.md.txt</span>.</p>
+      <p><span class="mono">Author identity unknown</span> on your first commit means Git does not know who you are yet. Run these once, then commit again: <span class="mono">git config --global user.name "Your Name"</span> and <span class="mono">git config --global user.email "you@example.com"</span>.</p>
+      <p>If you run <span class="mono">git commit</span> without <span class="mono">-m</span> and the terminal turns into a text editor, type <span class="mono">:q!</span> and press Enter to leave, then commit again with <span class="mono">-m "message"</span>.</p><p>The full list of common messages and fixes is under the <strong>Help</strong> tab.</p></div>`,
+    recap: ['The loop is: edit and save, <code>git status</code> / <code>git diff</code>, <code>git add</code>, <code>git commit -m</code>.', 'With several changed files, stage only the ones that belong together, commit, then repeat for the rest.', 'Staging adds up: every <code>git add</code> joins what is already staged, and a commit takes all of it.', 'One commit saves every staged file. Unstaged files wait, unchanged.', 'One commit, one idea. Write the message as an instruction.', 'Commits are still only on your computer.'],
+    reading: [['Pro Git: Recording Changes to the Repository', 'https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository']]
+  },
+  {
+    short: '.env', title: '.env: keeping secrets out of Git',
+    intro: `
+      <p>Most apps need settings that should not live in the code: API keys, database passwords, the address of a server. The convention is a file named <code>.env</code> in the project folder, one <code>NAME=value</code> per line, which the app reads when it starts.</p>
+      <p><strong><code>.env</code> must never be committed.</strong> A commit is permanent history. Anyone who can read the repository can read every file in every commit, and automated bots scan public GitHub repositories for keys within minutes of a push.</p>
+      <p>Two small files solve this:</p>
+      <dl>
+        <dt><code>.gitignore</code></dt><dd>A list of files Git should act as if it cannot see. It <em>is</em> committed, so the whole team ignores the same files.</dd>
+        <dt><code>.env.example</code></dt><dd>A committed copy of <code>.env</code> with the names but no real values, so a teammate knows what to fill in.</dd>
+      </dl>`,
+    steps: [
+      { do: `In the <strong>Editor</strong>, choose <strong>+ New file</strong>, name it <code>.env</code>, give it this line (a fake secret) and press <strong>Save</strong>: ${ed('.env', 'API_KEY=sk_live_4f9a2c', 'replace')}`, cmd: 'echo "API_KEY=sk_live_4f9a2c" > .env', check: s => '.env' in s.files },
+      { do: `Check the state: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `<code>.env</code> shows up as untracked. That is the danger: one careless <code>git add .</code> (which stages everything) and the secret is on its way into history.` },
+      { do: `Tell Git to ignore it. Create a new file named <code>.gitignore</code> containing this one line, and save: ${ed('.gitignore', '.env', 'replace')}`, cmd: 'echo ".env" > .gitignore', check: s => E.ignored(s, '.env'),
+        after: `Each line of <code>.gitignore</code> is a file name or pattern. Real projects add more, such as <code>node_modules/</code>, <code>__pycache__/</code> and <code>*.log</code>.` },
+      { do: `Check again: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `<code>.env</code> has vanished from the list, and the map shows it as <em>ignored</em>. The new untracked file is <code>.gitignore</code> itself, which you do want to commit.` },
+      { do: `Add the template for teammates. Create a new file named <code>.env.example</code> with the name but no value, and save: ${ed('.env.example', 'API_KEY=', 'replace')}`, cmd: 'echo "API_KEY=" > .env.example', check: s => '.env.example' in s.files },
+      { do: `Stage everything and commit: ${c('git add .')} then ${c('git commit -m "Ignore .env and add an example"')}`, cmd: ['git add .', 'git commit -m "Ignore .env and add an example"'], check: s => '.gitignore' in HT(s) && '.env.example' in HT(s) && !('.env' in HT(s)),
+        after: `<code>git add .</code> was safe this time because the ignore rule was in place first. In Free play, try <code>git add .env</code> to see Git refuse.` }
+    ],
+    extra: `<div class="note"><p><strong>If a secret has already been committed</strong></p><p>Adding it to <code>.gitignore</code> afterwards is not enough, because ignore rules only apply to files Git is not yet tracking. Run <code>git rm --cached .env</code> (stop tracking it, keep the file), commit, and then <strong>replace the key</strong> with a new one from the service that issued it. The old key is still readable in earlier commits, so treat it as leaked.</p></div>`,
+    recap: ['Secrets go in <code>.env</code>. <code>.env</code> goes in <code>.gitignore</code>. Do this before the first commit.', 'Commit <code>.gitignore</code> and <code>.env.example</code>, never <code>.env</code>.', 'A leaked key must be replaced, not just deleted.'],
+    reading: [['GitHub Docs: Ignoring files', 'https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files'], ['Git reference: gitignore patterns', 'https://git-scm.com/docs/gitignore'], ['Ready-made .gitignore templates', 'https://github.com/github/gitignore']]
+  },
+  {
+    short: 'Push & pull', title: 'Push and pull: syncing with GitHub',
+    intro: `
+      <p>Everything so far lives only on your computer. A <strong>remote</strong> is a copy of the repository hosted somewhere else, usually GitHub. It is your backup and the place your team (or a coding agent) meets. Your computer holds the <em>local</em> repository, GitHub holds the <em>remote</em> one, and the two are separate until you sync them.</p>
+      <ul>
+        <li><code>git push</code> uploads your new commits to the remote.</li>
+        <li><code>git pull</code> downloads commits you do not have yet and updates your files.</li>
+      </ul>
+      <p>Git gives the remote a nickname so you do not retype its address. By convention the main one is called <code>origin</code>.</p>
+      <p>The remote repository has to exist before you can push to it, so the first step is to create it on GitHub. The GitHub panel of the map now shows GitHub's <em>New repository</em> form.</p>`,
+    steps: [
+      { do: `On the <strong>GitHub</strong> panel of the map, click <strong>Create repository</strong>.`, gh: true, moves: [{ t: 'gh', v: 'create' }], check: s => !!s.remote,
+        after: `An empty repository now exists at <code>github.com/you/hello-api</code>. On the real form you choose an owner, a name, and public or private. Leave "Add a README" unticked when your project already has files, so the two histories do not clash. GitHub then shows the two commands you need next, as it does here.` },
+      { do: `Link your folder to the GitHub repository: ${c('git remote add origin https://github.com/you/hello-api.git')}`, cmd: 'git remote add origin https://github.com/you/hello-api.git', check: s => !!s.repo.remotes.origin,
+        after: `Nothing has been uploaded yet. You have only told your local repository where <code>origin</code> is. The address is the one GitHub showed you.` },
+      { do: `Upload your commits: ${c('git push -u origin main')}`, cmd: 'git push -u origin main', check: s => s.remote && s.remote.branches.main === s.repo.branches.main && !!s.repo.upstream.main,
+        after: `Read it as: push to <code>origin</code>, the branch <code>main</code>. The <code>-u</code> is needed once per branch. It links your local <code>main</code> to the one on GitHub so that from now on a bare <code>git push</code> or <code>git pull</code> knows where to go.` },
+      { do: `Make one more commit. In the <strong>Editor</strong>, add this line to <code>README.md</code> and save: ${ed('README.md', 'Run with: uvicorn main:app')} Then ${c('git add README.md')} then ${c('git commit -m "Document how to run the app"')}`, cmd: ['echo "Run with: uvicorn main:app" >> README.md', 'git add README.md', 'git commit -m "Document how to run the app"'], check: s => s.repo.tracking.main && E.aheadBehind(s, s.repo.branches.main, s.repo.tracking.main)[0] >= 1 && trackedClean(s),
+        after: `Compare the two right-hand panels of the map: your local repository has a new commit, while the GitHub page still shows the older one as its latest.` },
+      { do: `Ask Git how the two compare: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `<em>Your branch is ahead of 'origin/main' by 1 commit.</em> Committing never uploads anything by itself.` },
+      { do: `Upload it. The short form works now: ${c('git push')}`, cmd: 'git push', check: s => s.remote.branches.main === s.repo.branches.main },
+      { before: s => E.teammateCommit(s, 'Add MIT licence', { 'LICENSE': 'MIT License\n\nCopyright (c) 2026 hello-api contributors\n' }, 'Maya'),
+        beforeNote: 'Meanwhile on GitHub: your teammate Maya pushed a commit to main.',
+        do: `A teammate, Maya, has just pushed a commit to GitHub (the repository page now shows her commit and a new file). Download it: ${c('git pull')}`, cmd: 'git pull', check: s => s.remote.branches.main === s.repo.branches.main,
+        after: `Her commit is now in your local repository and her new file is in your working folder. Pull before you start work each day so you build on the latest version.` }
+    ],
+    extra: `<div class="note"><p><strong>On your own machine</strong></p>
+      <p><span class="mono">error: src refspec main does not match any</span> means there is nothing called <span class="mono">main</span> to push: either you have not committed yet, or your branch is named <span class="mono">master</span> (older Git versions). Check the first line of <span class="mono">git status</span>. To rename the branch: <span class="mono">git branch -M main</span>.</p>
+      <p>The first push asks you to sign in. GitHub does not accept your account password in the terminal. Use the browser window that opens, or a personal access token.</p>
+      <p><span class="mono">remote: Repository not found</span> means the address is wrong or the repository has not been created on GitHub. Check it with <span class="mono">git remote -v</span>.</p><p>The full list of common messages and fixes is under the <strong>Help</strong> tab.</p></div>`,
+    recap: ['<code>git push</code> sends commits up. <code>git pull</code> brings commits down.', 'First push of a branch: <code>git push -u origin &lt;branch&gt;</code>. After that, <code>git push</code>.', 'If a push is rejected because GitHub has commits you lack, pull first, then push.'],
+    reading: [['GitHub Docs: Creating a new repository', 'https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository'], ['Pro Git: Working with Remotes', 'https://git-scm.com/book/en/v2/Git-Basics-Working-with-Remotes'], ['GitHub Docs: Pushing commits to a remote repository', 'https://docs.github.com/en/get-started/using-git/pushing-commits-to-a-remote-repository']]
+  },
+  {
+    short: 'Pull requests', title: 'Branches and pull requests',
+    intro: `
+      <p>On a shared project you do not commit straight to <code>main</code>. <code>main</code> is the version everyone trusts. Instead you work on a <strong>branch</strong>: a separate line of commits that starts from <code>main</code> and can be merged back later. Creating one is instant and costs nothing.</p>
+      <p>A <strong>pull request</strong> (PR) is not a Git command. It is a page on GitHub that says: <em>please merge my branch into main</em>. The page shows the diff, lets people comment and approve, and runs automated checks. When it is approved, someone presses Merge.</p>
+      <p>If a coding agent writes the code for you, this is where you stay in control: the agent makes the branch, commits and opens the PR, and you read the diff and decide whether it merges.</p>
+      <p>The full flow is: branch, commit, push the branch, open a PR, review, merge, then update your local <code>main</code>.</p>
+      <p>Everything in this lesson works on a real repository, even when you are the only person on it. Tick <em>I am also doing this on my own project</em> above the steps, and each one shows where to click on github.com.</p>`,
+    steps: [
+      { own: `same command, with a name that describes your change, for example <span class="mono">git switch -c update-readme</span>.`, do: `Create a branch and switch to it: ${c('git switch -c add-health-check')}`, cmd: 'git switch -c add-health-check', check: s => s.repo.head !== 'main',
+        after: `The terminal prompt now shows the branch you are on. Name branches after what they do. (Older tutorials use <code>git checkout -b</code>, which does the same thing.)` },
+      { own: `make any small real change in your code editor (a line in your README is enough), save, then <span class="mono">git add</span> that file and <span class="mono">git commit -m</span>.`, do: `Do the work and commit it. In the <strong>Editor</strong>, add this line to <code>main.py</code> and save: ${ed('main.py', "def health(): return {'status': 'ok'}")} Then ${c('git add main.py')} then ${c('git commit -m "Add health check endpoint"')}`, cmd: [`echo "def health(): return {'status': 'ok'}" >> main.py`, 'git add main.py', 'git commit -m "Add health check endpoint"'], check: s => s.repo.head !== 'main' && E.headId(s) !== s.repo.branches.main && trackedClean(s),
+        after: `On the map, the new commit sits on your branch (orange dot). <code>main</code> has not moved.` },
+      { own: `<span class="mono">git push -u origin your-branch-name</span>. The first push may open a browser window asking you to sign in to GitHub.`, do: `Push the branch to GitHub: ${c('git push -u origin add-health-check')}`, cmd: 'git push -u origin add-health-check', check: s => s.repo.head !== 'main' && s.remote.branches[s.repo.head] === E.headId(s),
+        after: `GitHub noticed the new branch and is offering to open a pull request for it.` },
+      { own: `open your repository on github.com in a browser. A yellow banner near the top names your branch and offers <strong>Compare &amp; pull request</strong>. If it is not there, open the <strong>Pull requests</strong> tab, click <strong>New pull request</strong>, and choose <em>base: main</em> and <em>compare: your branch</em>. Give it a title and a short description, then click <strong>Create pull request</strong>.`, do: `On the <strong>GitHub</strong> repository page in the map, click <strong>Compare &amp; pull request</strong>, give it a title, and click <strong>Create pull request</strong>.`, gh: true, moves: [{ t: 'gh', v: 'open' }], check: s => s.remote.prs.length > 0,
+        after: `The PR is open. On a real project you would also write a description: what changed, why, and how to test it. Reviewers can now comment line by line.` },
+      { own: `on the pull request page, open the <strong>Files changed</strong> tab to read the diff. Working alone, you cannot approve your own pull request, but you can merge it: back on the <strong>Conversation</strong> tab click <strong>Merge pull request</strong>, then <strong>Confirm merge</strong>. GitHub then offers <strong>Delete branch</strong>, which removes the branch on GitHub only.`, do: `Review the diff under the repository's <strong>Pull requests</strong> tab. When you are satisfied, click <strong>Merge pull request</strong>.`, gh: true, moves: [{ t: 'gh', v: 'merge' }], check: s => s.remote.prs.some(p => p.status === 'merged'),
+        after: `GitHub's <code>main</code> now contains your work, joined by a merge commit. Your computer does not know that yet.` },
+      { own: `same command in your terminal.`, do: `Go back to main on your computer: ${c('git switch main')}`, cmd: 'git switch main', check: s => s.repo.head === 'main',
+        after: `Open <code>main.py</code> in the Editor if you like: the health check line is gone, because your local <code>main</code> is still the old one.` },
+      { own: `same command. Afterwards your merged change is in the files on your computer, and <span class="mono">git log --oneline</span> shows the merge commit.`, do: `Bring down the merged result: ${c('git pull')}`, cmd: 'git pull', check: s => s.remote.branches.main === s.repo.branches.main },
+      { own: `<span class="mono">git branch -d your-branch-name</span>. This deletes your local copy of the branch. The Delete branch button on GitHub deleted the remote copy.`, do: `The branch has done its job. Delete it: ${c('git branch -d add-health-check')}`, cmd: 'git branch -d add-health-check', check: s => !s.remote.prs.some(p => p.status === 'merged' && p.branch in s.repo.branches),
+        after: `That is the whole cycle when you work alone. The next lesson covers what changes when teammates are merging too.` }
+    ],
+    recap: ['Never work directly on <code>main</code>. Branch, commit, push, open a PR.', 'A PR is a GitHub page for reviewing and merging a branch.', 'After a merge: <code>git switch main</code>, <code>git pull</code>, delete the branch.'],
+    reading: [['GitHub Docs: About pull requests', 'https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/about-pull-requests'], ['GitHub Docs: GitHub flow', 'https://docs.github.com/en/get-started/using-github/github-flow'], ['Pro Git: Branches in a Nutshell', 'https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell']]
+  }
+  ,{
+    short: 'Teammates', title: 'When teammates merge first',
+    intro: `
+      <p>On a team, <code>main</code> keeps moving while you work. Teammates merge their pull requests, so the <code>main</code> you branched from is soon out of date. Nothing is wrong when that happens. You bring their work into your branch, check that everything still works, and carry on.</p>
+      <p>When Git combines their changes with yours, there are two outcomes:</p>
+      <ul>
+        <li><strong>Clean merge.</strong> They changed different files, or different lines. Git combines both sets of changes by itself. This is the usual case.</li>
+        <li><strong>Conflict.</strong> You and a teammate changed the same lines. Git cannot guess whose version is right, so it stops and asks you to choose.</li>
+      </ul>
+      <p>A conflict is not an error and nothing is lost. Git keeps both versions in the file, clearly marked, until you decide.</p>
+      <p>You can rehearse all of this on your own repository without a second person. Editing a file directly on github.com counts as a teammate's merge. Tick <em>I am also doing this on my own project</em> above the steps, and each one explains how.</p>`,
+    steps: [
+      { own: `start from an up-to-date main (<span class="mono">git switch main</span>, <span class="mono">git pull</span>), then create a branch with your own name for it.`, do: `Start a new piece of work on its own branch: ${c('git switch -c add-version')}`, cmd: 'git switch -c add-version', check: s => s.repo.head !== 'main' },
+      { own: `change one line in any file, save, add and commit. Remember which file and line you changed: you will need it for the conflict later.`, do: `In the <strong>Editor</strong>, add this line to <code>main.py</code> and save: ${ed('main.py', 'VERSION = "1.0"')} Then ${c('git add main.py')} then ${c('git commit -m "Add version constant"')}`, cmd: ['echo \'VERSION = "1.0"\' >> main.py', 'git add main.py', 'git commit -m "Add version constant"'], check: s => s.repo.head !== 'main' && E.headId(s) !== s.repo.branches.main && trackedClean(s) },
+      { own: `first play the teammate. On github.com, make sure the branch selector says <em>main</em>, open a file you have <em>not</em> changed on your branch, click the pencil icon, edit a line, and click <strong>Commit changes</strong>. GitHub's main is now ahead of your computer, as if a colleague had merged. Then run the two commands in your terminal.`, before: s => E.teammateCommit(s, 'Document the endpoints (#2)', { 'README.md': E.tree(s, s.remote.branches.main)['README.md'] + '\n## Endpoints\nGET /health\n' }, 'Maya'),
+        beforeNote: 'Meanwhile on GitHub: Maya merged her pull request #2 into main. It changes README.md.',
+        do: `While you were working, Maya merged a pull request into <code>main</code> on GitHub (see the repository page). First update your own copy of main: ${c('git switch main')} then ${c('git pull')}`, cmd: ['git switch main', 'git pull'], check: s => s.repo.head === 'main' && s.repo.branches.main === s.remote.branches.main,
+        after: `Your local <code>main</code> now matches GitHub. Your branch still starts from the old <code>main</code>, so it does not have Maya's change yet.` },
+      { own: `same two commands with your branch name. On a real machine a clean merge may open a text editor showing a ready-made merge message. Accept it: in Vim type <span class="mono">:wq</span> and press Enter; in other editors save and close.`, do: `Go back to your branch and merge the new main into it: ${c('git switch add-version')} then ${c('git merge main')}`, cmd: ['git switch add-version', 'git merge main'], check: s => s.repo.head !== 'main' && !s.repo.merging && E.isAnc(s, s.repo.branches.main, E.headId(s)),
+        after: `A clean merge. Maya touched <code>README.md</code> and you touched <code>main.py</code>, so Git combined them and recorded a <em>merge commit</em> joining the two lines of history. Your branch now has both changes.` },
+      { own: `change a line in a file, save, add and commit on your branch. Note exactly which line.`, do: `Now set up a clash. In the <strong>Editor</strong>, change the line <code>app = FastAPI()</code> in <code>main.py</code> to this and save (clicking the line swaps it for you): ${ed('main.py', 'app = FastAPI(title="hello-api")', 'swap', 'app = FastAPI()')} Then ${c('git add main.py')} then ${c('git commit -m "Give the app a title"')}`,
+        moves: [{ t: 'edit', file: 'main.py', text: 'app = FastAPI(title="hello-api")', mode: 'swap', find: 'app = FastAPI()' }, { t: 'cmd', v: 'git add main.py' }, { t: 'cmd', v: 'git commit -m "Give the app a title"' }],
+        check: s => s.repo.head !== 'main' && !HT(s)['main.py'].split('\n').includes('app = FastAPI()') && trackedClean(s) },
+      { own: `play the teammate again: on github.com, on <em>main</em>, use the pencil icon to edit the <em>same line</em> you just changed, with different wording, and commit. Then run the pull below from your branch. If Git answers <span class="mono">fatal: Need to specify how to reconcile divergent branches</span>, run <span class="mono">git config --global pull.rebase false</span> once (it tells Git to merge when you pull) and pull again.`, before: s => E.teammateCommit(s, 'Set the API title (#3)', { 'main.py': E.tree(s, s.remote.branches.main)['main.py'].replace('app = FastAPI()\n', 'app = FastAPI(title="Hello API")\n') }, 'Maya'),
+        beforeNote: 'Meanwhile on GitHub: Maya merged pull request #3 into main. It changes the same line of main.py that you just changed.',
+        do: `Maya has merged again, and this time she edited the same line. Here is the one-step way to bring GitHub's main into the branch you are on: ${c('git pull origin main')}`, cmd: 'git pull origin main', check: s => !!s.repo.merging || E.isAnc(s, s.remote.branches.main, E.headId(s)),
+        after: `<code>git pull origin main</code> means: download <code>main</code> from <code>origin</code> and merge it into my current branch. It does the previous two steps at once. Git reports <em>CONFLICT</em> and pauses the merge halfway. The prompt shows <code>MERGING</code> and the file is marked <em>conflict</em> on the map.` },
+      { own: `same command. The files listed as <em>both modified</em> are the ones to open.`, do: `Get your bearings: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+        after: `<em>both modified: main.py</em> is the file to fix. Git also prints your way out: resolve and commit, or run <code>git merge --abort</code> to cancel and return to how things were before the pull.` },
+      { own: `open the conflicted file in your code editor. The markers are real text in the file. VS Code highlights them and offers <strong>Accept Current Change</strong> (yours), <strong>Accept Incoming Change</strong> (theirs) and <strong>Accept Both Changes</strong> above each clash, or you can edit by hand. Make sure no marker lines remain, then save.`, do: `Open <code>main.py</code> in the <strong>Editor</strong>. Git has written both versions into the file. The lines between <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code> and <code>=======</code> are yours. The lines between <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> are Maya's. Edit the file so it reads the way it should, delete the three marker lines, and save. The <strong>Keep mine</strong> and <strong>Keep theirs</strong> buttons under the editor do the deleting for you.`,
+        moves: [{ t: 'resolve', file: 'main.py' }],
+        check: s => !Object.values(s.files).some(E.hasMarkers) && (!!s.repo.merging || E.isAnc(s, s.remote.branches.main, E.headId(s))),
+        after: `Resolving a conflict is ordinary editing: you decide what the final text should be. On a real project, this is the moment to ask the teammate if you are unsure which version is right, and to run the app or its tests before continuing.` },
+      { own: `<span class="mono">git add</span> each file you resolved, then commit. Keep the <span class="mono">-m</span>: a bare <span class="mono">git commit</span> opens the text editor for the message.`, do: `Tell Git the file is resolved, then finish the merge: ${c('git add main.py')} then ${c('git commit -m "Merge main into add-version"')}`, cmd: ['git add main.py', 'git commit -m "Merge main into add-version"'], check: s => s.repo.head !== 'main' && !s.repo.merging && E.isAnc(s, s.remote.branches.main, E.headId(s)),
+        after: `During a merge, <code>git add</code> means "this file is settled". The commit that follows is the merge commit.` },
+      { own: `same command with your branch name. Then open a pull request on github.com as in lesson 6. It will show <em>This branch has no conflicts with the base branch</em>, because you already resolved them.`, do: `Your branch now contains everything on main plus your work. Push it: ${c('git push -u origin add-version')}`, cmd: 'git push -u origin add-version', check: s => s.repo.head !== 'main' && s.remote.branches[s.repo.head] === E.headId(s),
+        after: `Because your branch already includes the latest <code>main</code>, a pull request from it will merge without conflicts. Free play is the place to rehearse the full cycle, teammates included.` }
+    ],
+    extra: `<div class="note"><p><strong>Three related situations</strong></p>
+      <p><strong>Your push is rejected.</strong> If <code>git push</code> answers <em>rejected (fetch first)</em>, someone pushed to the same branch before you. Run <code>git pull</code>, resolve any conflict as above, then push again. Do not reach for <code>--force</code>: it would delete their commits.</p>
+      <p><strong>GitHub says "This branch has conflicts".</strong> It is the same problem seen from the pull request page. Fix it on your computer with <code>git pull origin main</code>, resolve, commit and push. The pull request updates itself.</p>
+      <p><strong>You are lost mid-merge.</strong> <code>git merge --abort</code> puts every file back to how it was before the merge started.</p></div>`,
+    recap: ['When main moves, bring it into your branch: <code>git pull origin main</code>.', 'Most merges are clean. A conflict means two people changed the same lines and Git needs your decision.', 'To resolve: edit the file, remove the markers, <code>git add</code>, <code>git commit</code>.', 'Pull often and keep branches short-lived. Small, frequent merges rarely conflict.'],
+    reading: [['GitHub Docs: About merge conflicts', 'https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/addressing-merge-conflicts/about-merge-conflicts'], ['GitHub Docs: Resolving a merge conflict using the command line', 'https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/addressing-merge-conflicts/resolving-a-merge-conflict-using-the-command-line'], ['Pro Git: Basic Branching and Merging', 'https://git-scm.com/book/en/v2/Git-Branching-Basic-Branching-and-Merging']]
+  }
+];
+
+/* ---------- Lesson 8: files an AI coding agent reads ---------- */
+const AGENT_FILES = {
+  'AGENTS.md': `# AGENTS.md
+
+## Project
+hello-api is a small FastAPI service.
+
+## Commands
+- Install: pip install -r requirements.txt
+- Run: uvicorn main:app --reload
+- Test: pytest
+
+## Conventions
+- Python 3.12, type hints on every function.
+- One endpoint per function in main.py.
+
+## Rules
+- Never commit .env or any other secret.
+- Work on a branch and open a pull request. Never push to main.
+- Ask before adding a dependency.`,
+  'CLAUDE.md': `@AGENTS.md`,
+  'DESIGN.md': `---
+name: hello-api
+colors:
+  primary: "#C93A16"
+  surface: "#FFFFFF"
+  ink: "#141D27"
+typography:
+  body:
+    fontFamily: IBM Plex Sans
+    fontSize: 16px
+rounded:
+  md: 8px
+spacing:
+  md: 16px
+---
+
+## Overview
+Calm and technical. High contrast, generous spacing, no decoration.
+
+## Colors
+Use primary for the single most important action on a screen, nowhere else.
+
+## Do's and Don'ts
+- Do reuse the tokens above. Don't invent new colours or sizes.`,
+  'tokens.json': `{
+  "color": {
+    "primary": {
+      "$type": "color",
+      "$value": { "colorSpace": "srgb", "components": [0.788, 0.227, 0.086], "hex": "#c93a16" }
+    }
+  },
+  "spacing": {
+    "md": { "$type": "dimension", "$value": { "value": 16, "unit": "px" } }
+  }
+}`,
+  'specs/version-endpoint.md': `# Spec: version endpoint
+
+## Goal
+GET /version returns the version of the running service.
+
+## Acceptance criteria
+- Responds 200 with {"version": "1.0"}.
+- Covered by a test in tests/test_version.py.
+
+## Out of scope
+- Authentication.`
+};
+LESSONS.push({
+  short: 'AI agents', title: 'Make the repository ready for an AI agent',
+  intro: `
+    <p>A coding agent such as Claude Code, Codex, Copilot or Cursor starts every session knowing nothing about your project. It learns by reading files in the repository. If the repository does not say how to run the tests, what the product should look like, or what you want built, the agent guesses, and its guesses are the generic average of everything it has seen.</p>
+    <p>So the files you commit are the agent's briefing. They are ordinary text files, versioned and reviewed like code. These are the ones worth having:</p>
+    <div class="sheet-table"><table><thead><tr><th>File</th><th>What it tells the agent</th></tr></thead><tbody>
+      <tr><td><span class="mono">README.md</span></td><td><strong>What is this project?</strong> Written for people. Agents read it too.</td></tr>
+      <tr><td><span class="mono">AGENTS.md</span></td><td><strong>How do I work here?</strong> An open format read by most coding agents: commands to install, run and test, conventions, and rules. Plain Markdown, at the top of the repository.</td></tr>
+      <tr><td><span class="mono">CLAUDE.md</span> and similar</td><td><strong>Anything specific to one tool.</strong> Some tools look for their own file name. Keep the content in <span class="mono">AGENTS.md</span> and make the tool's file point to it.</td></tr>
+      <tr><td><span class="mono">DESIGN.md</span></td><td><strong>What should it look like?</strong> The design system in text: exact values at the top, the reasoning below. Only needed if the project has a user interface.</td></tr>
+      <tr><td><span class="mono">tokens.json</span></td><td><strong>What are the exact values?</strong> Colours, spacing and type as data that tools and code can read. The standard format is the W3C Design Tokens format.</td></tr>
+      <tr><td><span class="mono">specs/</span></td><td><strong>What do you want built?</strong> One short file per feature: the goal, the acceptance criteria, and what is out of scope.</td></tr>
+      <tr><td><span class="mono">.env.example</span>, <span class="mono">.gitignore</span></td><td><strong>What settings exist, and what must stay private?</strong> From lesson 4. An agent can read the names of settings from <span class="mono">.env.example</span>. It should never be given the real <span class="mono">.env</span>.</td></tr>
+    </tbody></table></div>
+    <p>Three habits make these files work:</p>
+    <ul>
+      <li><strong>Be specific and checkable.</strong> "Run <span class="mono">pytest</span> before committing" works. "Test your changes" does not.</li>
+      <li><strong>Keep them short.</strong> Every line is read at the start of every session. Add a line when the agent repeats a mistake, and delete lines that are no longer true.</li>
+      <li><strong>One source of truth.</strong> If the same value lives in two files, they drift apart and the agent picks one at random.</li>
+    </ul>
+    <p>Everything you learned still applies when an agent writes the code: it works on a branch, commits, pushes and opens a pull request, and you review the diff before it merges (lesson 6).</p>`,
+  steps: [
+    { do: `These files are a change to the project like any other, so they go on a branch. Start from an up-to-date main: ${c('git switch main')} then ${c('git pull')} then ${c('git switch -c agent-setup')}`, cmd: ['git switch main', 'git pull', 'git switch -c agent-setup'], check: s => s.repo.head !== 'main' && s.repo.head !== 'add-version' },
+    { do: `<strong>Create <code>AGENTS.md</code>.</strong> In the <strong>Editor</strong>, make a new file with that name and this content, then save. Clicking the block sets it up: ${ed('AGENTS.md', AGENT_FILES['AGENTS.md'], 'replace')}`,
+      moves: [{ t: 'edit', file: 'AGENTS.md', text: AGENT_FILES['AGENTS.md'], mode: 'replace' }], check: s => 'AGENTS.md' in s.files,
+      after: `Four sections cover most projects: what it is, the commands, the conventions, and the rules. The commands matter most. An agent that knows how to run the tests can check its own work.` },
+    { do: `<strong>Point Claude Code at it.</strong> Claude Code looks for a file named <code>CLAUDE.md</code>. Create one that imports the shared file with a single line: ${ed('CLAUDE.md', AGENT_FILES['CLAUDE.md'], 'replace')}`,
+      moves: [{ t: 'edit', file: 'CLAUDE.md', text: AGENT_FILES['CLAUDE.md'], mode: 'replace' }], check: s => 'CLAUDE.md' in s.files,
+      after: `<span class="mono">@AGENTS.md</span> tells Claude Code to load that file. Anything you add under the line applies to Claude Code only. Other tools have their own pointer files, for example <span class="mono">.github/copilot-instructions.md</span> for Copilot. The principle is the same: one shared file, thin pointers to it.` },
+    { do: `<strong>Describe the look in <code>DESIGN.md</code>.</strong> The block between the <span class="mono">---</span> lines holds exact values. The prose below explains how to use them: ${ed('DESIGN.md', AGENT_FILES['DESIGN.md'], 'replace')}`,
+      moves: [{ t: 'edit', file: 'DESIGN.md', text: AGENT_FILES['DESIGN.md'], mode: 'replace' }], check: s => 'DESIGN.md' in s.files,
+      after: `Values alone are not enough. "Use primary for one action per screen" is the kind of rule a designer carries in their head and an agent cannot guess. This format is published by Google Labs and is still marked alpha, so check the specification before relying on exact key names.` },
+    { do: `<strong>Add the values as data in <code>tokens.json</code>.</strong> Same decisions, in the standard token format that design tools and build tools exchange: ${ed('tokens.json', AGENT_FILES['tokens.json'], 'replace')}`,
+      moves: [{ t: 'edit', file: 'tokens.json', text: AGENT_FILES['tokens.json'], mode: 'replace' }], check: s => 'tokens.json' in s.files,
+      after: `Each token has a <span class="mono">$type</span> and a <span class="mono">$value</span>. You rarely write this file by hand: design tools export it, and the DESIGN.md command-line tool can generate it from the block at the top of <span class="mono">DESIGN.md</span>. Decide which file is the source and generate the other, so they cannot disagree.` },
+    { do: `<strong>Write the first spec.</strong> A spec tells the agent what to build and how you will judge it. Create <code>specs/version-endpoint.md</code>: ${ed('specs/version-endpoint.md', AGENT_FILES['specs/version-endpoint.md'], 'replace')}`,
+      moves: [{ t: 'edit', file: 'specs/version-endpoint.md', text: AGENT_FILES['specs/version-endpoint.md'], mode: 'replace' }], check: s => 'specs/version-endpoint.md' in s.files,
+      after: `Goal, acceptance criteria, out of scope. The acceptance criteria are what you check in the pull request. "Out of scope" stops the agent from helpfully building more than you asked for.` },
+    { do: `<strong>Keep personal notes out of the repository.</strong> Claude Code also reads <span class="mono">CLAUDE.local.md</span>, meant for your private preferences. Add this line to <code>.gitignore</code> so it is never committed: ${ed('.gitignore', 'CLAUDE.local.md')}`,
+      moves: [{ t: 'edit', file: '.gitignore', text: 'CLAUDE.local.md', mode: 'append' }], check: s => E.ignored(s, 'CLAUDE.local.md'),
+      after: `Same idea as <span class="mono">.env</span> in lesson 4: shared instructions are committed, personal ones are ignored.` },
+    { do: `See what you have made: ${c('git status')}`, cmd: 'git status', check: (s, x) => /^git\s+status/.test(x),
+      after: `Five new files and one modified. They are two ideas: how to work here, and what to build and how it should look.` },
+    { do: `Commit the working instructions first: ${c('git add AGENTS.md CLAUDE.md .gitignore')} then ${c('git commit -m "Add agent instructions"')}`, cmd: ['git add AGENTS.md CLAUDE.md .gitignore', 'git commit -m "Add agent instructions"'], check: s => 'AGENTS.md' in HT(s) && !('DESIGN.md' in HT(s)) },
+    { do: `Then the design files and the spec: ${c('git add DESIGN.md tokens.json specs/version-endpoint.md')} then ${c('git commit -m "Add design system and first spec"')}`, cmd: ['git add DESIGN.md tokens.json specs/version-endpoint.md', 'git commit -m "Add design system and first spec"'], check: s => 'DESIGN.md' in HT(s) && trackedClean(s) && !E.status(s).untracked.length },
+    { do: `Push the branch: ${c('git push -u origin agent-setup')}`, cmd: 'git push -u origin agent-setup', check: s => s.repo.head !== 'main' && s.remote.branches[s.repo.head] === E.headId(s),
+      after: `From here it is lesson 6: open a pull request, review, merge. Once these files are on <span class="mono">main</span>, every agent session starts from them. A good first task is to hand the agent the spec: "Implement specs/version-endpoint.md". To write these files for your own project, with guidance on what belongs in each section, continue to the <a href="https://claude.ai/artifact/CNApADEU9yyQhxqEBd7i1Y" target="_blank" rel="noopener">Agent Files Tutor</a>.` }
+  ],
+  extra: `<div class="note"><p><strong>What not to put in these files</strong></p>
+    <p>No secrets, keys or passwords. These files are committed, and an agent may quote them. No long tutorials or copies of documentation: link to them instead. No rules you would not want a new human teammate to read, because they will.</p></div>`,
+  recap: ['An agent knows only what the repository tells it. The committed files are its briefing.', '<span class="mono">AGENTS.md</span> for how to work, <span class="mono">DESIGN.md</span> and <span class="mono">tokens.json</span> for how it should look, <span class="mono">specs/</span> for what to build.', 'Keep one source of truth, and make tool-specific files point to it.', 'Agent work goes through the same branch and pull request review as anyone else\'s.'],
+  reading: [['Agent Files Tutor: write each of these files for your own project, with guidance on what belongs in them', 'https://claude.ai/artifact/CNApADEU9yyQhxqEBd7i1Y'], ['AGENTS.md: the open format and examples', 'https://agents.md/'], ['Claude Code docs: CLAUDE.md and how it loads', 'https://code.claude.com/docs/en/memory'], ['DESIGN.md specification (Google Labs)', 'https://github.com/google-labs-code/design.md'], ['Design Tokens format (W3C community group)', 'https://www.designtokens.org/']]
+});
+
+/* Extra "on your own project" guidance for steps that do not define their own. Keys: lesson index, step index. */
+(() => {
+  const m = t => `<span class="mono">${t}</span>`;
+  const OWN = {
+    0: { 0: `run it in your real terminal. It shows the folder your terminal opened in, usually your user folder.`,
+         2: `${m('cd your-folder-name')}. If the folder is somewhere else, give the path, for example ${m('cd Documents/my-project')}.` },
+    1: { 0: `run it once, inside your project folder. If it answers ${m('Reinitialized existing Git repository')}, the folder was already a repository and nothing was harmed. If it answers ${m('dubious ownership')} later on, see the Help tab.`,
+         1: `you should see ${m('.git')} in the list. If you do not, ${m('git init')} ran in a different folder.`,
+         2: `your own files are listed as untracked. Read the first line to see the branch name.` },
+    2: { 1: `same command. Your file should be green under ${m('Changes to be committed')}.`,
+         2: `write your own message. If Git answers ${m('Author identity unknown')}, run ${m('git config --global user.name "Your Name"')} and ${m('git config --global user.email "you@example.com"')} once, then commit again.`,
+         3: `add another of your own files by its name.`,
+         4: `commit it with a message that says what the file is.`,
+         5: `open a file Git already tracks in your code editor, change a line, and save.`,
+         6: `same command. If the output fills the screen and ends with ${m(':')} or ${m('(END)')}, press ${m('q')} to return to the prompt.`,
+         7: `${m('git add')} the file you changed, then ${m('git commit -m "..."')}.`,
+         9: `same command. Every file you edited is listed in red.`,
+         10: `${m('git add')} only the files that belong to one idea, by name, in one command or several.`,
+         11: `same command. Check that the green list is exactly what you mean to commit.`,
+         12: `commit with a message describing that one idea.`,
+         13: `${m('git add')} the remaining files and commit them with their own message.`,
+         14: `same command. Press ${m('q')} if the list does not return to the prompt by itself.` },
+    3: { 0: `only needed if your project has secrets or per-machine settings. Create a file named exactly ${m('.env')} in the project folder with your code editor. If your project has none yet, create one with a made-up value to practise.`,
+         1: `same command. If ${m('.env')} appears in red, it is not protected yet.`,
+         2: `create a file named exactly ${m('.gitignore')} in the top folder of the project, containing the line ${m('.env')}. Use your code editor: Notepad tends to save it as ${m('.gitignore.txt')}, which Git ignores.`,
+         3: `same command. ${m('.env')} must no longer be listed. If it still is, check the spelling and location of ${m('.gitignore')}.`,
+         4: `copy your ${m('.env')} to ${m('.env.example')} and delete every value after the ${m('=')} signs.`,
+         5: `run ${m('git status')} and read the list before ${m('git add .')}, so you know exactly what is about to be staged.` },
+    4: { 0: `on github.com, click the <strong>+</strong> at the top right, then <strong>New repository</strong>. Type a name, choose Private or Public, leave <em>Add a README</em>, <em>.gitignore</em> and <em>license</em> switched off, and click <strong>Create repository</strong>. The next page shows the repository's HTTPS address. Copy it.`,
+         1: `use the address you copied: ${m('git remote add origin https://github.com/your-username/your-repo.git')}. Check it with ${m('git remote -v')}.`,
+         2: `same command. The first push opens a browser window to sign in to GitHub. If Git answers ${m('src refspec main does not match any')}, your branch is not called main or has no commits: see lesson 2, step 4.`,
+         3: `change any file, save, add and commit.`,
+         4: `same command. Look for ${m("Your branch is ahead of 'origin/main'")}.`,
+         5: `same command. Refresh the repository page on github.com to see the new commit.`,
+         6: `play the teammate first: on github.com open a file, click the pencil icon, change a line and click <strong>Commit changes</strong>. Then run the pull and open the file on your computer to see the change arrive.` }
+  };
+  OWN[7] = {
+    0: `same three commands, with a branch name of your choice.`,
+    1: `create ${m('AGENTS.md')} in the top folder of your repository and replace the example with your project's real commands. If you do not know them yet, write what you do know and add to it as you go. Most agents will draft one if you ask: review it before committing.`,
+    2: `only needed if you use Claude Code. In Claude Code you can also run ${m('/init')} to generate a starting file. For another tool, check its documentation for the file name it reads.`,
+    3: `only if your project has a user interface. Start from your real brand colours, fonts and spacing. If your design lives in a design tool, describe the rules a newcomer would get wrong.`,
+    4: `export this from your design tool if it supports the Design Tokens format, or generate it from ${m('DESIGN.md')}, instead of typing it.`,
+    5: `make a ${m('specs')} folder in your code editor and add one Markdown file per feature. Write the acceptance criteria as things you can check.`,
+    6: `add the line to your existing ${m('.gitignore')}.`,
+    7: `same command. Check that no file you want kept private is in the list.`,
+    8: `${m('git add')} the instruction files by name, then commit.`,
+    9: `${m('git add')} the design and spec files, then commit.`,
+    10: `same command with your branch name, then open a pull request on github.com as in lesson 6.`
+  };
+  Object.keys(OWN).forEach(li => Object.keys(OWN[li]).forEach(si => { const st = LESSONS[li].steps[si]; if (st && !st.own) st.own = OWN[li][si]; }));
+})();
+
+/* The same steps done with VS Code's buttons. Keys: lesson index, step index. */
+(() => {
+  const b = t => `<strong>${t}</strong>`, m = t => `<span class="mono">${t}</span>`;
+  const SC = `the ${b('Source Control')} view (the branching icon in the left bar, or Ctrl+Shift+G)`;
+  const IDE = {
+    0: { 0: `the folder you have open is your working folder. Its name is at the top of the ${b('Explorer')} panel. VS Code also has a terminal built in: ${b('Terminal › New Terminal')}. It opens already inside the project folder.`,
+         1: `${b('File › Open Folder')}, then use the dialog's ${b('New Folder')} button to create the project folder, and open it.`,
+         2: `nothing to do: opening the folder is the same as moving into it. The built-in terminal starts there too.`,
+         3: `in the ${b('Explorer')}, click the ${b('New File')} icon next to the folder name, type ${m('README.md')}, press Enter, write a title line and save with Ctrl+S.`,
+         4: `${b('New File')} again for each file your project needs.`,
+         5: `the ${b('Explorer')} panel is the file list.` },
+    1: { 0: `open ${SC} and click ${b('Initialize Repository')}.`,
+         1: `VS Code hides the ${m('.git')} folder in the Explorer on purpose. Once it exists, the Source Control view shows your files instead of the Initialize button.`,
+         2: `the Source Control view is a live ${m('git status')}. New files are listed under ${b('Changes')} with a green ${b('U')} for untracked. The branch name is in the status bar at the bottom left.`,
+         3: `open the Command Palette (Ctrl+Shift+P, or Cmd+Shift+P on a Mac), type ${b('Git: Rename Branch')}, press Enter and type ${m('main')}.` },
+    2: { 0: `in Source Control, hover over the file under ${b('Changes')} and click the ${b('+')} (Stage Changes).`,
+         1: `the file has moved to ${b('Staged Changes')} with an ${b('A')} for added. Everything still under ${b('Changes')} is not staged.`,
+         2: `type the message in the box at the top of Source Control and click ${b('Commit')} (or press Ctrl+Enter). If VS Code asks for your name and email, set them in a terminal as the Help tab describes.`,
+         3: `click the ${b('+')} beside the next file.`,
+         4: `type a message and click ${b('Commit')}.`,
+         5: `edit the file and save. It reappears under ${b('Changes')} with an ${b('M')} for modified, and its name changes colour in the Explorer.`,
+         6: `click the file's name under ${b('Changes')}. VS Code opens a side-by-side diff: the last commit on the left, your version on the right.`,
+         7: `${b('+')} beside the file, type a message, ${b('Commit')}.`,
+         8: `edit and save each file. All of them collect under ${b('Changes')}: ${b('M')} for modified, ${b('U')} for new.`,
+         9: `the ${b('Changes')} list is that status. The number on the Source Control icon counts the changed files.`,
+         10: `click ${b('+')} beside only the files that belong together. Each one moves to ${b('Staged Changes')} and joins the ones already there. The ${b('+')} on the ${b('Changes')} heading stages everything, like ${m('git add .')}.`,
+         11: `check the two lists: ${b('Staged Changes')} is what the commit will contain, ${b('Changes')} is what will be left out.`,
+         12: `type a message and click ${b('Commit')}. Only the staged files are committed. Careful: if nothing is staged, VS Code offers to stage everything and commit it all, so stage first.`,
+         13: `${b('+')} beside the remaining file, message, ${b('Commit')}.`,
+         14: `recent versions show the history under ${b('Graph')} at the bottom of Source Control. The ${b('Timeline')} section of the Explorer shows the commits for the file you have open.` },
+    3: { 0: `${b('New File')} in the Explorer, named ${m('.env')}.`,
+         1: `${m('.env')} is listed under ${b('Changes')} with a ${b('U')}. That is the warning sign.`,
+         2: `right-click ${m('.env')} under ${b('Changes')} and choose ${b('Add to .gitignore')}. VS Code creates the file and adds the line. Or create ${m('.gitignore')} yourself with ${b('New File')}.`,
+         3: `${m('.env')} has left the ${b('Changes')} list, and its name is greyed out in the Explorer. ${m('.gitignore')} is now listed instead.`,
+         4: `${b('New File')}, named ${m('.env.example')}.`,
+         5: `read the ${b('Changes')} list, click the ${b('+')} on the ${b('Changes')} heading to stage them all, type a message, ${b('Commit')}.` },
+    4: { 0: `VS Code can do this and the next two steps at once. In Source Control click ${b('Publish Branch')}, sign in to GitHub when asked, and choose ${b('Publish to GitHub private repository')} (or public). It creates the repository, links it as ${m('origin')} and pushes. If you use it, skip to step 4.`,
+         1: `if you created the repository on github.com instead: Command Palette, ${b('Git: Add Remote')}, paste the address, and name it ${m('origin')}.`,
+         2: `click ${b('Publish Branch')} in Source Control. This is the first push, and it sets the link that ${m('-u')} sets.`,
+         3: `edit, save, ${b('+')}, message, ${b('Commit')}.`,
+         4: `the status bar at the bottom left shows arrows beside the branch name, for example ${b('1↑')}: one commit waiting to go up.`,
+         5: `click ${b('Sync Changes')} in Source Control, or the arrows in the status bar. Sync pulls first, then pushes.`,
+         6: `${b('Sync Changes')} again, or the ${b('...')} menu at the top of Source Control, then ${b('Pull')}. ${b('0↓ 1↑')} style counters in the status bar show what is waiting in each direction.` },
+    5: { 0: `click the branch name in the status bar (bottom left), choose ${b('Create new branch...')} and type the name. VS Code switches to it.`,
+         1: `edit, save, ${b('+')}, message, ${b('Commit')}.`,
+         2: `click ${b('Publish Branch')}.`,
+         3: `VS Code has no pull request button of its own. Either open github.com as described, or install the ${b('GitHub Pull Requests')} extension (published by GitHub), which adds a ${b('Create Pull Request')} button to Source Control.`,
+         4: `review and merge on github.com, or in the extension's pull request view if you installed it.`,
+         5: `click the branch name in the status bar and choose ${m('main')}.`,
+         6: `${b('Sync Changes')}, or ${b('...')} then ${b('Pull')}.`,
+         7: `Command Palette, ${b('Git: Delete Branch')}, pick the branch.` },
+    6: { 0: `branch name in the status bar, ${b('Create new branch...')}.`,
+         1: `edit, save, ${b('+')}, message, ${b('Commit')}.`,
+         2: `click the branch name, choose ${m('main')}, then ${b('Sync Changes')} or ${b('...')} › ${b('Pull')}.`,
+         3: `switch back to your branch from the status bar. Then Command Palette, ${b('Git: Merge Branch')}, and pick ${m('main')}.`,
+         4: `edit, save, ${b('+')}, message, ${b('Commit')}.`,
+         5: `on your branch: ${b('...')} at the top of Source Control › ${b('Pull, Push')} › ${b('Pull from...')}, choose ${m('origin')}, then ${m('main')}. VS Code reports the conflict.`,
+         6: `conflicted files are listed under ${b('Merge Changes')} in Source Control, marked with ${b('!')}.`,
+         7: `click the file under ${b('Merge Changes')}. Above each clash VS Code offers ${b('Accept Current Change')} (yours), ${b('Accept Incoming Change')} (theirs) and ${b('Accept Both Changes')}. The ${b('Resolve in Merge Editor')} button opens a three-pane view that does the same. Save when no markers remain.`,
+         8: `click ${b('+')} beside the resolved file to mark it settled, then ${b('Commit')}. VS Code fills in the merge message for you.`,
+         9: `${b('Publish Branch')}, or ${b('Sync Changes')} if the branch is already on GitHub.` }
+  };
+  IDE[7] = {
+    0: `click the branch name in the status bar, choose ${m('main')}, then ${b('Sync Changes')}. Click the branch name again and choose ${b('Create new branch...')}.`,
+    1: `${b('New File')} in the Explorer, named ${m('AGENTS.md')}. VS Code previews Markdown with Ctrl+Shift+V.`,
+    2: `${b('New File')}, named ${m('CLAUDE.md')}.`,
+    3: `${b('New File')}, named ${m('DESIGN.md')}.`,
+    4: `${b('New File')}, named ${m('tokens.json')}. VS Code underlines JSON mistakes as you type.`,
+    5: `use the ${b('New Folder')} icon in the Explorer to create ${m('specs')}, then ${b('New File')} inside it.`,
+    6: `open ${m('.gitignore')} from the Explorer, add the line and save.`,
+    7: `the new files are listed under ${b('Changes')} with a ${b('U')}.`,
+    8: `click ${b('+')} beside the three instruction files, type a message, ${b('Commit')}.`,
+    9: `click ${b('+')} beside the remaining files, type a message, ${b('Commit')}.`,
+    10: `click ${b('Publish Branch')}.`
+  };
+  Object.keys(IDE).forEach(li => Object.keys(IDE[li]).forEach(si => { const st = LESSONS[li].steps[si]; if (st) st.ide = IDE[li][si]; }));
+})();
+
+/* Each step is an ordered list of moves: a command, an editor save, or a GitHub button. */
+function movesOf(step) {
+  if (step.moves) return step.moves;
+  return [].concat(step.cmd || []).map(x => {
+    const tk = Engine.tokenize(x), oi = tk.findIndex(t => t.op);
+    if (tk[0].v === 'echo' && oi > 0) return { t: 'edit', file: tk[oi + 1].v, text: tk.slice(1, oi).map(t => t.v).join(' '), mode: tk[oi].op === '>' ? 'replace' : 'append' };
+    return { t: 'cmd', v: x };
+  });
+}
+function editOk(m, content) {
+  const L = (content || '').split('\n');
+  if (m.t === 'resolve') return !Engine.hasMarkers(content);
+  if (m.mode === 'swap') return L.includes(m.text) && !L.includes(m.find);
+  return m.text.split('\n').every(l => L.includes(l));
+}
+function applyMove(s, m) {
+  if (m.t === 'cmd') { Engine.run(s, m.v); return; }
+  if (m.t === 'gh') { if (m.v === 'create') Engine.createRepo(s); else if (m.v === 'open') Engine.openPR(s, s.repo.head); else Engine.mergePR(s, s.remote.prs.find(p => p.status === 'open').id); return; }
+  if (m.t === 'resolve') { s.files[m.file] = Engine.resolve(s.files[m.file], 'theirs'); return; }
+  const cur = s.files[m.file] || '';
+  if (m.mode === 'replace') s.files[m.file] = m.text + '\n';
+  else if (m.mode === 'swap') s.files[m.file] = cur.split('\n').map(l => (l === m.find ? m.text : l)).join('\n');
+  else if (!cur.split('\n').includes(m.text)) s.files[m.file] = cur + (cur && !cur.endsWith('\n') ? '\n' : '') + m.text + '\n';
+}
+function isMutating(tk) {
+  const w = tk.filter(t => !t.op).map(t => t.v), c0 = w[0];
+  if (c0 === 'echo') return tk.some(t => t.op);
+  if (['touch', 'rm', 'gh', 'mkdir', 'cd'].includes(c0)) return true;
+  if (c0 !== 'git') return false;
+  const sub = w[1];
+  if (['init', 'add', 'commit', 'restore', 'rm', 'switch', 'checkout', 'push', 'pull', 'merge'].includes(sub)) return true;
+  if (sub === 'branch') return w.slice(2).length > 0;
+  if (sub === 'remote') return w[2] === 'add' || w[2] === 'set-url';
+  return false;
+}
+function cmdMatches(expected, typed) {
+  const a = Engine.tokenize(expected).map(t => t.op || t.v), b = Engine.tokenize(typed).map(t => t.op || t.v);
+  if (!isMutating(Engine.tokenize(expected))) return a[0] === b[0] && (a[0] !== 'git' || a[1] === b[1]);
+  if (a[1] === 'add' && b[0] === 'git' && b[1] === 'add') return a.length === b.length && a.slice(2).sort().join('\n') === b.slice(2).sort().join('\n');
+  if (a[1] === 'commit' && a[2] === '-m') return b.length === 4 && b[0] === 'git' && b[1] === 'commit' && b[2] === '-m' && b[3].trim() !== '';
+  return a.length === b.length && a.every((x, i) => x === b[i]);
+}
+function runStep(s, step) {
+  if (step.before && !s.hooks[step.do]) { step.before(s); s.hooks[step.do] = 1; }
+  let last = '';
+  movesOf(step).forEach(m => { applyMove(s, m); if (m.t === 'cmd') last = m.v; });
+  return last;
+}
+function replayTo(lessonIndex) {
+  const s = Engine.fresh();
+  LESSONS.slice(0, lessonIndex).forEach(L => L.steps.forEach(st => runStep(s, st)));
+  return s;
+}
+</script>
+
+<script id="ui">
+(() => {
+  const $ = id => document.getElementById(id);
+  const KEY = 'git-basics-sandbox-v2', N = LESSONS.length, FREE = N, SHEET = N + 1;
+  let SL, SF, S, P, prDraft = null, hist = [], hi = 0, panel = 'term', edFile = null, naming = false, drafts = {}, edMsg = '', ghTab = 'code', ghBranch = 'main';
+  const fileIcon = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+  const dirIcon = '<svg class="ico dir" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3h4.6l1.5 1.6h6.9v8.9h-13z" fill="currentColor"/></svg>';
+  const free = () => P.mode === 'free';
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify({ SL, SF, P })); } catch (e) {} }
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (d && d.SL && d.SF && d.P && Array.isArray(d.P.best) && d.P.best.length === N) return d;
+      if (d && d.SL && d.SF && d.P && Array.isArray(d.P.best) && d.P.best.length === 7 && N === 8) { d.P.best.push(0); if (d.P.view >= 7) d.P.view += 1; return d; }
+      const old = JSON.parse(localStorage.getItem('git-basics-sandbox-v1') || 'null');
+      if (old && old.P && Array.isArray(old.P.best)) { const best = old.P.best.slice(0, N); while (best.length < N) best.push(0); return { best }; }
+    } catch (e) {}
+    return null;
+  }
+  function freshFree(kind) {
+    const s = kind === 'empty' ? Engine.fresh() : replayTo(6);
+    s.hooks = { base: { prs: s.remote ? s.remote.prs.length : 0 }, fp: {} };
+    return s;
+  }
+  const resetUi = () => { prDraft = null; drafts = {}; edMsg = ''; ghTab = 'code'; ghBranch = 'main'; naming = false; };
+
+  /* ----- terminal ----- */
+  const proj = () => S.proj || 'hello-api', atHome = () => S.dir === 'home';
+  /* ----- terminal flavours: the lessons are written in bash; these translate for Windows shells ----- */
+  const shell = () => P.shell || 'bash';
+  function toLocal(c0) {
+    const sh = shell();
+    if (sh === 'cmd') { if (c0 === 'pwd') return 'cd'; if (c0 === 'ls') return 'dir'; if (c0 === 'ls -a') return 'dir /a'; if (/^cat /.test(c0)) return 'type ' + c0.slice(4); if (c0 === '/home/you') return 'C:\\Users\\you'; }
+    if (sh === 'ps') { if (c0 === 'ls -a') return 'ls -Force'; if (c0 === '/home/you') return 'C:\\Users\\you'; }
+    return c0;
+  }
+  function toCanon(t) {
+    const sh = shell();
+    if (sh === 'cmd') {
+      if (/^dir\s*$/i.test(t)) return 'ls'; if (/^dir\s+\/a\S*\s*$/i.test(t)) return 'ls -a'; if (/^cd\s*$/i.test(t)) return 'pwd';
+      if (/^type\s+/i.test(t)) return 'cat ' + t.replace(/^type\s+/i, ''); if (/^cls$/i.test(t)) return 'clear'; if (/^md\s+/i.test(t)) return 'mkdir ' + t.replace(/^md\s+/i, '');
+    }
+    if (sh === 'ps') {
+      if (/^(ls|dir|gci|get-childitem)\s+-force\s*$/i.test(t)) return 'ls -a'; if (/^(dir|gci|get-childitem)\s*$/i.test(t)) return 'ls';
+      if (/^(type|gc|get-content)\s+/i.test(t)) return 'cat ' + t.replace(/^\S+\s+/, ''); if (/^cls$/i.test(t)) return 'clear';
+    }
+    return t;
+  }
+  function shellReject(t) {
+    const w = t.split(/\s+/)[0], sh = shell();
+    if (sh === 'cmd' && ['ls', 'pwd', 'cat', 'touch', 'rm', 'clear'].includes(w)) return `'${w}' is not recognized as an internal or external command,\noperable program or batch file.\n(Command Prompt uses other names: dir, dir /a, cd on its own, type <file>.)`;
+    if (sh === 'ps' && /^(ls|dir)\s+-a\s*$/.test(t)) return "Get-ChildItem : Parameter cannot be processed because the parameter name 'a' is ambiguous.\n(PowerShell lists hidden files with: ls -Force)";
+    return '';
+  }
+  const outLocal = t => shell() === 'bash' ? t : t.replace(/\/home\/you((?:\/[\w.-]+)*)/g, (m, rest) => 'C:\\Users\\you' + rest.replace(/\//g, '\\')).replace(/\bls -a\b/g, toLocal('ls -a'));
+  function localize() {
+    if (shell() === 'bash') return;
+    document.querySelectorAll('#lesson .cmd, #map .cmd').forEach(b => { const l = toLocal(b.dataset.cmd); if (l !== b.dataset.cmd) { b.dataset.cmd = l; b.textContent = l; } });
+    document.querySelectorAll('#lesson code').forEach(el => { const l = toLocal(el.textContent); if (l !== el.textContent) el.textContent = l; });
+  }
+  function shellBox() {
+    const sh = shell(), b = (v, t) => `<button type="button" data-shell="${v}" aria-pressed="${sh === v}">${t}</button>`;
+    const info = {
+      bash: '<p><strong>Mac:</strong> the Terminal app. <strong>Linux:</strong> your usual terminal. <strong>Windows:</strong> Git Bash, which is installed along with Git (Start menu, type "Git Bash"). On Windows this is the easiest choice, because commands in this course and in most Git guides work there exactly as written.</p>',
+      cmd: '<p>Command Prompt uses its own names for a few everyday commands. The lessons and the sandbox now show and accept them: <code>dir</code> lists a folder, <code>dir /a</code> includes hidden files, <code>cd</code> on its own shows where you are, and <code>type</code> prints a file. Every <code>git</code> command is identical. Typing <code>ls</code> gets the same "not recognized" error as the real thing.</p><p>Command Prompt does not show the current branch in its prompt. The sandbox adds it in brackets to help. On your own machine, <code>git status</code> tells you.</p>',
+      ps: '<p>PowerShell understands <code>ls</code>, <code>pwd</code>, <code>cat</code>, <code>mkdir</code> and <code>cd</code>. The one difference in this course: hidden files are listed with <code>ls -Force</code>. Every <code>git</code> command is identical.</p><p>PowerShell does not show the current branch in its prompt. The sandbox adds it in brackets to help. On your own machine, <code>git status</code> tells you.</p>'
+    }[sh];
+    return `<div class="shellbox"><h3>Which terminal are you using?</h3><div class="seg">${b('bash', 'Mac, Linux or Git Bash')}${b('cmd', 'Windows Command Prompt')}${b('ps', 'Windows PowerShell')}</div>${info}
+      <p>Whichever you use, Git must be installed. Check with <span class="mono">git --version</span>. If the terminal does not know <span class="mono">git</span>, install it from <a href="https://git-scm.com/downloads" target="_blank" rel="noopener">git-scm.com/downloads</a> and open a new terminal window.</p></div>`;
+  }
+  function setShell(v) {
+    if (v === shell()) return;
+    P.shell = v; line(''); line(`Terminal set to ${{ bash: 'Mac / Linux / Git Bash', cmd: 'Windows Command Prompt', ps: 'Windows PowerShell' }[v]}. Lesson commands now use its names.`, 'meta');
+    save(); render(); bottom();
+  }
+  const promptText = () => {
+    const br = S.repo && !atHome() ? ` (${S.repo.head}${S.repo.merging ? '|MERGING' : ''})` : '';
+    if (shell() !== 'bash') return `${shell() === 'ps' ? 'PS ' : ''}C:\\Users\\you${atHome() ? '' : '\\' + proj()}${br}>`;
+    return atHome() ? '~ $' : `${proj()}${br} $`;
+  };
+  const _unused = () => atHome() ? '~ $' : `${proj()}${S.repo ? ` (${S.repo.head}${S.repo.merging ? '|MERGING' : ''})` : ''} $`;
+  function line(t, cls) { const d = document.createElement('div'); d.className = cls || ''; d.textContent = t; $('tout').appendChild(d); }
+  function echoIn(cmd) { const d = document.createElement('div'); d.className = 'in'; const sp = document.createElement('span'); sp.textContent = promptText() + ' '; d.append(sp, cmd); $('tout').appendChild(d); }
+  const bottom = () => { const o = $('tout'); o.scrollTop = o.scrollHeight; };
+  function welcome() {
+    line('Sandbox terminal. Commands here run on a pretend project, never on your computer.', 'meta');
+    line('Click a command in the lesson to place it here, then press Enter. Type help for the full list.', 'meta'); line('');
+  }
+  function coach() {
+    if (!S.repo) return;
+    if ('.env' in E.tree(S, E.headId(S))) line('Coach: .env is inside a commit. Fix: git rm --cached .env, then commit. On a real project, also replace the key.', 'coach');
+    else if (!S.repo.merging && Object.keys(S.repo.index).some(p => E.hasMarkers(S.repo.index[p]))) line('Coach: a staged file still contains conflict markers (<<<<<<<). Open it in the editor, finish resolving, save, and git add it again.', 'coach');
+    else if ('.env' in S.repo.index) line('Coach: .env is staged, so the next commit would save your secret. Undo with: git restore --staged .env', 'coach');
+  }
+
+  /* ----- lesson sequencing: one expected action at a time ----- */
+  const curStep = () => (free() ? null : LESSONS[P.cur].steps[P.prog] || null);
+  const curMove = () => { const st = curStep(); return st ? movesOf(st)[P.sub] || null : null; };
+  function describe(m) {
+    if (m.t === 'cmd') return toLocal(m.v);
+    if (m.t === 'edit') return `an edit to ${m.file} in the Editor tab`;
+    if (m.t === 'resolve') return `the conflict in ${m.file} to be resolved in the Editor tab`;
+    if (m.v === 'create') return 'the "Create repository" button on the GitHub page';
+    return m.v === 'open' ? 'the "Compare & pull request" button on the GitHub page' : 'the "Merge pull request" button on the GitHub page';
+  }
+  function waiting() {
+    const m = curMove();
+    if (!m) return 'This lesson is complete. Start the next one, or open Free play to run anything you like.';
+    return `Lessons run in order. Step ${P.prog + 1} is waiting for: ${describe(m)}   (Free play lets you run anything.)`;
+  }
+  function ensureBefore() {
+    const st = curStep();
+    if (st && st.before && !S.hooks[st.do]) { st.before(S); S.hooks[st.do] = 1; if (st.beforeNote) line(st.beforeNote, 'coach'); }
+  }
+  function advance() {
+    const L = LESSONS[P.cur], st = L.steps[P.prog];
+    if (++P.sub < movesOf(st).length) return;
+    P.sub = 0; P.prog++; P.best[P.cur] = Math.max(P.best[P.cur], P.prog);
+    line(P.prog === L.steps.length ? `✓ Lesson ${P.cur + 1} complete.` : `✓ Step ${P.prog} of ${L.steps.length} done.`, 'ok');
+    ensureBefore();
+  }
+  function freeFlags() {
+    const r = S.repo, f = S.hooks.fp || (S.hooks.fp = {}), base = S.hooks.base || { prs: 0 };
+    if (!r) return;
+    if (r.head !== 'main' || Object.keys(r.branches).length > 1) f.branch = 1;
+    if (Object.keys(r.branches).some(b => b !== 'main' && r.branches[b] && !E.isAnc(S, r.branches[b], r.branches.main))) f.commit = 1;
+    if (S.remote) {
+      const mine = S.remote.prs.slice(base.prs);
+      if (Object.keys(r.branches).some(b => b !== 'main' && r.branches[b] && S.remote.branches[b] === r.branches[b]) && f.commit) f.push = 1;
+      if (mine.length) f.pr = 1;
+      if (mine.some(p => p.status === 'merged')) f.merge = 1;
+      if (f.merge && r.head === 'main' && r.branches.main === S.remote.branches.main) f.sync = 1;
+      if (S.hooks.maya && Object.values(r.branches).some(id => id && E.isAnc(S, S.hooks.maya, id))) f.team = 1;
+    }
+    if (r.merging) f.saw = 1; else if (f.saw && !f.aborted) f.conflict = 1;
+  }
+  function flash(ev) {
+    const ids = { add: ['z2'], commit: ['z3'], push: ['z4'], pull: ['z3', 'z1'], pr: ['z4'] }[ev] || [];
+    ids.forEach(id => { const z = $(id); if (!z) return; z.classList.add('flash'); requestAnimationFrame(() => requestAnimationFrame(() => z.classList.remove('flash'))); });
+  }
+  function exec(raw) {
+    const typed = raw.trim(); if (!typed) return;
+    hist.push(typed); hi = hist.length;
+    echoIn(typed);
+    const bad = shellReject(typed); if (bad) { line(bad); bottom(); return; }
+    const cmd = toCanon(typed);
+    let hit = false; const mut = isMutating(E.tokenize(cmd));
+    if (!free()) {
+      const m = curMove();
+      if (m && m.t === 'cmd' && cmdMatches(m.v, cmd)) hit = true;
+      else if (m && m.t === 'gh' && /^gh\s+pr\s+(create|merge)\b/.test(cmd) && (m.v === 'open') === /create/.test(cmd)) hit = true;
+      if (mut && !hit) { line('Coach: ' + waiting(), 'coach'); bottom(); return; }
+    }
+    const before = JSON.stringify(S), wasMerging = !!(S.repo && S.repo.merging);
+    const r = Engine.run(S, cmd);
+    if (r.clear) $('tout').textContent = '';
+    r.out.forEach(o => line(outLocal(o.t), o.c));
+    if (cmd === 'help' && shell() !== 'bash') line(shell() === 'cmd' ? 'In Command Prompt: dir · dir /a · cd (on its own) · type <file> · cls' : 'In PowerShell: ls -Force lists hidden files · everything else as above', 'meta');
+    coach();
+    if (free()) { if (wasMerging && !S.repo.merging && /merge\s+--abort/.test(cmd)) (S.hooks.fp || (S.hooks.fp = {})).saw = 0; freeFlags(); }
+    else if (hit && (!mut || JSON.stringify(S) !== before || curStep().check(S, cmd))) advance();
+    if (r.event === 'push') ghTab = 'code'; else if (r.event === 'pr') ghTab = 'prs';
+    save(); render(); flash(r.event); bottom(); follow();
+  }
+  function follow() {
+    if (!window.matchMedia('(min-width:1040px)').matches) return;
+    const el = document.querySelector('.complete') || document.querySelector('.step.now');
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+
+  /* ----- editor ----- */
+  const isDirty = f => f in drafts && drafts[f] !== S.files[f];
+  function setPanel(p) {
+    panel = p;
+    $('pane-term').hidden = p !== 'term'; $('pane-ed').hidden = p !== 'ed'; $('term-tools').hidden = p !== 'term';
+    $('tab-term').setAttribute('aria-selected', p === 'term'); $('tab-ed').setAttribute('aria-selected', p === 'ed');
+    if (p === 'term') bottom(); else renderEditor();
+  }
+  function renderEditor() {
+    const files = [...new Set([...Object.keys(S.files), ...Object.keys(drafts)])].sort();
+    if (!files.includes(edFile)) edFile = files.includes('main.py') ? 'main.py' : files[0] || null;
+    $('ed-tabs').innerHTML = files.map(f => `<button type="button" role="tab" data-edfile="${esc(f)}" aria-selected="${f === edFile}">${isDirty(f) ? '● ' : ''}${esc(f)}${f in S.files ? '' : ' (new)'}</button>`).join('')
+      + (naming ? '<form id="ed-new"><input id="ed-name" type="text" placeholder="file name" aria-label="New file name" autocapitalize="off" autocorrect="off" spellcheck="false"><button type="submit">Create</button></form>' : '<button type="button" id="ed-add">+ New file</button>');
+    const ta = $('ed-text'), want = edFile == null ? '' : (edFile in drafts ? drafts[edFile] : S.files[edFile]);
+    if (ta.value !== want) ta.value = want;
+    ta.disabled = edFile == null;
+    $('ed-text').placeholder = atHome() ? 'No project folder is open yet.' : '';
+    const dirty = edFile != null && isDirty(edFile), clash = edFile != null && E.hasMarkers(want);
+    $('ed-status').textContent = edMsg || (clash ? 'Merge conflict: yours is above =======, theirs below. Edit, or pick a side, then save.' : dirty ? `Unsaved changes in ${edFile}. Git cannot see them until you save.` : edFile ? `${edFile}: no unsaved changes` : atHome() ? 'No project folder is open. In the terminal, create one with mkdir, then move into it with cd.' : 'This folder has no files yet. Use + New file.');
+    $('ed-save').disabled = !dirty;
+    $('ed-conf').hidden = !clash;
+  }
+  function edSave() {
+    const f = edFile; if (f == null || !isDirty(f)) return;
+    let t = drafts[f]; if (t && !t.endsWith('\n')) t += '\n';
+    if (atHome()) { edMsg = 'Not saved. Create the project folder and move into it first (mkdir, then cd).'; renderEditor(); return; }
+    if (!free()) {
+      const m = curMove(); let no = '';
+      if (!m || (m.t !== 'edit' && m.t !== 'resolve')) no = 'Not saved. ' + waiting();
+      else if (m.file !== f) no = `Not saved. This step changes ${m.file}, not ${f}.`;
+      else if (!editOk(m, t)) no = m.t === 'resolve' ? 'Not saved. Remove all three marker lines first, or use Keep mine / Keep theirs.' : `Not saved. For this step, ${f} needs the line: ${m.text}`;
+      if (no) { edMsg = no; renderEditor(); return; }
+    }
+    const isNew = !(f in S.files), before = P.prog;
+    S.files[f] = t; delete drafts[f];
+    line(`Editor: ${isNew ? 'created' : 'saved'} ${f}`, 'meta');
+    coach(); if (free()) freeFlags(); else advance();
+    edMsg = `Saved ${f}.` + (!free() && P.prog > before ? ' ✓ Step done. Next one is in the lesson.' : '');
+    save(); render(); follow();
+  }
+  function edOpen(file, text, mode, find) {
+    const cur = file in drafts ? drafts[file] : (S.files[file] || '');
+    let next = cur;
+    if (mode === 'replace') next = text + '\n';
+    else if (mode === 'swap' && cur.split('\n').includes(find)) next = cur.split('\n').map(l => l === find ? text : l).join('\n');
+    else if (!cur.split('\n').includes(text)) next = cur + (cur && !cur.endsWith('\n') ? '\n' : '') + text + '\n';
+    if (next !== S.files[file]) drafts[file] = next; else delete drafts[file];
+    edFile = file; naming = false; edMsg = '';
+    setPanel('ed');
+    const ta = $('ed-text'); ta.focus({ preventScroll: true }); ta.scrollTop = ta.scrollHeight;
+    if (window.matchMedia('(max-width:1039px)').matches) ta.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  /* ----- navigation ----- */
+  function go(i) {
+    if (i === SHEET) P.view = SHEET;
+    else if (i === FREE) {
+      if (!free()) { P.mode = 'free'; S = SF; resetUi(); line(''); line('Free play: every command is allowed. This sandbox is separate from the lessons.', 'meta'); }
+      P.view = FREE;
+    } else {
+      const wasFree = free();
+      if (i !== P.cur) { SL = replayTo(i); P.cur = i; P.prog = 0; P.sub = 0; }
+      if (wasFree || S !== SL) { P.mode = 'lesson'; S = SL; resetUi(); line(''); line(`Lesson ${i + 1} sandbox${P.prog ? ', where you left off' : ', at the start of the lesson'}.`, 'meta'); }
+      P.view = i; ensureBefore();
+    }
+    save(); render(); $('lesson').scrollTop = 0; bottom();
+  }
+  function restart() {
+    SL = replayTo(P.cur); S = SL; P.prog = 0; P.sub = 0; resetUi();
+    line(''); line(`Sandbox reset to the start of lesson ${P.cur + 1}.`, 'meta');
+    ensureBefore(); save(); render(); bottom();
+  }
+  function maya(kind) {
+    if (!S.remote || !S.remote.branches.main) { line('Maya needs a GitHub repository with a main branch. Run git remote add and git push first.', 'coach'); bottom(); return; }
+    const t = E.tree(S, S.remote.branches.main), n = S.hooks.mayaN = (S.hooks.mayaN || 0) + 1;
+    if (kind === 'readme') E.teammateCommit(S, `Add a note to the README (round ${n})`, { 'README.md': (t['README.md'] || '') + `Note from Maya, round ${n}.\n` }, 'Maya');
+    else {
+      const L = (t['main.py'] || '').split('\n'), i = L.findIndex(l => l.startsWith('app = ')), nl = `app = FastAPI(title="Team API v${n}")`;
+      if (i >= 0) L[i] = nl; else L.unshift(nl);
+      E.teammateCommit(S, `Rename the API to Team API v${n}`, { 'main.py': L.join('\n') }, 'Maya');
+    }
+    S.hooks.maya = S.remote.branches.main; ghTab = 'code'; ghBranch = 'main';
+    line(`Meanwhile on GitHub: Maya merged a change to ${kind === 'readme' ? 'README.md' : 'the "app =" line of main.py'} into main.`, 'coach');
+    save(); render(); flash('pr'); bottom();
+  }
+
+  /* ----- render ----- */
+  function renderNav() {
+    $('nav').innerHTML = LESSONS.map((L, i) => {
+      const done = P.best[i] >= L.steps.length;
+      return `<button type="button" data-go="${i}" class="${done ? 'done' : ''}" aria-current="${P.view === i}"><span class="n">${done ? '✓' : i + 1}</span>${esc(L.short)}</button>`;
+    }).join('') + `<button type="button" data-go="${FREE}" class="sheet" aria-current="${P.view === FREE}">Free play</button><button type="button" data-go="${SHEET}" class="sheet" aria-current="${P.view === SHEET}">Help</button>`;
+  }
+  function renderLesson() {
+    if (P.view === SHEET) { $('lesson').innerHTML = sheetHtml(); return; }
+    if (P.view === FREE) { $('lesson').innerHTML = freeHtml(); return; }
+    const L = LESSONS[P.cur], n = L.steps.length, complete = P.prog >= n;
+    const steps = L.steps.map((st, i) => {
+      const state = i < P.prog ? 'done' : i === P.prog ? 'now' : 'next', mv = movesOf(st);
+      let hint = '';
+      if (state === 'now') {
+        if (st.gh) hint = '<p class="hint">This step happens on GitHub, not in the terminal. Use the buttons on the GitHub repository page in the map.</p>';
+        else if (mv.length > 1) hint = `<p class="hint">${P.sub} of ${mv.length} actions done. Next: <strong>${esc(describe(mv[P.sub]))}</strong></p>`;
+      }
+      return `${st.part ? `<li class="part">${esc(st.part)}</li>` : ''}<li class="step ${state}"${state === 'now' ? ' aria-current="step"' : ''}><span class="dot">${state === 'done' ? '✓' : i + 1}</span><div class="body"><p>${st.do}</p>${st.own && P.own ? `<p class="own"><strong>On your own project:</strong> ${st.own}</p>` : ''}${st.ide && P.ide ? `<p class="own ide"><strong>In VS Code:</strong> ${st.ide}</p>` : ''}${state === 'done' && st.after ? `<p class="after">${st.after}</p>` : ''}${hint}</div></li>`;
+    }).join('');
+    const next = P.cur + 1 < N
+      ? `<button type="button" class="btn primary" data-go="${P.cur + 1}">Start lesson ${P.cur + 2}: ${esc(LESSONS[P.cur + 1].short)}</button>`
+      : `<button type="button" class="btn primary" data-go="${FREE}">Practise in Free play</button><button type="button" class="btn" data-go="${SHEET}">Open the cheat sheet</button>`;
+    $('lesson').innerHTML = `<div class="lesson-in">
+      <p class="eyebrow">Lesson ${P.cur + 1} of ${N}</p>
+      <h1>${L.title}</h1>
+      <div class="prose">${L.intro}</div>
+      ${P.cur === 0 ? shellBox() : ''}
+      <h2>Do it: ${Math.min(P.prog, n)} of ${n} steps</h2>
+      <p class="hint">Steps run in order. The sandbox accepts only what the highlighted step asks for. Looking around (<code>git status</code>, <code>git log</code>, <code>ls</code>, opening files) is always allowed.</p>
+      <div class="owntoggle"><label for="own-toggle"><input type="checkbox" id="own-toggle"${P.own ? ' checked' : ''}><span><strong>I am also doing this on my own project.</strong> Show what to type or click on my own computer and on github.com under each step.</span></label>
+      <label for="ide-toggle"><input type="checkbox" id="ide-toggle"${P.ide ? ' checked' : ''}><span><strong>I use VS Code.</strong> Show how to do each step with its buttons instead of the terminal.</span></label></div>
+      <ol class="steps">${steps}</ol>
+      ${complete ? `<div class="complete"><h3>Lesson complete</h3><ul>${L.recap.map(r => `<li>${r}</li>`).join('')}</ul><div class="row">${next}</div></div>` : ''}
+      ${L.extra || ''}
+      <div class="row"><button type="button" class="btn" id="restart">Restart this lesson</button><span class="hint">Resets the sandbox to how this lesson began.</span></div>
+      <div class="reading"><h2>Further reading</h2><ul>${L.reading.map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul></div>
+    </div>`;
+  }
+  function freeHtml() {
+    const f = (SF.hooks && SF.hooks.fp) || {};
+    const ms = [
+      ['branch', `Create a branch for a piece of work: ${c('git switch -c my-change')}`],
+      ['commit', `Change a file in the <strong>Editor</strong>, then commit it on your branch: ${c('git add .')} ${c('git commit -m "Describe the change"')}`],
+      ['push', `Push the branch to GitHub: ${c('git push -u origin my-change')}`],
+      ['pr', `Open a pull request from the GitHub repository page.`],
+      ['merge', `Review the diff and merge the pull request.`],
+      ['sync', `Bring the merged result home: ${c('git switch main')} ${c('git pull')} and tidy up with ${c('git branch -d my-change')}`],
+      ['team', `Have Maya merge something (buttons below) while you are on a branch, then bring her work into it: ${c('git pull origin main')}`],
+      ['conflict', `Cause a conflict and resolve it. On a branch, change the <code>app =</code> line of <code>main.py</code> and commit. Have Maya change the same line. Pull, fix the file in the Editor, then ${c('git add main.py')} and ${c('git commit -m "Merge main"')}`]
+    ];
+    const done = ms.filter(m => f[m[0]]).length;
+    return `<div class="lesson-in">
+      <p class="eyebrow">Practice</p><h1>Free play</h1>
+      <div class="prose"><p>No steps and no guard rails. Every command, the editor and the GitHub page work whenever you like, so you can rehearse the whole workflow in your own order, make mistakes and see how Git responds.</p>
+      <p>This sandbox is separate from the lessons. It starts where lesson 6 ended: a project with history, connected to GitHub.</p></div>
+      <h2>Missions: ${done} of ${ms.length}</h2>
+      <p class="hint">Suggestions, not rules. Each one ticks itself when the sandbox sees it happen.</p>
+      <ol class="steps">${ms.map((m, i) => `<li class="step ${f[m[0]] ? 'done' : ''}"><span class="dot">${f[m[0]] ? '✓' : i + 1}</span><div class="body"><p>${m[1]}</p></div></li>`).join('')}</ol>
+      <h2>Bring in a teammate</h2>
+      <div class="prose"><p>Maya merges a pull request into <code>main</code> on GitHub the moment you press one of these.</p></div>
+      <div class="row"><button type="button" class="btn" data-act="maya-readme">Maya changes README.md</button><button type="button" class="btn" data-act="maya-main">Maya changes the “app =” line of main.py</button></div>
+      <p class="hint">The first merges cleanly with most work. The second conflicts if your branch changed that line too.</p>
+      <h2>Start over</h2>
+      <div class="row"><button type="button" class="btn" data-act="free-history">Reset to a project with history</button><button type="button" class="btn" data-act="free-empty">Reset to a blank start (no folder yet)</button></div>
+      <div class="row"><button type="button" class="btn primary" data-go="${P.cur}">Back to lesson ${P.cur + 1}</button><button type="button" class="btn" data-go="${SHEET}">Open the cheat sheet</button></div>
+    </div>`;
+  }
+  function errorsHtml() {
+    const fx = t => `<span class="fix">${esc(t)}</span>`;
+    const items = [
+      ["'ls' is not recognized as an internal or external command", 'You are in Windows Command Prompt, which names a few commands differently.', `Use ${fx('dir')} (or ${fx('dir /a')} to include hidden files), or switch to Git Bash. Set the terminal picker above so the lessons show the right names.`],
+      ["'git' is not recognized...   /   git: command not found", 'Git is not installed, or the terminal was opened before it was installed.', 'Install Git from git-scm.com/downloads, then close the terminal and open a new one.'],
+      ['fatal: not a git repository (or any of the parent directories): .git', 'The terminal is not inside a repository: you are in the wrong folder, or the folder has not been initialised.', `Move into the project folder with ${fx('cd your-folder')}. If it is a new project, run ${fx('git init')} there once.`],
+      ['fatal: detected dubious ownership in repository at ...', 'A Windows safety check. The .git folder belongs to a different user, usually because the repository was created in a terminal opened with "Run as administrator".', `Git prints the fix underneath the message. Copy and run it, then repeat your command: ${fx('git config --global --add safe.directory C:/path/to/your-folder')} For future projects, open the terminal normally before running git init.`],
+      ["fatal: pathspec 'README.md' did not match any files", 'There is no file with that exact name in the current folder. The lesson project has one; your project may not, or it is named differently (Notepad likes to save README.md.txt).', `Run ${fx('git status')} to see the real file names and add those, or ${fx('git add .')} to stage everything that is not ignored.`],
+      ['Author identity unknown   /   Please tell me who you are', 'First commit on this computer. Git labels every commit with a name and email and does not have yours yet.', `Run both once, then commit again: ${fx('git config --global user.name "Your Name"')} ${fx('git config --global user.email "you@example.com"')}`],
+      ['The terminal turned into a text editor after git commit', 'You ran git commit without -m, so Git opened its editor (often Vim) for the message.', `To leave without committing, type ${fx(':q!')} and press Enter. Then commit with ${fx('git commit -m "Describe the change"')}`],
+      ['nothing to commit, working tree clean   /   nothing added to commit', 'Not an error. Either nothing has changed since the last commit, or you changed files but have not staged them.', `Save your files in the editor, then ${fx('git add <file>')} before ${fx('git commit')}.`],
+      ['error: src refspec main does not match any', 'There is no branch called main with commits on it. Either nothing has been committed yet, or your branch is called master (the default in older Git versions).', `Look at the first line of ${fx('git status')}. Commit first if you have not. To rename the branch to main: ${fx('git branch -M main')}`],
+      ['remote: Repository not found   /   fatal: repository ... not found', 'The address in origin is wrong, the repository has not been created on GitHub, or you are signed in to an account without access.', `Check the address with ${fx('git remote -v')} and correct it with ${fx('git remote set-url origin <address>')}`],
+      ['error: remote origin already exists.', 'This folder is already linked to a remote.', `Change the address instead of adding it again: ${fx('git remote set-url origin <address>')}`],
+      ['Password authentication was removed   /   Authentication failed', 'GitHub does not accept your account password in the terminal.', 'Sign in through the browser window Git opens on the first push (Git for Windows and macOS do this), or create a personal access token on GitHub and paste it where the password is asked for.'],
+      ['! [rejected]  main -> main (fetch first)', 'GitHub has commits you do not have, so pushing would overwrite them.', `${fx('git pull')}, resolve any conflict (lesson 7), then ${fx('git push')}. If the pull answers "refusing to merge unrelated histories", the GitHub repository was created with its own README: run ${fx('git pull origin main --allow-unrelated-histories')} once.`],
+      ['fatal: Need to specify how to reconcile divergent branches', 'You ran git pull while both your branch and the remote one have new commits, and Git has not been told whether to merge or rebase.', `Tell it to merge, once: ${fx('git config --global pull.rebase false')} Then pull again.`],
+      ['A text editor opened during git merge or git pull', 'The merge was clean and Git is offering a ready-made message for the merge commit.', `Accept it. In Vim type ${fx(':wq')} and press Enter. In other editors, save and close the file.`],
+      ['warning: LF will be replaced by CRLF', 'Harmless on Windows. Git is telling you it will adjust line endings.', 'Nothing to do.']
+    ];
+    return `<h2 id="errors">When your own machine says something else</h2>
+      <div class="prose"><p>The sandbox is tidy. Real computers are not. These are the messages people most often meet when they follow the lessons on their own project, what each one means, and what to type.</p></div>
+      <div class="errs">${items.map(i => `<div class="err"><div class="m">${esc(i[0])}</div><p>${esc(i[1])}</p><p><strong>Fix:</strong> ${i[2]}</p></div>`).join('')}</div>`;
+  }
+  function sheetHtml() {
+    const rows = [
+      ['mkdir <name>, cd <name>', 'Make a project folder and move into it.', 'creates the working folder'],
+      ['git init', 'Turn the current folder into a repository. Once per project.', 'creates the local repository'],
+      ['git branch -M main', 'Rename the branch you are on to main (older Git starts on master).', 'local repository'],
+      ['git clone <address>', 'Download an existing GitHub repository, with its history, into a new folder.', 'GitHub → new working folder'],
+      ['git remote add origin <address>', 'Tell a local repository where its GitHub copy lives.', 'links local to GitHub'],
+      ['git status', 'Show what is changed, staged and untracked. Reads only.', 'nothing moves'],
+      ['git diff', 'Show the exact lines you changed and have not staged.', 'nothing moves'],
+      ['git add <file>', 'Pick a change for the next commit. <code>git add .</code> picks everything not ignored.', 'working folder → staging'],
+      ['git commit -m "msg"', 'Save the staged changes as a snapshot.', 'staging → local repository'],
+      ['git log --oneline', 'List the commits, newest first.', 'nothing moves'],
+      ['git switch -c <name>', 'Create a branch and move onto it.', 'local repository'],
+      ['git push -u origin <branch>', 'Upload a branch for the first time. Afterwards plain <code>git push</code>.', 'local repository → GitHub'],
+      ['git pull', 'Download new commits and update your files.', 'GitHub → local → working folder'],
+      ['git pull origin main', 'Bring teammates\' merged work into the branch you are on.', 'GitHub → your branch'],
+      ['git merge --abort', 'Cancel a merge that hit a conflict and put the files back.', 'nothing moves'],
+      ['git restore --staged <file>', 'Unstage a file you added by mistake. Your edit is kept.', 'staging → working folder'],
+      ['git rm --cached <file>', 'Stop tracking a file but keep it on disk (for a committed <code>.env</code>).', 'leaves the repository']
+    ];
+    return `<div class="lesson-in">
+      <p class="eyebrow">Reference</p><h1>Help and cheat sheet</h1>
+      <div class="prose"><p>Everything from the eight lessons on one page. To try any of it without restrictions, use <strong>Free play</strong>.</p></div>
+      ${shellBox()}
+      ${errorsHtml()}
+      <h2>Git in VS Code</h2>
+      <div class="prose"><p>VS Code, and editors built on it, put buttons on the same Git commands. Nothing different happens underneath, so the lessons apply unchanged. Tick <em>I use VS Code</em> above any lesson's steps to see the button for each step. The essentials:</p></div>
+      <div class="sheet-table"><table><thead><tr><th>In the terminal</th><th>In VS Code</th></tr></thead><tbody>
+        <tr><td><span class="mono">git init</span></td><td>Source Control view (branching icon, Ctrl+Shift+G), <strong>Initialize Repository</strong></td></tr>
+        <tr><td><span class="mono">git status</span></td><td>The Source Control view itself: <strong>Changes</strong> and <strong>Staged Changes</strong>. U is untracked, M modified, A added, ! conflict.</td></tr>
+        <tr><td><span class="mono">git diff</span></td><td>Click a file under <strong>Changes</strong></td></tr>
+        <tr><td><span class="mono">git add</span></td><td>The <strong>+</strong> beside a file, or on the <strong>Changes</strong> heading for all</td></tr>
+        <tr><td><span class="mono">git commit -m</span></td><td>Message box, then <strong>Commit</strong></td></tr>
+        <tr><td><span class="mono">git switch -c</span></td><td>Branch name in the status bar (bottom left), <strong>Create new branch...</strong></td></tr>
+        <tr><td><span class="mono">git push -u</span></td><td><strong>Publish Branch</strong></td></tr>
+        <tr><td><span class="mono">git push</span>, <span class="mono">git pull</span></td><td><strong>Sync Changes</strong> (pulls, then pushes), or <strong>...</strong> › Pull / Push</td></tr>
+        <tr><td>Conflict</td><td>File under <strong>Merge Changes</strong>, then Accept Current / Incoming / Both, or the Merge Editor</td></tr>
+        <tr><td>Anything else</td><td>Command Palette (Ctrl+Shift+P), type <strong>Git:</strong> to list every Git action. Or use the built-in terminal: <strong>Terminal › New Terminal</strong>.</td></tr>
+      </tbody></table></div>
+      <div class="prose"><p>On Windows the built-in terminal opens PowerShell by default. The arrow beside the <strong>+</strong> in the terminal panel lets you open Git Bash instead.</p></div>
+      <h2>Files for working with an AI agent</h2>
+      <div class="sheet-table"><table><thead><tr><th>File</th><th>What goes in it</th></tr></thead><tbody>
+        <tr><td><span class="mono">AGENTS.md</span></td><td>Commands to install, run and test. Conventions. Rules. Read by most coding agents.</td></tr>
+        <tr><td><span class="mono">CLAUDE.md</span></td><td>One line, <span class="mono">@AGENTS.md</span>, plus anything for Claude Code only.</td></tr>
+        <tr><td><span class="mono">DESIGN.md</span></td><td>Design values at the top, usage rules below. For projects with a user interface.</td></tr>
+        <tr><td><span class="mono">tokens.json</span></td><td>The design values as data, in the Design Tokens format.</td></tr>
+        <tr><td><span class="mono">specs/*.md</span></td><td>One file per feature: goal, acceptance criteria, out of scope.</td></tr>
+        <tr><td><span class="mono">.env.example</span></td><td>Names of settings, no values.</td></tr>
+        <tr><td><span class="mono">.gitignore</span></td><td><span class="mono">.env</span>, <span class="mono">CLAUDE.local.md</span> and other personal files.</td></tr>
+      </tbody></table></div>
+      <div class="prose"><p>Lesson 8 builds each of these. These conventions are young and still changing, so follow the links at the end of that lesson for the current rules.</p></div>
+      <h2>The everyday loop</h2>
+      <div class="prose"><ul>
+        <li>Start from the latest: ${c('git switch main')} ${c('git pull')}</li>
+        <li>Branch for the piece of work: ${c('git switch -c my-change')}</li>
+        <li>Edit and save your files, then check: ${c('git status')} ${c('git diff')}</li>
+        <li>Save: ${c('git add .')} ${c('git commit -m "Describe the change"')}</li>
+        <li>Share: ${c('git push -u origin my-change')}, then open a pull request on GitHub</li>
+        <li>After it merges: ${c('git switch main')} ${c('git pull')} ${c('git branch -d my-change')}</li>
+      </ul></div>
+      <h2>Commands</h2>
+      <div class="sheet-table"><table><thead><tr><th>Command</th><th>What it does</th><th>Moves work</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td><code>${esc(r[0])}</code></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}
+      </tbody></table></div>
+      <h2>When a merge conflicts</h2>
+      <div class="prose"><ul>
+        <li>${c('git status')} lists the files marked <em>both modified</em>.</li>
+        <li>Open each one. Yours is between <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> and <code>=======</code>, theirs between <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>. Make it read correctly and delete the markers.</li>
+        <li><code>git add &lt;file&gt;</code>, then <code>git commit</code>, then <code>git push</code>.</li>
+      </ul></div>
+      <h2>.env rules</h2>
+      <div class="prose"><ul>
+        <li>Secrets live in <code>.env</code>, and <code>.env</code> is listed in <code>.gitignore</code> before the first commit.</li>
+        <li>Commit <code>.gitignore</code> and a value-free <code>.env.example</code>.</li>
+        <li>If a secret reaches a commit, replace the key. Removing the file does not remove it from history.</li>
+      </ul></div>
+      <h2>Words you will hear</h2>
+      <div class="prose"><dl>
+        <dt>Repository (repo)</dt><dd>A project folder plus its Git history.</dd>
+        <dt>Commit</dt><dd>One saved snapshot with a message.</dd>
+        <dt>Branch</dt><dd>A named line of commits. <code>main</code> is the trusted one.</dd>
+        <dt>HEAD</dt><dd>Where you are right now: the branch and commit your folder reflects.</dd>
+        <dt>origin</dt><dd>The usual nickname for the GitHub copy.</dd>
+        <dt>Pull request</dt><dd>A GitHub page asking to merge one branch into another, with review.</dd>
+        <dt>Merge</dt><dd>Combining one branch's commits into another.</dd>
+        <dt>Conflict</dt><dd>Two people changed the same lines, so Git asks you to choose.</dd>
+      </dl></div>
+      <div class="reading"><h2>Further reading</h2><ul>
+        <li><a href="https://git-scm.com/book/en/v2" target="_blank" rel="noopener">Pro Git, the free official book</a> (chapters 1 to 3 cover everything here in depth)</li>
+        <li><a href="https://docs.github.com/en/get-started/using-github/github-flow" target="_blank" rel="noopener">GitHub flow</a>, the branch and pull request routine</li>
+        <li><a href="https://docs.github.com/en/code-security/secret-scanning/introduction/about-secret-scanning" target="_blank" rel="noopener">GitHub secret scanning</a>, a safety net for leaked keys</li>
+      </ul></div>
+      <div class="row">${free() ? `<button type="button" class="btn primary" data-go="${FREE}">Back to Free play</button>` : `<button type="button" class="btn primary" data-go="${P.cur}">Back to lesson ${P.cur + 1}</button>`}</div>
+    </div>`;
+  }
+
+  function commitList(ids, labelsFor, mainId) {
+    const all = new Set(); ids.forEach(id => E.ancestors(S, id).forEach(x => all.add(x)));
+    const list = [...all].map(x => S.commits[x]).sort((a, b) => b.n - a.n), show = list.slice(0, 4);
+    if (!list.length) return '';
+    return show.map(cm => `<div class="commit ${E.isAnc(S, cm.id, mainId) ? '' : 'side'}"><div class="c-body"><span class="hash">${cm.id}</span><span class="msg">${esc(cm.msg)}</span>${labelsFor(cm.id)}</div></div>`).join('')
+      + (list.length > 4 ? `<div class="empty">+ ${list.length - 4} earlier</div>` : '');
+  }
+  function renderMap() {
+    const r = S.repo, st = r ? E.status(S) : null, mv = curMove();
+    const can = k => free() || (mv && mv.t === 'gh' && mv.v === k);
+    const lock = k => (can(k) ? '' : ' disabled title="Available when a lesson reaches this step, or any time in Free play"');
+    const names = Object.keys(S.files).sort();
+    const rows = (r ? `<div class="win-row dotfile">${dirIcon}<span class="mono">.git</span><span class="chip">Git's data</span></div>` : '') + names.map(p => {
+      let chip = '', cls = p.startsWith('.') ? 'dotfile' : '';
+      if (r) {
+        if (st.unmerged.includes(p)) chip = '<span class="chip conflict">conflict</span>';
+        else if (st.ignored.includes(p)) { chip = '<span class="chip">ignored</span>'; cls += ' ignored'; }
+        else if (st.untracked.includes(p)) chip = '<span class="chip untracked">untracked</span>';
+        else if (st.unstaged.some(x => x[1] === p)) chip = '<span class="chip changed">changed</span>';
+        else if (st.staged.some(x => x[1] === p)) chip = '<span class="chip staged">staged</span>';
+        else chip = '<span class="chip">committed</span>';
+      }
+      return `<button type="button" class="win-row ${cls}" data-open="${esc(p)}" title="Open in the editor">${fileIcon}<span class="mono">${esc(p)}</span>${chip}</button>`;
+    }).join('');
+    const n = names.length + (r ? 1 : 0);
+    const files = atHome()
+      ? `<div class="win"><div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="win-title">${dirIcon}you</span></div>
+      <div class="win-path">home › you</div><div class="win-cols"><span>Name</span><span></span></div>
+      ${S.proj ? `<div class="win-row">${dirIcon}<span class="mono">${esc(S.proj)}</span><span class="chip">folder</span></div>` : '<div class="win-row empty">This folder is empty.</div>'}<div class="win-foot">${S.proj ? '1 item' : '0 items'}</div></div>`
+      : `<div class="win"><div class="win-bar"><span class="dots"><i></i><i></i><i></i></span><span class="win-title">${dirIcon}${esc(proj())}</span></div>
+      <div class="win-path">you › ${esc(proj())}</div><div class="win-cols"><span>Name</span><span>${r ? 'Git status' : ''}</span></div>
+      ${rows || '<div class="win-row empty">This folder is empty.</div>'}<div class="win-foot">${n} item${n === 1 ? '' : 's'}</div></div>`;
+    const staged = !r ? '<div class="empty">Appears after <code>git init</code>.</div>'
+      : st.staged.length ? st.staged.map(([k, p]) => `<div class="file"><span class="mono">${esc(p)}</span><span class="chip new">${k}</span></div>`).join('')
+      : '<div class="empty">Nothing staged.</div>';
+    const mergeNote = r && r.merging ? '<div class="chip conflict">merge in progress</div>' : '';
+    let local = '<div class="empty">Appears after <code>git init</code>.</div>';
+    if (r) {
+      const labels = id => Object.keys(r.branches).filter(b => r.branches[b] === id).map(b => `<span class="chip ${b === r.head ? 'head' : ''}">${b === r.head ? 'HEAD → ' : ''}${esc(b)}</span>`).join('')
+        + Object.keys(r.tracking).filter(b => r.tracking[b] === id).map(b => `<span class="chip">origin/${esc(b)}</span>`).join('');
+      local = commitList(Object.values(r.branches).filter(Boolean), labels, r.branches.main) || `<div class="empty">No commits yet. You are on <span class="chip head">${esc(r.head)}</span></div>`;
+    }
+    let remote = `<div class="repo"><div class="repo-head"><b>Create a new repository</b></div><div class="repo-body">
+      <div class="repo-row"><span>Owner</span><span class="chip">you</span><span>/</span><span>Repository name</span><span class="chip head">${esc(proj())}</span></div>
+      <div class="repo-row"><span>Visibility</span><span class="chip head">Private</span><span class="chip">Public</span></div>
+      <div class="repo-row"><span>Add a README</span><span class="chip">Off</span></div>
+      <button type="button" class="btn merge" data-act="repo-create"${lock('create')}>Create repository</button>
+      <div class="empty">No repository on GitHub yet. ${free() ? '' : 'Lesson 5 creates it.'}</div></div></div>`;
+    if (S.remote) {
+      const R = S.remote, labels = id => Object.keys(R.branches).filter(b => R.branches[b] === id).map(b => `<span class="chip ${b === 'main' ? 'head' : ''}">${esc(b)}</span>`).join('');
+      const bnames = Object.keys(R.branches).sort((x, y) => (y === 'main') - (x === 'main') || x.localeCompare(y));
+      if (!(ghBranch in R.branches)) ghBranch = 'main';
+      const all = new Set(); Object.values(R.branches).forEach(id => E.ancestors(S, id).forEach(x => all.add(x)));
+      const openN = R.prs.filter(p => p.status === 'open').length;
+      const prName = pr => `<span class="pr-name">#${pr.id} ${esc(pr.title)}</span>`;
+      let body = '';
+      if (ghTab === 'code') {
+        E.prCandidates(S).forEach(b => {
+          if (prDraft && prDraft.branch === b)
+            body += `<div class="pr"><b>Open a pull request</b><span><span class="chip">${esc(b)}</span> → <span class="chip head">main</span></span><label for="pr-title">Pull request name</label><input id="pr-title" class="pr-input" type="text" value="${esc(prDraft.title)}"><button type="button" class="btn merge" data-act="pr-create">Create pull request</button></div>`;
+          else body += `<div class="pr banner"><span><b>${esc(b)}</b> had recent pushes.</span><button type="button" class="btn" data-act="pr-new" data-branch="${esc(b)}"${lock('open')}>Compare &amp; pull request</button></div>`;
+        });
+        const hid = R.branches[ghBranch];
+        if (!hid) body += `<div class="pr"><b>Quick setup</b><span>This repository is empty. To push an existing project from the command line:</span>${c('git remote add origin ' + R.url)}${c('git push -u origin main')}</div>`;
+        else {
+          const anc = [...E.ancestors(S, hid)].map(x => S.commits[x]).sort((x, y) => y.n - x.n), top = anc[0], t = top.tree;
+          const touch = p => (anc.find(cm => cm.tree[p] !== E.tree(S, cm.parents[0])[p]) || top).msg;
+          body += `<div class="repo-row"><label for="gh-branch">Branch</label><select id="gh-branch">${bnames.map(b => `<option${b === ghBranch ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select><span>${bnames.length} branch${bnames.length === 1 ? '' : 'es'}</span></div>
+            <div class="repo-box"><div class="repo-latest"><span class="avatar">${esc(top.author[0])}</span><b>${esc(top.author)}</b><span class="msg">${esc(top.msg)}</span><span class="hash">${top.id} · ${anc.length} commit${anc.length === 1 ? '' : 's'}</span></div>
+            ${Object.keys(t).sort().map(p => `<div class="repo-file">${fileIcon}<span class="mono">${esc(p)}</span><span class="m">${esc(touch(p))}</span></div>`).join('')}</div>`;
+        }
+      } else if (ghTab === 'commits') {
+        body = commitList(Object.values(R.branches), labels, R.branches.main) || '<div class="empty">No commits yet.</div>';
+      } else {
+        R.prs.slice().reverse().forEach(pr => {
+          if (pr.status === 'merged') { body += `<div class="pr"><span class="row"><span class="chip merged">Merged</span>${prName(pr)}</span></div>`; return; }
+          const d = E.prDiff(S, pr);
+          body += `<div class="pr open"><span class="row"><span class="chip new">Open</span>${prName(pr)}</span><span><span class="chip">${esc(pr.branch)}</span> → <span class="chip head">main</span></span>
+            <div class="diff">${d.map(f => `<div class="f">${esc(f.path)}  +${f.add} −${f.del}</div>` + f.lines.filter(l => l.k !== ' ').map(l => `<div class="${l.k === '+' ? 'a' : 'd'}">${l.k}${esc(l.t)}</div>`).join('')).join('')}</div>
+            <button type="button" class="btn merge" data-act="pr-merge" data-id="${pr.id}"${lock('merge')}>Merge pull request</button></div>`;
+        });
+        if (!R.prs.length) body = '<div class="empty">No pull requests yet. Push a branch, then open one from the Code tab.</div>';
+      }
+      const tab = (id, label, count, hot) => `<button type="button" role="tab" data-ghtab="${id}" aria-selected="${ghTab === id}">${label}${count == null ? '' : `<span class="count ${hot ? 'hot' : ''}">${count}</span>`}</button>`;
+      remote = `<div class="repo"><div class="repo-head">${dirIcon}<span class="owner">you /</span><b>${esc(proj())}</b><span class="chip">Private</span></div>
+        <div class="repo-tabs" role="tablist">${tab('code', 'Code')}${tab('commits', 'Commits', all.size)}${tab('prs', 'Pull requests', openN, openN > 0)}</div>
+        <div class="repo-body">${body}</div></div>`;
+    }
+    $('map').innerHTML = `<div class="map-head"><b>Where your work lives</b><span>${free() ? 'Free play sandbox' : `Lesson ${P.cur + 1} sandbox`}</span></div><div class="zones">
+      <div class="zone wide" id="z1"><div><h3>Working folder</h3><div class="sub">the files you edit, on your computer</div></div><div class="list">${files}</div><div class="exit">git add →</div></div>
+      <div class="zone" id="z2"><div><h3>Staging area</h3><div class="sub">picked for the next commit</div></div><div class="list">${mergeNote}${staged}</div><div class="exit">git commit →</div></div>
+      <div class="zone" id="z3"><div><h3>Local repository</h3><div class="sub">history on your computer</div></div><div class="list">${local}</div><div class="exit">git push →</div></div>
+      <div class="zone wide" id="z4"><div><h3>GitHub</h3><div class="sub">the shared remote, <span class="mono">origin</span>, in your browser</div></div><div class="list">${remote}</div><div class="exit">← git pull</div></div>
+    </div>`;
+  }
+  function render() { renderNav(); renderLesson(); renderMap(); renderEditor(); localize(); $('tprompt').textContent = promptText(); $('shell-sel').value = shell(); }
+
+  /* ----- events ----- */
+  document.addEventListener('click', e => {
+    const opn = e.target.closest('[data-open]'); if (opn) { edFile = opn.dataset.open; edMsg = ''; naming = false; setPanel('ed'); return; }
+    const shb = e.target.closest('[data-shell]'); if (shb) { setShell(shb.dataset.shell); return; }
+    const gt = e.target.closest('[data-ghtab]'); if (gt) { ghTab = gt.dataset.ghtab; renderMap(); return; }
+    const snip = e.target.closest('.snip');
+    if (snip) { edOpen(snip.dataset.file, snip.dataset.text, snip.dataset.mode, snip.dataset.find); return; }
+    const keep = e.target.closest('[data-keep]');
+    if (keep && edFile != null) { const t = E.resolve($('ed-text').value, keep.dataset.keep); if (t === S.files[edFile]) delete drafts[edFile]; else drafts[edFile] = t; edMsg = ''; renderEditor(); return; }
+    const tab = e.target.closest('[data-panel]'); if (tab) { setPanel(tab.dataset.panel); return; }
+    const ef = e.target.closest('[data-edfile]'); if (ef) { edFile = ef.dataset.edfile; edMsg = ''; naming = false; renderEditor(); return; }
+    if (e.target.closest('#ed-add')) { if (atHome()) { edMsg = 'No project folder is open. In the terminal, create one with mkdir, then move into it with cd.'; renderEditor(); return; } naming = true; renderEditor(); $('ed-name').focus(); return; }
+    if (e.target.closest('#ed-save')) { edSave(); return; }
+    const cmdBtn = e.target.closest('.cmd');
+    if (cmdBtn) {
+      setPanel('term');
+      const inp = $('tin'); inp.value = cmdBtn.dataset.cmd; inp.focus({ preventScroll: true });
+      if (window.matchMedia('(max-width:1039px)').matches) inp.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    const goBtn = e.target.closest('[data-go]'); if (goBtn) { go(+goBtn.dataset.go); return; }
+    if (e.target.closest('#restart')) { restart(); return; }
+    const act = e.target.closest('[data-act]');
+    if (act && !act.disabled) {
+      const a = act.dataset.act;
+      if (a === 'maya-readme' || a === 'maya-main') { maya(a.slice(5)); return; }
+      if (a === 'free-history' || a === 'free-empty') { SF = freshFree(a.slice(5)); S = SF; resetUi(); line(''); line(`Free play reset: ${a === 'free-empty' ? 'a blank start in your home folder, before mkdir' : 'a project with history, connected to GitHub'}.`, 'meta'); save(); render(); bottom(); return; }
+      if (a === 'repo-create') { E.createRepo(S); ghTab = 'code'; line(`GitHub: created the empty repository you/${proj()}.`, 'pr'); }
+      if (a === 'pr-new') { const b = act.dataset.branch; prDraft = { branch: b, title: S.commits[S.remote.branches[b]].msg }; renderMap(); const t = $('pr-title'); if (t) { t.focus(); t.select(); } return; }
+      if (a === 'pr-create') { const pr = E.openPR(S, prDraft.branch, ($('pr-title').value || '').trim()); prDraft = null; ghTab = 'prs'; line(`GitHub: opened pull request #${pr.id} "${pr.title}".`, 'pr'); }
+      if (a === 'pr-merge') { const pr = E.mergePR(S, +act.dataset.id); if (pr) line(`GitHub: merged pull request #${pr.id} "${pr.title}" into main.`, 'pr'); }
+      if (free()) freeFlags(); else advance();
+      save(); render(); flash('pr'); bottom(); follow();
+    }
+  });
+  $('map').addEventListener('change', e => { if (e.target.id === 'gh-branch') { ghBranch = e.target.value; renderMap(); localize(); } });
+  $('shell-sel').addEventListener('change', e => setShell(e.target.value));
+  $('lesson').addEventListener('change', e => { if (e.target.id === 'own-toggle' || e.target.id === 'ide-toggle') { P[e.target.id === 'own-toggle' ? 'own' : 'ide'] = e.target.checked; save(); const y = $('lesson').scrollTop; render(); $('lesson').scrollTop = y; } });
+  $('tform').addEventListener('submit', e => { e.preventDefault(); const v = $('tin').value; $('tin').value = ''; exec(v); });
+  $('ed-text').addEventListener('input', () => {
+    if (edFile == null) return;
+    const v = $('ed-text').value; if (v === S.files[edFile]) delete drafts[edFile]; else drafts[edFile] = v;
+    edMsg = ''; renderEditor();
+  });
+  $('ed-text').addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); edSave(); } });
+  $('ed-tabs').addEventListener('submit', e => {
+    e.preventDefault();
+    const name = ($('ed-name').value || '').trim().replace(/^\.\//, '');
+    if (!name || /[\s\/]/.test(name)) { $('ed-status').textContent = 'Use a file name without spaces or slashes, for example .env'; return; }
+    if (!(name in S.files) && !(name in drafts)) drafts[name] = '';
+    edFile = name; naming = false; edMsg = ''; renderEditor(); $('ed-text').focus();
+  });
+  $('tin').addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp' && hist.length) { e.preventDefault(); hi = Math.max(0, hi - 1); $('tin').value = hist[hi]; }
+    else if (e.key === 'ArrowDown' && hist.length) { e.preventDefault(); hi = Math.min(hist.length, hi + 1); $('tin').value = hist[hi] || ''; }
+  });
+  $('btn-help').addEventListener('click', () => exec('help'));
+  $('btn-clear').addEventListener('click', () => { $('tout').textContent = ''; });
+  $('tout').addEventListener('click', () => { if (!String(window.getSelection())) $('tin').focus({ preventScroll: true }); });
+
+  /* ----- boot ----- */
+  function start(data) {
+    const d = (data && data.SL && data.SF && data.P) ? data : load();
+    if (d && d.SL) { SL = d.SL; SF = d.SF; P = d.P; }
+    else { SL = Engine.fresh(); SF = freshFree('history'); P = { cur: 0, view: 0, prog: 0, sub: 0, best: (d && d.best) || LESSONS.map(() => 0), mode: 'lesson' }; }
+    S = free() ? SF : SL;
+    welcome(); ensureBefore(); render();
+  }
+  const hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(() => ({ SL, SF, P }));
+  if (hot && hot.ready) hot.ready(start); else start((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>

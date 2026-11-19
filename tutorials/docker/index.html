@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker from Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: lesson on the left; on the right the Kestrel Mk II blueprint and a live map of what Docker holds, above a terminal that changes it. One dark terminal world; on phones the map-and-terminal bench sits inside the lesson, under the steps. */
+:root{
+  --bg:#0a0e13; --surface:#10161c; --sunk:#172029; --ink:#d6dfe6; --muted:#8696a3; --line:#222e38;
+  --accent:#4aa3ff; --accent-ink:#04121f; --accent-soft:#12283f;
+  --good:#3ddc97; --good-soft:#0f2e22; --warn:#f2b84b; --warn-soft:#33270d; --bad:#ff7b72; --bad-soft:#3b1716;
+  --term:#05080b; --term-ink:#cfdae2; --term-dim:#7d8d99; --term-line:#1a242d;
+  --display:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+a{color:var(--accent)}
+code,pre{font-family:var(--mono);font-size:.9em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:14px 16px 12px;position:sticky;top:0;z-index:5}
+.top-in{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.brand{font:700 1.25rem/1.2 var(--display);letter-spacing:-.01em;margin:0}
+.brand span{color:var(--accent)}
+#progress-text{font-size:.85rem;color:var(--muted);margin-left:auto;font-variant-numeric:tabular-nums}
+.bar{flex-basis:100%;height:4px;background:var(--sunk);border-radius:2px;overflow:hidden;margin-top:6px}
+#progress-bar{height:100%;width:0;background:var(--accent);transition:width .3s}
+.shell{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr)}
+#nav{display:flex;gap:8px;overflow-x:auto;padding:12px 16px;scrollbar-width:thin}
+.nav-item{display:flex;align-items:center;gap:8px;flex:none;padding:6px 12px 6px 6px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);text-decoration:none;font-size:.9rem;white-space:nowrap}
+.nav-item .num{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--sunk);font:500 .8rem var(--mono)}
+.nav-item.done .num{background:var(--good-soft);color:var(--good)}
+.nav-item.active{border-color:var(--accent);background:var(--accent-soft)}
+.nav-item.active .num{background:var(--accent);color:var(--accent-ink)}
+main{padding:8px 16px 64px;min-width:0}
+article{max-width:760px}
+.eyebrow{font:500 .8rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 4px}
+h1{font:700 clamp(1.9rem,6vw,2.7rem)/1.1 var(--display);letter-spacing:-.02em;margin:0 0 16px;text-wrap:balance}
+h2{font:600 1.35rem/1.25 var(--display);margin:40px 0 8px;text-wrap:balance}
+h3{font:600 1rem/1.3 var(--body);margin:20px 0 6px}
+h4{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+p{margin:0 0 12px}
+.prose ul,.prose ol{padding-left:22px;margin:0 0 12px}
+.prose li{margin-bottom:6px}
+.prose code,.task code,.explain code,.saw code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+dl.terms{margin:16px 0;display:grid;gap:10px}
+dl.terms dt{font-weight:600}
+dl.terms dd{margin:0;padding-left:14px;border-left:3px solid var(--accent-soft);color:var(--ink)}
+pre.file{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px 14px;overflow-x:auto;margin:0 0 12px}
+.widget{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:16px;display:flex;flex-direction:column;gap:14px}
+.caption{font-size:.92rem;color:var(--muted);margin:0}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{font-size:.85rem;color:var(--muted)}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:4px;padding:9px 14px;font-weight:600;text-decoration:none;align-self:flex-start}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.mini{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:4px 10px;font-size:.85rem}
+.mini.dark{background:transparent;border-color:var(--term-line);color:var(--term-ink)}
+.segs{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden;align-self:flex-start}
+.seg{background:var(--surface);border:0;padding:8px 14px;font-weight:500}
+.seg+.seg{border-left:1px solid var(--line)}
+.seg[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.pill{display:inline-block;font:500 .72rem var(--mono);padding:2px 8px;border-radius:3px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.re{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.empty{color:var(--muted);font-size:.9rem;margin:0}
+/* stack diagram */
+.stack{display:flex;flex-direction:column;gap:6px}
+.stack-row{display:flex;gap:6px}
+.blk{flex:1;text-align:center;padding:10px 6px;border-radius:4px;font-size:.88rem;font-weight:500;border:1px solid var(--line);background:var(--sunk)}
+.blk.app{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.blk.lib{background:var(--accent-soft)}
+.blk.os{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.blk.eng{background:var(--good-soft);color:var(--good);border-color:transparent}
+/* layers */
+.layers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;align-items:end}
+.col-h{font:500 .75rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.layer{border:1px solid var(--line);background:var(--sunk);border-radius:4px;padding:8px 10px;margin-bottom:4px;display:flex;flex-direction:column}
+.layer span{font:400 .75rem var(--mono);color:var(--muted)}
+.layer.rw{background:var(--good-soft);border-color:transparent}
+.cons{display:flex;flex-wrap:wrap;gap:10px}
+.con{flex:1 1 130px;border:1px dashed var(--line);border-radius:4px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.uses{font-size:.75rem;color:var(--muted);text-align:center}
+/* annotated code */
+.scroll-x{overflow-x:auto;border-radius:4px;background:var(--term)}
+.code-lines{display:inline-flex;flex-direction:column;min-width:100%;padding:10px 0}
+.cl{font:400 .84rem/1.5 var(--mono);white-space:pre;text-align:left;background:none;border:0;border-left:3px solid transparent;color:var(--term-ink);padding:3px 14px 3px 11px}
+.cl.plain{color:var(--term-dim)}
+button.cl:hover{background:var(--term-line)}
+.cl[aria-pressed="true"]{background:var(--term-line);border-left-color:var(--accent)}
+.explain{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.explain code{display:inline-block;margin-bottom:6px;white-space:pre-wrap;word-break:break-word}
+.explain p{margin:0}
+.cache{border-top:1px solid var(--line);padding-top:6px;display:flex;flex-direction:column;gap:12px}
+.cache h3,.cache p{margin:0}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.steps li{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:4px;padding:6px 10px}
+.steps code{overflow-wrap:anywhere;font-size:.82rem}
+/* ports */
+.port-form{display:flex;align-items:flex-end;gap:8px}
+.port-form label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:4px}
+.port-form input,#cheat-filter{font:500 16px var(--mono);padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);width:118px}
+.colon{font:600 1.4rem var(--mono);padding-bottom:6px}
+.cmdline{background:var(--term);color:var(--term-ink);padding:10px 12px;border-radius:4px;overflow-x:auto;white-space:nowrap;display:block}
+.path{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.hop{flex:1 1 130px;border:1px solid var(--line);border-radius:4px;padding:8px 10px;font-size:.82rem;color:var(--muted);background:var(--sunk)}
+.hop b{color:var(--ink);font-family:var(--mono);font-weight:500}
+.arrow{font-size:1.2rem;color:var(--good)}
+.arrow.broken{color:var(--bad)}
+.verdict{margin:0;padding:10px 12px;border-radius:4px;font-size:.95rem}
+.verdict.good,.fb.good{background:var(--good-soft);color:var(--good)}
+.verdict.bad,.fb.bad{background:var(--bad-soft);color:var(--bad)}
+/* tasks */
+.tasks{list-style:none;margin:16px 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.task{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--surface)}
+.task.todo{opacity:.6;background:transparent}
+.task.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.task-h{display:flex;gap:10px;align-items:flex-start}
+.mark{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sunk);font:500 .78rem var(--mono);margin-top:1px}
+.task.done .mark{background:var(--good-soft);color:var(--good)}
+.task.now .mark{background:var(--accent);color:var(--accent-ink)}
+.what{font-weight:600}
+.ran{display:block;margin:8px 0 6px 34px;overflow-wrap:anywhere}
+.saw{margin:0 0 0 34px;font-size:.92rem;color:var(--muted)}
+.cmd{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;margin:10px 0;background:var(--term);color:var(--term-ink);border:0;border-radius:4px;padding:10px 12px}
+.task .cmd code{background:none;padding:0;overflow-wrap:anywhere;font-size:.9rem}
+.tap{font:500 .72rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+dl.parts{margin:0;display:grid;gap:6px}
+dl.parts dt code{font-weight:500}
+dl.parts dd{margin:0 0 4px;font-size:.92rem;color:var(--muted)}
+.banner{background:var(--good-soft);color:var(--good);border-radius:4px;padding:10px 12px;margin-bottom:12px;font-size:.95rem}
+.banner .mini{color:var(--ink);margin-top:6px}
+/* terminal */
+.term{background:var(--term);border-radius:4px;overflow:hidden;border:1px solid var(--term-line)}
+.term-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--term-line);font:500 .75rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+.term-out{height:260px;overflow:auto;padding:10px 12px;font:400 .8rem/1.5 var(--mono);color:var(--term-ink)}
+.tl{white-space:pre;min-height:1.2em}
+.tl.in{color:#fff;font-weight:500;margin-top:6px}
+.tl.err{color:#ffb4a8}
+.tl.note{color:var(--term-dim);white-space:pre-wrap}
+.term-in{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--term-line)}
+.prompt{font:500 1rem var(--mono);color:#7fd1a6}
+.term-in input{flex:1;min-width:0;background:transparent;border:0;color:#fff;font:400 16px var(--mono);padding:6px 0}
+.term-in input::placeholder{color:var(--term-dim)}
+.term-in input:focus{outline:none}
+.term-in:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
+.run{background:#7fd1a6;color:#06231a;border:0;border-radius:4px;padding:8px 16px;font-weight:600}
+.world-wrap{margin-top:14px}
+.world{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.wg{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:10px 12px}
+.wg ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.wg li{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;font-size:.9rem}
+.wg b{font-family:var(--mono);font-weight:500;overflow-wrap:anywhere}
+.sub{flex-basis:100%;font:400 .75rem var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.pill.off{background:var(--sunk)}
+/* quiz */
+.q{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:12px}
+.qt{font-weight:600}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fb{margin:10px 0 0;border-radius:4px;font-size:.93rem}
+.fb.good,.fb.bad{padding:9px 12px}
+.reading{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.reading li{display:flex;flex-direction:column}
+.reading a{font-weight:600}
+.reading span{font-size:.92rem;color:var(--muted)}
+.pager{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+.cheats h3{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
+dl.cheat{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+dl.cheat dt code{font-weight:500;overflow-wrap:anywhere}
+dl.cheat dd{margin:0 0 8px;font-size:.9rem;color:var(--muted)}
+#cheat-filter{width:100%;font-family:var(--body)}
+@media (min-width:640px){dl.cheat{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:6px 16px}dl.cheat dd{margin:0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* terminal / dashboard chrome */
+header.top{background:var(--surface);padding:10px 16px 0}
+.top-in{align-items:center;gap:6px 12px}
+.dots{display:inline-flex;gap:6px}
+.dots i{width:11px;height:11px;border-radius:50%;background:var(--bad)}
+.dots i:nth-child(2){background:var(--warn)}
+.dots i:nth-child(3){background:var(--good)}
+.brand{font:500 .95rem/1.2 var(--mono);letter-spacing:0;color:var(--ink)}
+.brand span{color:var(--good)}
+.cur{display:inline-block;width:.55em;height:1.05em;background:var(--good);vertical-align:-.15em;margin-left:3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#progress-text{font:400 .78rem var(--mono)}
+.bar{height:2px;border-radius:0;margin-top:10px;background:var(--line)}
+#progress-bar{background:var(--good)}
+.nav-item{font:400 .82rem var(--mono);padding:5px 10px 5px 5px}
+.nav-item .num{border-radius:3px;width:28px;height:24px;font-size:.75rem}
+.nav-item.active{background:var(--accent-soft)}
+.eyebrow{color:var(--good);text-transform:none;letter-spacing:0}
+.eyebrow::before{content:"$ ";color:var(--muted)}
+h1{font:700 clamp(1.5rem,5.4vw,2.1rem)/1.2 var(--mono);letter-spacing:-.01em}
+h1::before{content:"> ";color:var(--accent)}
+h2{font:700 1.08rem/1.3 var(--mono);padding-top:20px;border-top:1px solid var(--line)}
+h2::before{content:"## ";color:var(--muted);font-weight:400}
+.cache h3,.world-wrap h3,.cheats h3{font-family:var(--mono)}
+.btn,.mini,.seg,.what,.qt,.col-h,dl.terms dt{font-family:var(--mono)}
+.btn,.what,.qt,dl.terms dt{font-size:.92rem}
+.btn{font-weight:500}
+.btn::before{content:"[ "}.btn::after{content:" ]"}
+.mini{background:var(--sunk)}
+.seg{font-size:.85rem}
+dl.terms dt::before{content:"\25B8  ";color:var(--good)}
+dl.terms dd{border-left-color:var(--line)}
+.prose code,.task code,.explain code,.saw code{color:#9fd0ff}
+.task .cmd code{color:var(--good)}
+.cmd{border:1px solid var(--term-line)}
+.cmd code::before{content:"$ ";color:var(--term-dim)}
+.ran::before{content:"$ ";color:var(--muted)}
+.widget,.q,.wg,.task{background:var(--surface)}
+.task.now{box-shadow:none;border-color:var(--accent);background:var(--accent-soft)}
+.mark{border-radius:3px}
+.term,.scroll-x{border:1px solid var(--line)}
+.term-bar{background:var(--surface);color:var(--muted)}
+.term-bar>span:first-child::before{content:"\25CF \25CF \25CF  ";color:var(--line);letter-spacing:1px}
+.prompt{color:var(--good)}
+.run{background:var(--good);color:#04121f;font-family:var(--mono)}
+.wg{padding:0;overflow:hidden}
+.wg h4{padding:8px 12px;margin:0;border-bottom:1px solid var(--line);background:var(--sunk)}
+.wg ul{gap:0}
+.wg li{padding:8px 12px;border-bottom:1px solid var(--line)}
+.wg li:last-child{border-bottom:0}
+.wg .empty{padding:8px 12px;font-family:var(--mono);font-size:.8rem}
+.pill.ok::before,.pill.bad::before,.pill.off::before{content:"\25CF  "}
+.opt{background:var(--sunk)}
+.opt::before{content:"( )  ";font-family:var(--mono);color:var(--muted)}
+.opt.right::before{content:"(\2713)  ";color:var(--good)}
+.opt.wrong::before{content:"(\00D7)  ";color:var(--bad)}
+.reading a{font-family:var(--mono);font-size:.9rem;font-weight:500}
+.blk.app{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.cur{animation:none}}
+
+/* split layout: lesson | bench (map above terminal) */
+html,body{height:100%}
+.app{display:flex;flex-direction:column;min-height:100%}
+header.top{position:static;padding:10px 16px 0}
+#nav{padding:10px 0 10px;flex:1 1 100%;order:3}
+.bar{order:4;margin-top:0}
+.work{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+main.lesson{padding:8px 16px 56px;min-width:0}
+article{max-width:70ch;margin:0 auto}
+.bench{display:none}
+.bench-in{display:flex;flex-direction:column;gap:12px;min-width:0}
+.slot{margin-top:16px}
+.map{border:1px solid var(--line);border-radius:4px;background:var(--surface);overflow:auto}
+.map-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);font:400 .75rem var(--mono);color:var(--muted)}
+.map-head b{font:700 .78rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.zones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.zone{display:flex;flex-direction:column;gap:8px;padding:10px 12px 8px;border-top:3px solid var(--muted);border-right:1px solid var(--line);min-width:0;transition:background-color .7s}
+.zone.wide{grid-column:span 2}
+.zone.flash{background:var(--accent-soft);transition:none}
+.z-containers{border-top-color:var(--good)}.z-images{border-top-color:var(--accent)}.z-volumes{border-top-color:var(--warn)}.z-networks{border-top-color:#b392f0}
+.zone h3{font:700 .82rem var(--mono);letter-spacing:.06em;text-transform:uppercase;margin:0}
+.zsub{font-size:.75rem;color:var(--muted);margin-top:-6px}
+.zlist{display:flex;flex-direction:column;gap:8px;flex:1}
+.z-containers .zlist{flex-direction:row;flex-wrap:wrap}
+.zone .exit{font:500 .72rem var(--mono);color:var(--muted);border-top:1px dashed var(--line);padding-top:6px}
+.zone .exit::before{content:"$ ";color:var(--good)}
+.card{flex:1 1 132px;border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;padding:8px 10px;background:var(--sunk);display:flex;flex-direction:column;gap:5px;min-width:0}
+.card.up{border-left-color:var(--good)}
+.card-h{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.card b,.rowi b{font:500 .85rem var(--mono);overflow-wrap:anywhere}
+.rowi{display:flex;flex-direction:column}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:500 .68rem/1.3 var(--mono);padding:2px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);overflow-wrap:anywhere}
+.chip.port{border-color:var(--accent);color:var(--accent)}
+.chip.vol{border-color:var(--warn);color:var(--warn)}
+.chip.net{border-color:#b392f0;color:#b392f0}
+.stepbar{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.sb-h{font:700 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.sb-w{font:500 .9rem var(--mono)}
+.stepbar .cmd{margin:6px 0 0}
+.stepbar .cmd code{color:var(--good);overflow-wrap:anywhere;font-size:.88rem}
+.term{display:flex;flex-direction:column}
+.tl.ok{color:var(--good);white-space:pre-wrap;margin:4px 0}
+.term-in input{font-size:16px}
+@media (min-width:720px){
+  .zones{grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1.1fr)}
+  .zone.wide{grid-column:auto}
+  .zone:last-child{border-right:0}
+}
+@media (min-width:1040px){
+  .app{height:100%}
+  .work{grid-template-columns:minmax(0,5fr) minmax(0,7fr);min-height:0}
+  main.lesson{overflow:auto;border-right:1px solid var(--line);padding:8px 28px 72px}
+  .bench{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:16px}
+  .bench-in{flex:1;min-height:0}
+  .map{flex:0 1 auto;max-height:56%}
+  .term{flex:1 1 0;min-height:210px}
+  .term-out{height:auto;flex:1 1 0;min-height:0}
+  .stepbar,.slot-sec,.slot{display:none}
+  #nav{flex:1 1 420px;order:0;padding:0 0 10px}
+  #progress-text{order:2}
+}
+.term-in.busy .run{opacity:.45}
+.term-in.busy .prompt{color:var(--term-dim)}
+/* layers on the map */
+.lstack{display:flex;flex-direction:column-reverse;gap:2px;margin:4px 0 3px;max-width:150px}
+.lb{display:block;height:5px;border-radius:1px;background:var(--line);transition:background-color .25s}
+.lb.on{background:var(--accent)}
+.rowi.pulling b{color:var(--muted)}
+.cstack{display:flex;flex-direction:column;gap:3px}
+.cl-rw,.cl-ro{border:1px solid var(--line);border-radius:3px;padding:4px 7px;font:400 .7rem/1.35 var(--mono);color:var(--muted);display:flex;flex-direction:column;overflow-wrap:anywhere}
+.cl-rw{border-color:var(--good);background:var(--good-soft)}
+.cl-rw span{color:var(--good);font-weight:500}
+.cl-rw em{font-style:normal;color:var(--ink)}
+.cl-ro .lstack{max-width:none;margin:1px 0 4px}
+.cl-ro .lb{height:3px}
+.task.todo{opacity:.72}
+.task.todo .ran{margin-bottom:0}
+button.ran{display:block;text-align:left;background:none;border:0;padding:0;max-width:calc(100% - 34px)}
+button.ran code{display:inline-block;border:1px solid transparent}
+button.ran:hover code,button.ran:focus-visible code{border-color:var(--accent);color:var(--good)}
+.task.skip{background:transparent;border-style:dashed}
+.task.skip .what{color:var(--muted)}
+/* guided cache experiment */
+.rules{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.coach{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.coach b{font:700 .95rem var(--mono)}
+.files{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.steps li{flex-direction:column;align-items:stretch;gap:3px;border-left:3px solid var(--line)}
+.steps li.hit{border-left-color:var(--good)}
+.steps li.redo{border-left-color:var(--warn);background:var(--warn-soft)}
+.st-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.steps .why{font-size:.82rem;color:var(--muted)}
+.steps li.redo .why{color:var(--ink)}
+.btn.next,.seg.next,.cmd.next{outline:2px solid var(--good);outline-offset:3px;animation:nudge 1.4s ease-in-out infinite}
+.seg.next{outline-offset:-2px}
+@keyframes nudge{50%{outline-color:transparent}}
+.btn:disabled,.seg:disabled{opacity:.5;cursor:default}
+.result{margin:0;padding:10px 12px;border-radius:4px;background:var(--sunk);font-size:.95rem;min-height:1.2em}
+.result:empty{display:none}
+.result.fast{background:var(--good-soft)}
+.result.slow{background:var(--warn-soft)}
+.score{display:flex;flex-direction:column;gap:6px}
+.score:empty{display:none}
+.score h4{margin:0}
+.sc-row{display:flex;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:4px;padding:6px 10px;font-size:.9rem}
+.sc-row b{font-family:var(--mono)}
+.sc-row b.ok{color:var(--good)}.sc-row b.re{color:var(--warn)}
+.score p{margin:0;font-size:.92rem}
+.cache>.mini{align-self:flex-start}
+.cache .cmd{margin:0}
+.cache .cmd code{color:var(--good)}
+@media (prefers-reduced-motion:reduce){.btn.next,.seg.next,.cmd.next{animation:none}}
+/* Kestrel Mk II blueprint */
+.kduo{display:grid;grid-template-columns:minmax(118px,.8fr) minmax(0,1.2fr);border-bottom:1px solid var(--line)}
+.kfig{min-width:0}
+.kfig.bp{border-right:1px solid #2a5a96;background:linear-gradient(#134177 1px,transparent 1px) 0 0/100% 20px,linear-gradient(90deg,#134177 1px,transparent 1px) 0 0/20px 100%,#0b2f5c}
+.kfig svg{display:block;width:100%;height:auto;max-height:300px;margin:0 auto;overflow:hidden}
+.klegend{list-style:none;margin:0;padding:6px 8px;display:flex;flex-direction:column;gap:4px;justify-content:center;min-width:0}
+.kl{display:grid;grid-template-columns:22px minmax(0,1fr);gap:0 8px;align-items:center;padding:3px 6px;border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;background:var(--sunk);font-size:.8rem}
+.kl.on{border-left-color:var(--good)}.kl.warn{border-left-color:var(--warn)}.kl.bad{border-left-color:var(--bad)}
+.kbadge{grid-row:span 2;display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--muted);font:700 .72rem var(--mono)}
+.kl.on .kbadge{border-color:var(--good);color:var(--good)}.kl.warn .kbadge{border-color:var(--warn);color:var(--warn)}.kl.bad .kbadge{border-color:var(--bad);color:var(--bad)}
+.kn b{font:500 .8rem var(--mono)}.kn i{font-style:normal;color:var(--muted);font-size:.74rem}
+.ks{font:400 .72rem var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.kl.on .ks{color:var(--good)}.kl.bad .ks{color:var(--bad)}.kl.warn .ks{color:var(--warn)}
+.kl.chgd{animation:klglow 1s ease-out 2}
+@keyframes klglow{0%{background:var(--accent-soft);border-color:var(--accent)}}
+.kb .wh{fill:#0e3a6e}.kb .fr{fill:#08264a}.kb .tl{fill:url(#kbT)}.kb .am{fill:url(#kbA)}
+.kb .wh,.kb .fr,.kb .tl,.kb .am,.kb .cp,.kb .key{stroke:#e6f2ff;stroke-width:1.15;stroke-linejoin:round;transition:fill .5s,stroke .5s}
+.kb .ln,.kb .rv{fill:none;stroke:#9cc8f5;stroke-width:.7}
+.kb .gan{fill:#0a2d57;stroke:#6fa3d8;stroke-width:.9}.kb .gl{fill:none;stroke:#6fa3d8;stroke-width:.7}
+.kb .clamp .gan{stroke:var(--warn)}
+.kb .ctr{fill:none;stroke:#6fa3d8;stroke-width:.7;stroke-dasharray:14 3 2 3}
+.kb .cable{fill:none;stroke:#8ff6ff;stroke-width:1.6;stroke-dasharray:6 4;opacity:.35}
+.kb.fx-pull .cable{opacity:1;stroke-width:2.4;animation:kbflow .5s linear infinite}
+@keyframes kbflow{to{stroke-dashoffset:-40}}
+.kb .route{fill:none;stroke:#9cc8f5;stroke-width:.8;stroke-dasharray:2 4;opacity:.5}
+.kb .route.live{stroke:#8ff6ff;stroke-width:1.8;stroke-dasharray:5 3;opacity:1;animation:kbflow 1.2s linear infinite}
+.kb .cp{fill:#08264a;stroke-dasharray:3 2}
+.kb.db-running .cp{fill:rgba(61,220,151,.35);stroke:var(--good);stroke-dasharray:none;stroke-width:1.8}
+.kb.db-crashed .cp{fill:rgba(255,123,114,.4);stroke:var(--bad);stroke-dasharray:none;stroke-width:1.8}
+.kb.db-stopped .cp{stroke:var(--warn)}
+.kb .key{fill:#08264a;stroke-dasharray:2 2}
+.kb.keys .key{fill:#ffd27a;stroke-dasharray:none}.kb.keys-idle .key{stroke:var(--warn)}
+.kb.fx-keys .key{animation:kbpop .9s}
+@keyframes kbpop{30%{fill:#fff;stroke-width:3.5}}
+.kb .ring{fill:#08264a;stroke:#52729b;stroke-width:2}.kb .ring2{fill:none;stroke:#52729b;stroke-width:1.2}.kb .rcore{fill:#12305a}.kb .pip{fill:#52729b}
+.kb.pw-on .ring{stroke:#ffd27a;filter:url(#kbG)}.kb.pw-on .ring2{stroke:#ffd27a}.kb.pw-on .rcore{fill:#ffd27a;fill-opacity:.4}.kb.pw-on .pip{fill:#fff3d6}
+.kb.rx-crashed .ring,.kb.rx-crashed .ring2{stroke:var(--bad)}.kb.rx-crashed .rcore{fill:var(--bad);fill-opacity:.45}
+.kb.rx-stopped .ring{stroke:var(--warn);stroke-dasharray:4 3}
+.kb .reactor{transform-box:fill-box;transform-origin:center}
+.kb.fx-ignite .reactor{animation:kbign 1.3s ease-out}
+@keyframes kbign{0%{transform:scale(.5);filter:brightness(3.2)}55%{transform:scale(1.35)}100%{transform:none;filter:none}}
+.kb.fx-crash.rx-crashed .rcore,.kb.fx-crash.db-crashed .cp{animation:kbblink .45s steps(1) 6}
+@keyframes kbblink{50%{fill:rgba(255,123,114,.95)}}
+.kb .visor{fill:#12305a;stroke:#e6f2ff;stroke-width:.8}
+.kb.hp-healthy .visor{fill:#8ff6ff;filter:url(#kbG)}
+.kb .mast{fill:none;stroke:#e6f2ff;stroke-width:1.3}.kb .ball{fill:#08264a;stroke:#e6f2ff;stroke-width:1.15}
+.kb.tls .ball{fill:#8ff6ff;filter:url(#kbG)}
+.kb .wave{fill:none;stroke:#8ff6ff;stroke-width:1.8;stroke-linecap:round;opacity:0}
+.kb.tls .wave{animation:kbwave 1.8s ease-out infinite}.kb.tls .w2{animation-delay:.35s}
+@keyframes kbwave{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.kb .scan{fill:#8ff6ff;opacity:0}
+.kb.refit .scan{animation:kbsweep 1.1s ease-out}
+@keyframes kbsweep{from{transform:translateY(0);opacity:.9}to{transform:translateY(586px);opacity:0}}
+.kb .lead{fill:none;stroke:#e6f2ff;stroke-width:.8}.kb .ldot{fill:#e6f2ff}
+.kb .bal circle{fill:#0b2f5c;stroke:#9cc8f5;stroke-width:1.3}
+.kb .bal text{font:700 10.5px var(--mono);fill:#fff;text-anchor:middle}
+.kb .bal.on circle{stroke:var(--good);stroke-width:2.2}.kb .bal.warn circle{stroke:var(--warn);stroke-width:2.2}
+.kb .bal.bad circle{stroke:var(--bad);stroke-width:2.2;fill:#3b1716}
+.kb .lbl{font:700 8.5px var(--mono);fill:#a9cdf3;text-anchor:middle;letter-spacing:.04em}
+.kb .ping{fill:none;stroke:#8ff6ff;stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center;animation:kbping 1.1s ease-out 3}
+.kb .ping.p2{animation-delay:.25s}
+@keyframes kbping{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(3)}}
+.kb .bal.chg>circle:not(.ping){stroke-width:3.4}
+.brief{border:1px solid #2a5a96;border-left:3px solid #8ff6ff;background:linear-gradient(#134177 1px,transparent 1px) 0 0/100% 20px,linear-gradient(90deg,#134177 1px,transparent 1px) 0 0/20px 100%,#0b2f5c;border-radius:4px;padding:10px 14px;margin:0 0 16px;display:flex;flex-direction:column;gap:4px}
+.brief .sb-h{color:#8ff6ff}
+.brief p{margin:0;color:#e6f2ff}
+.brief code{background:#08264a;padding:1px 5px;border-radius:4px;color:#cfe6ff}
+.prose code,.brief code{overflow-wrap:anywhere}
+.unit{font:400 .74rem var(--mono);color:var(--muted);display:none}
+@media (min-width:720px){.unit{display:inline}.kduo{grid-template-columns:minmax(160px,236px) minmax(0,1fr)}.klegend{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-content:center;gap:6px}}
+@media (min-width:1040px){.map{max-height:64%}.kfig svg{max-height:max(200px,calc(64vh - 250px))}}
+@media (prefers-reduced-motion:reduce){.kb *,.kl.chgd{animation:none!important}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="app">
+<header class="top"><div class="top-in">
+  <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+  <p class="brand"><span>~/</span>docker-from-zero<b class="cur" aria-hidden="true"></b></p>
+  <span class="unit">KF-07 Kestrel Mk II · reactor system</span>
+  <nav id="nav" aria-label="Lessons"></nav>
+  <span id="progress-text"></span>
+  <div class="bar" aria-hidden="true"><div id="progress-bar"></div></div>
+</div></header>
+<div class="work">
+  <main id="main" class="lesson" tabindex="-1"></main>
+  <aside id="bench" class="bench" aria-label="Sandbox"></aside>
+</div>
+</div>
+<script>
+/* ---------- Docker simulator: pure logic, no DOM ---------- */
+function createSim(){
+  let seed=20261113;
+  const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
+  const hex=n=>{let s='';while(s.length<n)s+=Math.floor(rnd()*16).toString(16);return s;};
+  const REG={
+    'hello-world':{tags:['latest'],size:'20.4kB',layers:1},
+    'hangar-7/kestrel-reactor':{tags:['1.0','latest'],size:'187MB',layers:8},
+    nginx:{tags:['latest'],size:'192MB',layers:7},
+    postgres:{tags:['17','latest'],size:'432MB',layers:14},
+    python:{tags:['3.14-slim','latest'],size:'124MB',layers:4},
+    alpine:{tags:['latest'],size:'7.8MB',layers:1},
+    redis:{tags:['7','latest'],size:'117MB',layers:8}
+  };
+  const DEB=['ADD rootfs.tar.xz /  (Debian base system)','74.8MB'];
+  const LAYERS={
+    'hello-world':[['COPY hello /','20.4kB']],
+    alpine:[['ADD alpine-minirootfs.tar.gz /','7.8MB']],
+    nginx:[DEB,['RUN apt-get install nginx','117MB'],['COPY docker-entrypoint.sh /','1.6kB'],['COPY 10-listen-on-ipv6-by-default.sh','2.1kB'],['COPY 15-local-resolvers.envsh','0.4kB'],['COPY 20-envsubst-on-templates.sh','3.0kB'],['COPY 30-tune-worker-processes.sh','4.6kB']],
+    python:[DEB,['RUN apt-get install ca-certificates tzdata','9.2MB'],['RUN build and install Python 3.14','40.0MB'],['RUN ln -s python3 /usr/local/bin/python','0.1kB']]
+  };
+  const APP_LAYERS=[['WORKDIR /app','0B'],['COPY requirements.txt .','0.1kB'],['RUN pip install --no-cache-dir -r requirements.txt','62.9MB'],['COPY . .','1.2kB']];
+  function layersFor(repo){
+    if(repo==='hangar-7/kestrel-reactor')return layersFor('python').concat(APP_LAYERS.map(x=>({id:hex(12),by:x[0],size:x[1]})));
+    let L=LAYERS[repo];
+    if(!L){const r=REG[repo],n=r.layers,rest=((parseFloat(r.size)-74.8)/(n-1)).toFixed(1)+'MB';L=[DEB];for(let i=1;i<n;i++)L.push([`RUN set up ${repo} (step ${i} of ${n-1})`,rest]);}
+    return L.map(x=>({id:hex(12),by:x[0],size:x[1]}));
+  }
+  const LISTEN={nginx:80,postgres:5432,redis:6379,api:8000};
+  const AUTO=['brave_hopper','quiet_lovelace','eager_turing','keen_ride','calm_noether','bold_curie','wise_hamilton','kind_franklin'];
+  const PGDATA='/var/lib/postgresql/data';
+  const PIP='RUN pip install --no-cache-dir -r requirements.txt';
+  const ORDERS={
+    good:[['FROM python:3.14-slim',[],8],['WORKDIR /app',[],0.1],['COPY requirements.txt .',['req'],0.1],[PIP,[],19],['COPY . .',['main','req'],0.2]],
+    bad:[['FROM python:3.14-slim',[],8],['WORKDIR /app',[],0.1],['COPY . .',['main','req'],0.2],[PIP,[],19]]};
+  const w={images:[],containers:[],volumes:[],binds:{},builds:{},nameIx:0,proj:{ord:'good',dirty:[],valid:0,ever:false},
+    networks:[{name:'bridge',driver:'bridge',builtin:true},{name:'host',driver:'host',builtin:true},{name:'none',driver:'null',builtin:true}]};
+  let meta={};
+
+  const tok=s=>{const out=[];const re=/"([^"]*)"|'([^']*)'|(\S+)/g;let m;while((m=re.exec(s)))out.push(m[1]!==undefined?m[1]:m[2]!==undefined?m[2]:m[3]);return out;};
+  const ref=s=>{const i=s.lastIndexOf(':');return i>0?[s.slice(0,i),s.slice(i+1)]:[s,'latest'];};
+  const img=(repo,tag)=>w.images.find(i=>i.repo===repo&&i.tag===tag);
+  const byName=n=>w.containers.find(c=>c.name===n)||(n.length>=3?w.containers.find(c=>c.id.startsWith(n)):undefined);
+  const table=rows=>{const wd=rows[0].map((_,i)=>Math.max(...rows.map(r=>String(r[i]).length)));return rows.map(r=>r.map((c,i)=>String(c).padEnd(wd[i]+3)).join('').trimEnd()).join('\n');};
+  const userNet=n=>{const x=w.networks.find(k=>k.name===n);return x&&!x.builtin;};
+  const portBusy=(h,except)=>w.containers.find(c=>c!==except&&c.status==='running'&&c.ports.some(p=>p.h===h));
+
+  function pull(repo,tag,out,implicit){
+    const r=REG[repo];
+    if(implicit)out.push(`Unable to find image '${repo}:${tag}' locally`);
+    if(!r){out.push(`Error response from daemon: pull access denied for ${repo}, repository does not exist or may require 'docker login'`);return null;}
+    if(!r.tags.includes(tag)){out.push(`Error response from daemon: manifest for ${repo}:${tag} not found: manifest unknown`);return null;}
+    out.push(`${tag}: Pulling from ${repo.includes('/')?repo:'library/'+repo}`);
+    const lay=layersFor(repo);
+    out.push(`\u0001PULL|L|${repo}:${tag}|${lay.map(l=>l.id+'~'+l.size).join(',')}`);
+    out.push(`Digest: sha256:${hex(20)}...`);
+    out.push(`Status: Downloaded newer image for ${repo}:${tag}`);
+    const im={repo,tag,id:hex(12),size:r.size,layers:lay};w.images.push(im);return im;
+  }
+
+  function addPort(o,v){
+    const p=v.split(':');const c=+p[p.length-1];const h=p.length>1?+p[p.length-2]:32768+Math.floor(rnd()*1000);
+    if(!Number.isInteger(c)||!Number.isInteger(h)||c<1||h<1||c>65535||h>65535)throw new Error(`invalid port mapping "${v}". Use HOST:CONTAINER, for example 8080:80`);
+    o.ports.push({h,c});
+  }
+  function addEnv(o,v){const i=v.indexOf('=');if(i<1)throw new Error(`invalid environment variable "${v}". Use KEY=value`);o.env[v.slice(0,i)]=v.slice(i+1);}
+  function addMount(o,v){
+    const i=v.indexOf(':');if(i<1)throw new Error(`invalid volume "${v}". Use NAME:/path/in/container`);
+    const src=v.slice(0,i),dst=v.slice(i+1).split(':')[0];
+    o.mounts.push({src,dst,type:/^[\/.~]/.test(src)?'bind':'volume'});
+  }
+  function parseRun(a){
+    const o={d:false,it:false,rm:false,ports:[],env:{},mounts:[],name:null,network:null,image:null,cmd:[]};
+    let i=0;const need=f=>{if(i+1>=a.length)throw new Error(`flag needs an argument: ${f}`);return a[++i];};
+    for(;i<a.length;i++){
+      let t=a[i];
+      if(!t.startsWith('-')){o.image=t;o.cmd=a.slice(i+1);break;}
+      let val=null;
+      if(t.startsWith('--')&&t.includes('=')){val=t.slice(t.indexOf('=')+1);t=t.slice(0,t.indexOf('='));}
+      const arg=()=>val!==null?val:need(t);
+      switch(t){
+        case '--detach':o.d=true;break;
+        case '--rm':o.rm=true;break;
+        case '--interactive':case '--tty':o.it=true;break;
+        case '--publish':addPort(o,arg());break;
+        case '--name':o.name=arg();break;
+        case '--env':addEnv(o,arg());break;
+        case '--volume':addMount(o,arg());break;
+        case '--network':case '--net':o.network=arg();break;
+        default:{
+          if(t.startsWith('--'))throw new Error(`unknown flag: ${t}`);
+          const L=t.slice(1).split('');
+          for(let k=0;k<L.length;k++){const ch=L[k];
+            if(ch==='d')o.d=true;else if(ch==='i'||ch==='t')o.it=true;
+            else if('pev'.includes(ch)){if(k!==L.length-1)throw new Error(`flag -${ch} needs a value right after it`);const v=need('-'+ch);ch==='p'?addPort(o,v):ch==='e'?addEnv(o,v):addMount(o,v);}
+            else throw new Error(`unknown shorthand flag: '${ch}' in ${t}`);
+          }
+        }
+      }
+    }
+    return o;
+  }
+
+  function store(c){
+    const m=c.mounts.find(m=>m.dst.replace(/\/$/,'')===PGDATA);
+    if(!m)return c.data;
+    if(m.type==='volume')return w.volumes.find(v=>v.name===m.src).data;
+    return w.binds[m.src]||(w.binds[m.src]={tables:[]});
+  }
+  function resolve(c,host){
+    if(host==='localhost'||host==='127.0.0.1')return '127.0.0.1';
+    if(!userNet(c.network))return null;
+    const list=w.containers.filter(x=>x.network===c.network);
+    const t=list.find(x=>x!==c&&x.status==='running'&&(x.name===host||x.alias===host));
+    return t?`172.18.0.${2+list.indexOf(t)}`:null;
+  }
+  function sql(c,q){
+    const st=store(c),s=q.trim();let m;
+    if(/^\\dt/.test(s)){
+      meta.tables=st.tables.length;
+      if(!st.tables.length)return ['Did not find any relations.'];
+      const wd=Math.max(4,...st.tables.map(t=>t.length));
+      return ['        List of relations',` Schema | ${'Name'.padEnd(wd)} | Type  |  Owner`,`--------+-${'-'.repeat(wd)}-+-------+----------`,
+        ...st.tables.map(t=>` public | ${t.padEnd(wd)} | table | postgres`),`(${st.tables.length} row${st.tables.length>1?'s':''})`];
+    }
+    if((m=/^create\s+table\s+(?:if\s+not\s+exists\s+)?(\w+)/i.exec(s))){
+      if(st.tables.includes(m[1]))return [`ERROR:  relation "${m[1]}" already exists`];
+      st.tables.push(m[1]);meta.created=m[1];return ['CREATE TABLE'];
+    }
+    if((m=/^drop\s+table\s+(?:if\s+exists\s+)?(\w+)/i.exec(s))){
+      if(!st.tables.includes(m[1]))return [`ERROR:  table "${m[1]}" does not exist`];
+      st.tables.splice(st.tables.indexOf(m[1]),1);return ['DROP TABLE'];
+    }
+    if(/^select\s+1/i.test(s))return [' ?column? ','----------','        1','(1 row)'];
+    return ['(simulator: only CREATE TABLE, DROP TABLE, SELECT 1 and \\dt are modelled)'];
+  }
+  function runIn(c,cmd){
+    const p=cmd[0];
+    if(!p)return {lines:c.it?['(simulator: an interactive shell would open here. On your machine, type exit to leave it.)']:[],code:0};
+    if(p==='echo')return {lines:[cmd.slice(1).join(' ')],code:0};
+    if(p==='hostname')return {lines:[c.id.slice(0,12)],code:0};
+    if(p==='env'||p==='printenv')return {lines:['PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',`HOSTNAME=${c.id.slice(0,12)}`,...Object.entries(c.env).map(([k,v])=>`${k}=${v}`)],code:0};
+    if(p==='touch'){
+      const fs=cmd.slice(1).filter(x=>!x.startsWith('-'));if(!fs.length)return {lines:['touch: missing file operand'],code:1};
+      fs.forEach(f=>{const a=f.startsWith('/')?f:'/'+f;if(!c.rw.includes(a))c.rw.push(a);});meta.touched=c;return {lines:[],code:0};
+    }
+    if(p==='ls'){
+      const d=cmd.slice(1).filter(x=>!x.startsWith('-'))[0];
+      if(d&&d!=='/'){const dir=d.replace(/\/$/,'');const here=c.rw.filter(f=>f.slice(0,f.lastIndexOf('/'))===dir).map(f=>f.slice(f.lastIndexOf('/')+1));meta.ls=here.length;return {lines:here.length?[here.join('  ')]:[],code:0};}
+      return {lines:[c.kind==='api'?'main.py  requirements.txt':'bin  dev  etc  home  lib  proc  root  sys  tmp  usr  var'],code:0};
+    }
+    if(p==='ping'){
+      const host=cmd.filter((x,i)=>!x.startsWith('-')&&i>0&&cmd[i-1]!=='-c').pop();
+      if(!host)return {lines:['ping: usage: ping [-c COUNT] HOST'],code:1};
+      const ip=resolve(c,host);meta.ping=!!ip;
+      if(!ip)return {lines:[`ping: bad address '${host}'`],code:1};
+      return {lines:[`PING ${host} (${ip}): 56 data bytes`,`64 bytes from ${ip}: seq=0 ttl=64 time=0.094 ms`,'',`--- ${host} ping statistics ---`,'1 packets transmitted, 1 packets received, 0% packet loss'],code:0};
+    }
+    if(p==='pg_isready')return c.kind==='postgres'?{lines:['/var/run/postgresql:5432 - accepting connections'],code:0}:{lines:[`exec: "pg_isready": executable file not found in $PATH`],code:127};
+    if(p==='psql'){
+      if(c.kind!=='postgres')return {lines:[`exec: "psql": executable file not found in $PATH`],code:127};
+      const i=cmd.indexOf('-c');
+      if(i<0||!cmd[i+1])return {lines:['(simulator: an interactive psql prompt would open here. Pass a query with -c "..." instead.)'],code:0};
+      return {lines:sql(c,cmd[i+1]),code:0};
+    }
+    if(['sh','bash','python','python3'].includes(p))return {lines:['(simulator: interactive programs are not modelled. On your machine this opens a prompt inside the container.)'],code:0};
+    return {lines:[`exec: "${p}": executable file not found in $PATH`],code:127};
+  }
+
+  function boot(c,out,quiet){
+    const fg=[];
+    const conflict=c.ports.map(p=>p.h).find(h=>portBusy(h,c));
+    if(conflict){out.push(`docker: Error response from daemon: driver failed programming external connectivity on endpoint ${c.name}: Bind for 0.0.0.0:${conflict} failed: port is already allocated.`);return false;}
+    c.status='running';c.exit=0;
+    switch(c.kind){
+      case 'hello-world':
+        fg.push('','Hello from Docker!','This message shows that your installation appears to be working correctly.','','(Simulator summary of the rest: the client asked the daemon for the image, the daemon','pulled it from Docker Hub, made a container from it, and sent its output back here.)','');
+        c.status='exited';break;
+      case 'nginx':
+        fg.push('/docker-entrypoint.sh: Configuration complete; ready for start up','nginx: start worker processes');break;
+      case 'redis':
+        fg.push('* Ready to accept connections tcp');break;
+      case 'postgres':{
+        if(!c.env.POSTGRES_PASSWORD&&c.env.POSTGRES_HOST_AUTH_METHOD!=='trust'){
+          fg.push('Error: Database is uninitialized and superuser password is not specified.','       You must specify POSTGRES_PASSWORD to a non-empty value for the','       superuser. For example, "-e POSTGRES_PASSWORD=password" on "docker run".');
+          c.status='exited';c.exit=1;break;
+        }
+        const st=store(c);
+        if(st.init)fg.push('PostgreSQL Database directory appears to contain a database; Skipping initialization');
+        else{fg.push('The files belonging to this database system will be owned by user "postgres".','PostgreSQL init process complete; ready for start up.');st.init=true;}
+        fg.push('LOG:  database system is ready to accept connections');break;
+      }
+      case 'api':
+        fg.push('INFO:     Started server process [1]','INFO:     Application startup complete.','INFO:     Reactor control online. Output 13 kW, limit 25 kW.','INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)');
+        if(c.env.DATABASE_URL)fg.push(resolve(c,'db')?'INFO:     Connected to database at db:5432':'ERROR:    Could not reach database host "db"');
+        break;
+      default:{
+        const r=runIn(c,c.cmd);fg.push(...r.lines);c.status='exited';c.exit=r.code;
+      }
+    }
+    c.logs.push(...fg);
+    if(!quiet){
+      if(c.d)out.push(c.id);
+      else{
+        out.push(...fg);
+        if(c.status==='running'){out.push('','(simulator: this server is now holding your terminal. On your machine you would press Ctrl+C.','The simulator has stopped it for you. Add -d to run it in the background.)');c.status='exited';}
+      }
+    }
+    if(c.status==='exited'&&c.rm)w.containers.splice(w.containers.indexOf(c),1);
+    return c.exit===0;
+  }
+  function make(o,im){
+    return {id:hex(64),name:o.name||AUTO[w.nameIx++%AUTO.length],image:o.image,kind:im.built||im.repo==='hangar-7/kestrel-reactor'?'api':im.repo,cmd:o.cmd||[],status:'created',exit:0,
+      ports:o.ports||[],env:o.env||{},mounts:o.mounts||[],network:o.network||'bridge',rm:!!o.rm,d:!!o.d,it:!!o.it,data:{tables:[]},rw:[],logs:[],alias:o.alias||null,project:o.project||null};
+  }
+  function run(a,out){
+    const o=parseRun(a);
+    if(!o.image)throw new Error('"docker run" requires at least 1 argument: the image name');
+    const [repo,tag]=ref(o.image);
+    const im=img(repo,tag)||pull(repo,tag,out,true);if(!im)return false;
+    if(o.name&&w.containers.some(c=>c.name===o.name)){out.push(`docker: Error response from daemon: Conflict. The container name "/${o.name}" is already in use by container "${byName(o.name).id.slice(0,12)}". You have to remove (or rename) that container to be able to reuse that name.`);return false;}
+    if(o.network&&!w.networks.some(n=>n.name===o.network)){out.push(`docker: Error response from daemon: network ${o.network} not found.`);return false;}
+    const busy=o.ports.map(p=>p.h).find(h=>portBusy(h));
+    if(busy){out.push(`docker: Error response from daemon: Bind for 0.0.0.0:${busy} failed: port is already allocated.`);return false;}
+    o.mounts.filter(m=>m.type==='volume'&&!w.volumes.some(v=>v.name===m.src)).forEach(m=>w.volumes.push({name:m.src,data:{tables:[]}}));
+    const c=make(o,im);w.containers.push(c);
+    const ok=boot(c,out);meta.container=c;return ok;
+  }
+  const status=c=>c.status==='running'?'Up':c.status==='created'?'Created':`Exited (${c.exit})`;
+  const portsOf=c=>{
+    if(c.status!=='running')return '';
+    if(c.ports.length)return c.ports.map(p=>`0.0.0.0:${p.h}->${p.c}/tcp`).join(', ');
+    return LISTEN[c.kind]?`${LISTEN[c.kind]}/tcp`:'';
+  };
+  function ps(a,out){
+    const all=a.includes('-a')||a.includes('--all');
+    const list=w.containers.filter(c=>all||c.status==='running');
+    out.push(table([['CONTAINER ID','IMAGE','STATUS','PORTS','NAMES'],...list.map(c=>[c.id.slice(0,12),c.image,status(c),portsOf(c),c.name])]));
+    return true;
+  }
+  function each(names,out,fn){
+    let ok=true;
+    if(!names.length){out.push('Error: this command needs at least one container name or ID');return false;}
+    names.forEach(n=>{const c=byName(n);if(!c){out.push(`Error response from daemon: No such container: ${n}`);ok=false;return;}if(fn(c)===false)ok=false;else out.push(n);});
+    return ok;
+  }
+  function build(a,out,svc){
+    let name=null,i=0;const rest=[];
+    for(;i<a.length;i++){if(a[i]==='-t'||a[i]==='--tag')name=a[++i];else if(a[i].startsWith('-'))throw new Error(`unknown flag: ${a[i]}`);else rest.push(a[i]);}
+    if(!name){out.push('simulator: give the image a name with -t, for example: docker build -t kestrel-reactor .');return false;}
+    if(!rest.length){out.push('ERROR: "docker build" requires exactly 1 argument: the folder to build from (usually a dot for "this folder")');return false;}
+    const [repo,tag]=ref(name);const n=(w.builds[repo]=(w.builds[repo]||0)+1);
+    const P=w.proj,list=ORDERS[P.ord],first=!P.ever,was=P.valid,pre=svc?svc+' ':'';let broke=false,total=0;const steps=[],lines=[];
+    list.forEach((st,k)=>{
+      const hit=st[1].filter(x=>P.dirty.includes(x));let why;
+      if(broke)why='cascade';else if(k>=was){broke=true;why=first?'first':'new';}else if(hit.length){broke=true;why='changed';}else why='hit';
+      const t=broke?(k===0&&!first?0.1:st[2]):0;total+=t;steps.push({text:st[0],broke,why,hit,t});
+      lines.push(` => ${broke?'':'CACHED '}[${pre}${k+1}/${list.length}] ${k===0?'FROM docker.io/library/python:3.14-slim':st[0]}${broke&&t>=1?'      '+t.toFixed(1)+'s':''}`);
+    });
+    total=Math.round(total*10)/10;
+    out.push(`[+] Building ${(total||0.3).toFixed(1)}s (${list.length+5}/${list.length+5}) FINISHED`,` => [${pre}internal] load build definition from Dockerfile`,...lines,' => exporting to image',` => => naming to docker.io/library/${repo}:${tag}`);
+    const ex=img(repo,tag);
+    if(ex){if(broke)ex.id=hex(12);}else w.images.push({repo,tag,id:hex(12),size:'187MB',built:true,layers:layersFor('python').concat(APP_LAYERS.map(x=>({id:hex(12),by:x[0],size:x[1]})))});
+    if(!svc)meta.build={steps,total,ord:P.ord,first,wasValid:was,n:list.length,dirty:P.dirty.slice(),redo:steps.filter(x=>x.broke).length};
+    P.ever=true;P.valid=list.length;P.dirty=[];
+    meta.builds=n;return true;
+  }
+  function curl(a,out){
+    const u=a.find(x=>!x.startsWith('-'));
+    if(!u){out.push('curl: try: curl localhost:8080');return false;}
+    const m=/^(?:https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(?::(\d+))?(\/.*)?$/.exec(u);
+    if(!m){out.push(`curl: (6) Could not resolve host: ${u.replace(/^https?:\/\//,'').split(/[:\/]/)[0]}`,'(simulator: only localhost is reachable from here)');return false;}
+    const port=+(m[2]||80),path=m[3]||'/';
+    const c=w.containers.find(c=>c.status==='running'&&c.ports.some(p=>p.h===port));
+    if(!c){out.push(`curl: (7) Failed to connect to localhost port ${port} after 0 ms: Couldn't connect to server`);return false;}
+    const map=c.ports.find(p=>p.h===port);
+    if(map.c!==LISTEN[c.kind]){out.push('curl: (56) Recv failure: Connection reset by peer');return false;}
+    if(c.kind==='nginx'){out.push('<!DOCTYPE html>','<html>','<head><title>Welcome to nginx!</title></head>','<body><h1>Welcome to nginx!</h1> ...</body>','</html>');c.logs.push(`172.17.0.1 - - "GET ${path} HTTP/1.1" 200 615 "-" "curl/8.7.1"`);return true;}
+    if(c.kind==='api'){
+      const body=path==='/'?'{"system":"reactor","frame":"KF-07 Kestrel Mk II","state":"online"}':path==='/healthz'?'{"status":"ok"}':path==='/status'?'{"output_kw":13,"limit_kw":25,"temperature":"nominal"}':path==='/docs'?'<!DOCTYPE html> ... Swagger UI ... (HTML trimmed)':'{"detail":"Not Found"}';
+      out.push(body);c.logs.push(`INFO:     172.17.0.1:53012 - "GET ${path} HTTP/1.1" ${body.includes('Not Found')?'404 Not Found':'200 OK'}`);return true;
+    }
+    out.push('curl: (52) Empty reply from server');return false;
+  }
+  function compose(a,out){
+    const P='kestrel',dbN=P+'-db-1',apiN=P+'-reactor-1',net=P+'_default',vol=P+'_pgdata';
+    const sub=a[0],rest=a.slice(1);
+    const mine=()=>w.containers.filter(c=>c.project===P);
+    const svc=s=>mine().find(c=>c.alias===s);
+    if(sub==='build')return build(['-t','kestrel-reactor','.'],out,'reactor');
+    if(sub==='up'){
+      const steps=[];
+      if(rest.includes('--build')||!img('kestrel-reactor','latest'))build(['-t','kestrel-reactor','.'],out,'reactor');
+      if(!img('postgres','17')){w.images.push({repo:'postgres',tag:'17',id:hex(12),size:REG.postgres.size,layers:layersFor('postgres')});out.push('[+] Pulling 15/15',`\u0001PULL|C|postgres:17|db~${REG.postgres.size}`);}
+      const other=portBusy(8000);
+      if(other&&other.name!==apiN){out.push(`Error response from daemon: driver failed programming external connectivity on endpoint ${apiN}: Bind for 0.0.0.0:8000 failed: port is already allocated`);return false;}
+      if(!w.networks.some(n=>n.name===net)){w.networks.push({name:net,driver:'bridge'});steps.push(` ✔ Network ${net}`.padEnd(32)+'Created');}
+      if(!w.volumes.some(v=>v.name===vol)){w.volumes.push({name:vol,data:{tables:[]}});steps.push(` ✔ Volume "${vol}"`.padEnd(32)+'Created');}
+      const up=(name,o,word)=>{
+        let c=byName(name);
+        if(c&&c.status==='running'){steps.push(` ✔ Container ${name}`.padEnd(32)+'Running');return;}
+        if(!c){c=make(Object.assign({name,d:true,network:net,project:P},o),o.im);w.containers.push(c);}
+        boot(c,out,true);steps.push(` ✔ Container ${name}`.padEnd(32)+word);
+      };
+      up(dbN,{image:'postgres:17',im:img('postgres','17'),alias:'db',env:{POSTGRES_PASSWORD:'secret'},mounts:[{src:vol,dst:PGDATA,type:'volume'}]},'Healthy');
+      up(apiN,{image:'kestrel-reactor',im:img('kestrel-reactor','latest'),alias:'reactor',ports:[{h:8000,c:8000}],env:{DATABASE_URL:'postgresql://postgres:secret@db:5432/postgres'}},'Started');
+      out.push(`[+] Running ${steps.length}/${steps.length}`,...steps);
+      if(!rest.includes('-d')&&!rest.includes('--detach'))out.push('','(simulator: without -d, Compose would now stream every service\'s logs here until you press Ctrl+C.','The services have been left running in the background, as if you had used -d.)');
+      meta.composeUp=true;return true;
+    }
+    if(sub==='ps'){out.push(table([['NAME','IMAGE','SERVICE','STATUS','PORTS'],...mine().filter(c=>c.status==='running'||rest.includes('-a')).map(c=>[c.name,c.image,c.alias,status(c)+(c.alias==='db'&&c.status==='running'?' (healthy)':''),portsOf(c)])]));return true;}
+    if(sub==='logs'){
+      const want=rest.filter(x=>!x.startsWith('-'));const list=mine().filter(c=>!want.length||want.includes(c.alias));
+      if(!list.length){out.push(want.length?`no such service: ${want[0]}`:'(no containers for this project. Run docker compose up -d first.)');return false;}
+      list.forEach(c=>c.logs.forEach(l=>out.push(`${(c.alias+'-1').padEnd(9)} | ${l}`)));return true;
+    }
+    if(sub==='exec'){
+      const args=rest.filter((x,i)=>!(i===0&&x.startsWith('-')));const c=svc(args[0]);
+      if(!c||c.status!=='running'){out.push(`service "${args[0]||''}" is not running`);return false;}
+      const r=runIn(c,args.slice(1));out.push(...r.lines);return r.code===0;
+    }
+    if(sub==='down'){
+      const steps=[];
+      mine().slice().reverse().forEach(c=>{w.containers.splice(w.containers.indexOf(c),1);steps.push(` ✔ Container ${c.name}`.padEnd(32)+'Removed');});
+      if(rest.includes('-v')||rest.includes('--volumes')){const i=w.volumes.findIndex(v=>v.name===vol);if(i>=0){w.volumes.splice(i,1);steps.push(` ✔ Volume ${vol}`.padEnd(32)+'Removed');}}
+      const i=w.networks.findIndex(n=>n.name===net);if(i>=0){w.networks.splice(i,1);steps.push(` ✔ Network ${net}`.padEnd(32)+'Removed');}
+      if(steps.length)out.push(`[+] Running ${steps.length}/${steps.length}`,...steps);
+      meta.composeDown=true;return true;
+    }
+    out.push(`simulator: "docker compose ${sub||''}" is not modelled. Try up -d, ps, logs, exec, build, down.`);return false;
+  }
+  const HELP=['Commands this sandbox understands:','',
+    '  docker run [-d] [-p HOST:CONTAINER] [--name N] [-e K=V] [-v VOL:/path] [--network N] [--rm] IMAGE [command]',
+    '  docker ps [-a]          docker stop|start|rm [-f] NAME...',
+    '  docker logs NAME        docker exec NAME command...',
+    '  docker images           docker pull IMAGE      docker rmi IMAGE',
+    '  docker history IMAGE    docker diff NAME',
+    '  docker build -t NAME .',
+    '  docker volume ls|create|rm     docker network ls|create|rm',
+    '  docker compose up -d|ps|logs|exec|down [-v]',
+    '  docker system prune',
+    '  curl localhost:PORT[/path]     clear',
+    '','Images available to pull: hangar-7/kestrel-reactor, hello-world, nginx, postgres:17, python:3.14-slim, alpine, redis:7'].join('\n');
+
+  function docker(a,out){
+    let sub=a[0],rest=a.slice(1);
+    if(!sub||sub==='help'||sub==='--help'){out.push(HELP);return true;}
+    if(sub==='--version'||sub==='version'){out.push('Docker (simulated sandbox, no real engine)');return true;}
+    if(sub==='container'){sub=rest[0]==='ls'?'ps':rest[0];rest=rest.slice(1);}
+    else if(sub==='image'){sub={ls:'images',rm:'rmi',pull:'pull',build:'build',history:'history'}[rest[0]]||('image '+rest[0]);rest=rest.slice(1);}
+    switch(sub){
+      case 'run':return run(rest,out);
+      case 'ps':return ps(rest,out);
+      case 'images':out.push(table([['REPOSITORY','TAG','IMAGE ID','SIZE'],...w.images.map(i=>[i.repo,i.tag,i.id,i.size])]));return true;
+      case 'pull':{if(!rest[0]){out.push('"docker pull" requires exactly 1 argument: the image name');return false;}const [r,t]=ref(rest[0]);if(img(r,t)){out.push(`${t}: Pulling from ${r.includes('/')?r:'library/'+r}`,`Status: Image is up to date for ${r}:${t}`);return true;}return !!pull(r,t,out,false);}
+      case 'rmi':{
+        if(!rest.length){out.push('"docker rmi" requires at least 1 argument');return false;}
+        let ok=true;rest.filter(x=>!x.startsWith('-')).forEach(n=>{const [r,t]=ref(n);const im=img(r,t);
+          if(!im){out.push(`Error response from daemon: No such image: ${r}:${t}`);ok=false;return;}
+          const user=w.containers.find(c=>{const [cr,ct]=ref(c.image);return cr===r&&ct===t;});
+          if(user&&!rest.includes('-f')){out.push(`Error response from daemon: conflict: unable to remove repository reference "${n}" (must force) - container ${user.id.slice(0,12)} is using its referenced image ${im.id}`);ok=false;return;}
+          w.images.splice(w.images.indexOf(im),1);out.push(`Untagged: ${r}:${t}`,`Deleted: sha256:${hex(20)}...`);});
+        return ok;
+      }
+      case 'stop':return each(rest.filter(x=>!x.startsWith('-')),out,c=>{c.status='exited';c.exit=0;if(c.rm)w.containers.splice(w.containers.indexOf(c),1);});
+      case 'start':return each(rest,out,c=>{if(c.status==='running')return;const o=[];boot(c,o,true);if(c.status!=='running'&&o.length){out.push(...o);return false;}});
+      case 'rm':{const f=rest.some(x=>x==='-f'||x==='--force'||x==='-fv'||x==='-vf');
+        return each(rest.filter(x=>!x.startsWith('-')),out,c=>{if(c.status==='running'&&!f){out.push(`Error response from daemon: cannot remove container "/${c.name}": container is running: stop the container before removing or force remove`);return false;}w.containers.splice(w.containers.indexOf(c),1);});}
+      case 'logs':{const n=rest.filter(x=>!x.startsWith('-'))[0];const c=n&&byName(n);if(!c){out.push(n?`Error response from daemon: No such container: ${n}`:'"docker logs" requires exactly 1 argument: the container name');return false;}out.push(...c.logs);meta.logs=c;return true;}
+      case 'exec':{
+        let i=0;while(rest[i]&&rest[i].startsWith('-'))i++;
+        const c=rest[i]&&byName(rest[i]);
+        if(!c){out.push(rest[i]?`Error response from daemon: No such container: ${rest[i]}`:'"docker exec" requires at least 2 arguments: the container and the command');return false;}
+        if(c.status!=='running'){out.push(`Error response from daemon: container ${c.id.slice(0,12)} is not running`);return false;}
+        c.it=i>0;const r=runIn(c,rest.slice(i+1));
+        if(r.code===127){out.push(`OCI runtime exec failed: exec failed: unable to start container process: ${r.lines[0]}`);return false;}
+        out.push(...r.lines);meta.exec=c;return r.code===0;
+      }
+      case 'history':{
+        const n=rest.filter(x=>!x.startsWith('-'))[0];if(!n){out.push('"docker history" requires exactly 1 argument: the image name');return false;}
+        const [r,t]=ref(n),im=img(r,t);if(!im){out.push(`Error response from daemon: No such image: ${r}:${t}`);return false;}
+        out.push(table([['IMAGE','CREATED BY','SIZE'],...im.layers.slice().reverse().map((l,k)=>[k===0?im.id:'<missing>',l.by,l.size])]));meta.history=im;return true;
+      }
+      case 'diff':{
+        const c=rest[0]&&byName(rest[0]);if(!c){out.push(rest[0]?`Error response from daemon: No such container: ${rest[0]}`:'"docker diff" requires exactly 1 argument: the container name');return false;}
+        const auto=c.kind==='nginx'?['C /run','A /run/nginx.pid']:c.kind==='postgres'?['C /run/postgresql','A /run/postgresql/.s.PGSQL.5432.lock']:[];
+        const dirs=[...new Set(c.rw.map(f=>f.slice(0,f.lastIndexOf('/'))).filter(Boolean))];
+        out.push(...auto,...dirs.map(d=>'C '+d),...c.rw.map(f=>'A '+f));meta.diff=c;return true;
+      }
+      case 'build':return build(rest,out);
+      case 'volume':{
+        const s=rest[0],n=rest[1];
+        if(s==='ls'){out.push(table([['DRIVER','VOLUME NAME'],...w.volumes.map(v=>['local',v.name])]));return true;}
+        if(s==='create'){const name=n||hex(64);if(!w.volumes.some(v=>v.name===name))w.volumes.push({name,data:{tables:[]}});out.push(name);return true;}
+        if(s==='rm'){const v=w.volumes.find(v=>v.name===n);if(!v){out.push(`Error response from daemon: get ${n}: no such volume`);return false;}
+          const u=w.containers.find(c=>c.mounts.some(m=>m.type==='volume'&&m.src===n));
+          if(u){out.push(`Error response from daemon: remove ${n}: volume is in use - [${u.id.slice(0,12)}]`);return false;}
+          w.volumes.splice(w.volumes.indexOf(v),1);out.push(n);return true;}
+        out.push('simulator: try docker volume ls, docker volume create NAME or docker volume rm NAME');return false;
+      }
+      case 'network':{
+        const s=rest[0],n=rest[1];
+        if(s==='ls'){out.push(table([['NETWORK ID','NAME','DRIVER'],...w.networks.map(k=>[(k.id||(k.id=hex(12))),k.name,k.driver])]));return true;}
+        if(s==='create'){if(!n){out.push('"docker network create" requires exactly 1 argument: the network name');return false;}
+          if(w.networks.some(k=>k.name===n)){out.push(`Error response from daemon: network with name ${n} already exists`);return false;}
+          const id=hex(64);w.networks.push({name:n,driver:'bridge',id:id.slice(0,12)});out.push(id);return true;}
+        if(s==='rm'){const k=w.networks.find(k=>k.name===n);if(!k||k.builtin){out.push(k?`Error response from daemon: ${n} is a pre-defined network and cannot be removed`:`Error response from daemon: network ${n} not found`);return false;}
+          if(w.containers.some(c=>c.network===n)){out.push(`Error response from daemon: error while removing network: network ${n} has active endpoints`);return false;}
+          w.networks.splice(w.networks.indexOf(k),1);out.push(n);return true;}
+        out.push('simulator: try docker network ls, docker network create NAME or docker network rm NAME');return false;
+      }
+      case 'compose':return compose(rest,out);
+      case 'system':{
+        if(rest[0]!=='prune'){out.push('simulator: only docker system prune is modelled');return false;}
+        out.push('WARNING! This will remove:','  - all stopped containers','  - all networks not used by at least one container','  - all dangling images','  - unused build cache','','Are you sure you want to continue? [y/N] y   (simulator answered for you)');
+        const dead=w.containers.filter(c=>c.status!=='running');
+        if(dead.length){out.push('Deleted Containers:',...dead.map(c=>c.id));dead.forEach(c=>w.containers.splice(w.containers.indexOf(c),1));}
+        const nets=w.networks.filter(k=>!k.builtin&&!w.containers.some(c=>c.network===k.name));
+        if(nets.length){out.push('','Deleted Networks:',...nets.map(k=>k.name));nets.forEach(k=>w.networks.splice(w.networks.indexOf(k),1));}
+        out.push('',`Total reclaimed space: ${dead.length?(dead.length*4.1).toFixed(1)+'kB':'0B'}`);meta.pruned=dead.length;return true;
+      }
+      default:out.push(`docker: '${sub}' is not a docker command, or this sandbox does not model it.`,"Type help to see what it understands.");return false;
+    }
+  }
+  function exec(line){
+    const out=[];let ok=true;meta={};
+    const a=tok(line.trim());
+    if(!a.length)return {out:'',ok:true,meta};
+    try{
+      if(a[0]==='docker')ok=docker(a.slice(1),out);
+      else if(a[0]==='docker-compose'){out.push('(docker-compose with a hyphen is the old v1 tool. The current command is: docker compose)');ok=compose(a.slice(1),out);}
+      else if(a[0]==='curl')ok=curl(a.slice(1),out);
+      else if(a[0]==='help'){out.push(HELP);}
+      else if(a[0]==='clear'){return {out:'',ok:true,meta,clear:true};}
+      else if(a[0]==='ls'){out.push('Dockerfile  compose.yaml  main.py  requirements.txt');}
+      else if(a[0]==='cat'&&FILES[a[1]]){out.push(a[1]==='Dockerfile'?ORDERS[w.proj.ord].map(x=>x[0]).concat(FILES.Dockerfile.split('\n').slice(-2)).join('\n'):FILES[a[1]]);}
+      else{out.push(`${a[0]}: this sandbox only understands docker, curl, ls, cat, help and clear`);ok=false;}
+    }catch(e){out.push('docker: '+e.message+'.');ok=false;}
+    return {out:out.join('\n'),ok:ok!==false,meta};
+  }
+  const project={
+    steps:()=>ORDERS[w.proj.ord],
+    edit(k){if(!w.proj.dirty.includes(k))w.proj.dirty.push(k);},
+    order(o){if(o!==w.proj.ord&&ORDERS[o]){w.proj.ord=o;w.proj.valid=w.proj.ever?Math.min(w.proj.valid,2):0;}},
+    reset(){w.proj.ord='good';w.proj.dirty=[];w.proj.valid=0;w.proj.ever=false;}
+  };
+  return {exec,world:w,project};
+}
+const FILES={
+'Dockerfile':`FROM python:3.14-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]`,
+'main.py':`from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def home():
+    return {"system": "reactor", "frame": "KF-07 Kestrel Mk II", "state": "online"}
+
+@app.get("/status")
+def status():
+    return {"output_kw": 13, "limit_kw": 25, "temperature": "nominal"}
+
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}`,
+'requirements.txt':`fastapi
+uvicorn[standard]`,
+'compose.yaml':`services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 5
+  reactor:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:secret@db:5432/postgres
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:`
+};
+
+
+/* ---------- Lesson content ---------- */
+const up=(w,f)=>w.containers.some(c=>c.status==='running'&&f(c));
+const has=(w,n)=>w.containers.some(c=>c.name===n);
+const PG='/var/lib/postgresql/data';
+const pgVol=c=>c.mounts.some(m=>m.type==='volume'&&m.dst===PG);
+
+const LESSONS=[
+{id:1,title:'What Docker is',mins:6,
+idea:`
+<p>Software rarely runs on its own. A Python API needs a particular Python version, a set of libraries, some operating-system packages and a few settings. Your laptop, a teammate's laptop, the test server and the cloud all differ slightly, and those small differences are where "it works on my machine" comes from.</p>
+<p>Docker fixes this by packing the app <em>together with everything it needs</em> into one sealed package. You then run that same package everywhere.</p>
+<dl class="terms">
+<dt>Image</dt><dd>The sealed package. A read-only snapshot of a filesystem (a slim Linux, Python, your libraries, your code) plus the command to start it. Think of it as a recipe, or a class in code.</dd>
+<dt>Container</dt><dd>An image that is running. It is an ordinary process on your machine, fenced off so it sees only its own files, its own network and its own settings. Think of it as the meal cooked from the recipe, or an object made from the class. You can run many containers from one image.</dd>
+<dt>Registry</dt><dd>A shelf where images are stored and shared. Docker Hub is the public one. Cloud providers and companies run private ones.</dd>
+<dt>Docker Engine</dt><dd>The background service that builds images and runs containers. The <code>docker</code> command you type is only a remote control that sends requests to it.</dd>
+</dl>
+<p>That is the whole mental model: you <strong>build</strong> an image, <strong>ship</strong> it to a registry, and <strong>run</strong> it as a container.</p>`,
+widget:'vm',widgetTitle:'Container or virtual machine?',
+widgetIntro:'People often meet containers as "lightweight virtual machines". The comparison helps, but the difference matters. Switch between the two.',
+notes:`
+<h2>On your own machine</h2>
+<p>This guide runs a simulated Docker in the page, so you can practise on any device and nothing is installed. The commands are the real ones. When you are ready to use the real thing:</p>
+<ol>
+<li>Install <strong>Docker Desktop</strong> (Mac or Windows) or <strong>Docker Engine</strong> (Linux). Docker Desktop is free for personal use and small businesses. Larger companies need a paid plan, so check the current terms.</li>
+<li>Open a terminal and run <code>docker --version</code>. A version number means the remote control is installed.</li>
+<li>Run <code>docker run hello-world</code>. A greeting means the engine is running too. If you see "Cannot connect to the Docker daemon", Docker Desktop is not started yet.</li>
+</ol>`,
+quiz:[
+{q:'How do an image and a container relate?',opts:['They are two names for the same thing','An image is a read-only template. A container is a running instance of it','A container is a compressed image','An image is a container that has been stopped'],a:1,why:'One image can start many containers, just as one recipe can make many meals. Stopping a container does not turn it back into an image.'},
+{q:'Why does a container start in about a second when a virtual machine takes much longer?',opts:['Containers skip security checks','Containers are written in a faster language','A container shares the host\'s kernel, so there is no operating system to boot','Containers only run small programs'],a:2,why:'A virtual machine boots a whole guest operating system. A container is just a fenced-off process on a kernel that is already running.'}],
+reading:[
+['Docker overview','https://docs.docker.com/get-started/docker-overview/','The official ten-minute tour of the architecture: client, daemon, registry.'],
+['What is a container?','https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/','Docker\'s own beginner explanation, with a short video.'],
+['Install Docker Desktop','https://docs.docker.com/get-started/get-docker/','Installers and system requirements for each operating system.']]
+},
+
+{id:2,title:'Run your first container',mins:10,
+idea:`
+<p>The command you will type most is <code>docker run</code>. It does three things in one go: finds the image (downloading it if you do not have it), creates a container from it, and starts that container.</p>
+<p>A container has a simple life: <strong>created → running → exited</strong>. It runs for exactly as long as its main program runs. A program that prints a message and finishes gives a container that lasts a fraction of a second. A web server gives a container that runs until you stop it.</p>
+<p>An exited container is not deleted. It stays on disk, with its logs, until you remove it. That surprises most beginners, and it is why <code>docker ps</code> (running only) and <code>docker ps -a</code> (everything) show different lists.</p>`,
+labIntro:'Work through the steps in order. Tap a command to load it into the terminal, then press Run. Watch the Kestrel blueprint and the panels under it change as you go.',
+tasks:[
+{what:'Run a container that says hello and finishes',cmd:'docker run hello-world',
+ parts:[['docker run','Create a container from an image and start it.'],['hello-world','The image to use. Docker checks your machine first, then Docker Hub. This one is Docker\'s own test image, the standard check that an installation works.']],
+ saw:'Docker did not have the image, so it pulled it, started a container, showed the greeting, and the container exited. The image is now stored locally, so next time there is no download.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?run\b.*hello-world/.test(l)},
+{what:'Start the reactor system in the background',cmd:'docker run -d -p 8080:8000 --name reactor hangar-7/kestrel-reactor',
+ parts:[['-d','Detached. Run in the background and give the terminal back. Without it, the service\'s output takes over your terminal.'],['-p 8080:8000','Publish a port. Traffic to port 8080 on your computer is forwarded to port 8000 inside the container, where the reactor service listens. The order is always host:container.'],['--name reactor','A name you choose, so you can refer to the container later. Without it Docker invents one, like quiet_lovelace.'],['hangar-7/kestrel-reactor','The image: the Kestrel\'s reactor control service, a small web API. The part before the slash is the publisher\'s account on the registry.']],
+ saw:'Docker pulled the reactor module layer by layer, then started it. The long string is the new container\'s ID. On the blueprint the reactor ring is lit, and the comms mast is live because a port is published.',
+ test:(l,w,r)=>up(w,c=>c.kind==='api'&&c.ports.length>0)},
+{what:'List what is running',cmd:'docker ps',
+ parts:[['docker ps','Show running containers: ID, image, status, published ports and name.']],
+ saw:'One row, for reactor. The PORTS column reads 0.0.0.0:8080->8000/tcp, the same mapping you asked for. hello-world is missing because it already exited.',
+ test:(l,w,r)=>r.ok&&/^docker (ps|container ls)\b/.test(l)},
+{what:'Ask the reactor for its state',cmd:'curl localhost:8080',
+ parts:[['curl','A command-line tool that fetches a web address. In real life you could open http://localhost:8080 in a browser instead.'],['localhost:8080','Port 8080 on your own computer, which Docker forwards into the container.']],
+ saw:'That JSON came from the reactor service inside the container. Your computer has no Python and no web framework installed. The container brought its own. Try curl localhost:8080/status as well.',
+ test:(l,w,r)=>r.ok&&/^curl\b/.test(l)},
+{what:'Shut the reactor down',cmd:'docker stop reactor',
+ parts:[['docker stop','Ask the main program to shut down politely. After ten seconds Docker forces it.'],['reactor','The container\'s name. Its ID, or the first few characters of it, also works.']],
+ saw:'Docker echoes the name to confirm. The container has exited, but it still exists. On the blueprint the reactor ring has gone dim, not empty.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?stop\b/.test(l)},
+{what:'List everything, including stopped containers',cmd:'docker ps -a',
+ parts:[['-a','All. Include containers that are created or exited, not only running ones.']],
+ saw:'Both containers appear with status Exited. They hold their logs and files until you remove them. You could bring the reactor back with docker start reactor.',
+ test:(l,w,r)=>r.ok&&/^docker (ps|container ls)\b.*(-a|--all)/.test(l)},
+{what:'Remove the stopped reactor container',cmd:'docker rm reactor',
+ parts:[['docker rm','Delete a stopped container for good. The image it came from is untouched.']],
+ saw:'The container is gone, and the name reactor is free to use again. The hangar-7/kestrel-reactor image is still in your image list, ready for the next start.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?rm\b/.test(l)}],
+notes:`
+<h2>Good to know</h2>
+<ul>
+<li><code>docker rm -f reactor</code> stops and removes in one step. Handy while experimenting.</li>
+<li>Add <code>--rm</code> to <code>docker run</code> and the container deletes itself when it exits. Good for one-off commands.</li>
+<li>Two containers cannot publish the same host port, and two containers cannot share a name. Both errors are common and harmless: pick another port, or remove the old container.</li>
+</ul>`,
+quiz:[
+{q:'In -p 8080:8000, which number is the port on your own computer?',opts:['8000','8080','Both','Neither, they are both inside the container'],a:1,why:'The order is host:container. You visit localhost:8080, and Docker forwards the traffic to port 8000 inside the container.'},
+{q:'You ran docker stop reactor. What is true now?',opts:['The container and its image are deleted','The container is deleted but the image remains','The container still exists in an exited state','The container is paused and still using memory'],a:2,why:'Stop ends the process. The container stays, visible in docker ps -a, until you docker rm it.'}],
+reading:[
+['docker run reference','https://docs.docker.com/reference/cli/docker/container/run/','Every flag, with examples. Skim the headings to see what is possible.'],
+['Publishing and exposing ports','https://docs.docker.com/get-started/docker-concepts/running-containers/publishing-ports/','A short guide to the -p flag.']]
+},
+
+{id:3,title:'Images and layers',mins:14,
+idea:`
+<p>An image has a name in two parts, <code>repository:tag</code>. In <code>postgres:17</code> the repository is postgres and the tag is 17. Leave the tag off and Docker assumes <code>latest</code>, which simply means "whatever the publisher last pushed under that label". For real projects, name a specific version so that everyone gets the same thing.</p>
+<p>An image is not one big file. It is a stack of <strong>layers</strong>, and each layer records a set of file changes: "add Debian", "add Python", "add these libraries", "add my code". Layers are read-only and shared. If ten images are built on the same Python layer, your disk stores it once and downloads it once.</p>
+<p>When a container starts, Docker adds one thin <strong>writable layer</strong> on top for that container alone. Anything the container writes goes there. Remove the container and that layer goes with it. This is why containers are cheap to create, and why they do not keep data on their own. Lesson 6 deals with that.</p>`,
+widget:'layers',widgetTitle:'One image, many containers',
+widgetIntro:'Start a few containers from the same image and see what is shared and what is not.',
+labIntro:'Download the reactor module layer by layer, look inside it, then watch two containers share it. Keep an eye on the panels under the blueprint: images show one bar per layer, and each container shows its own writable layer sitting on top of the image.',
+tasks:[
+{what:'Download the reactor image and watch its layers arrive',cmd:'docker pull hangar-7/kestrel-reactor',
+ parts:[['docker pull','Download an image from a registry without running it.'],['hangar-7/kestrel-reactor','No tag given, so Docker fetches hangar-7/kestrel-reactor:latest.']],
+ saw:'Eight lines, one per layer, each downloaded and unpacked separately. On the blueprint the uplink cable carried them aboard, and the image filled up one bar at a time. Three layers hold nearly all the size: the base system, Python, and the installed libraries. The rest are a few small files.',
+ test:(l,w,r)=>r.ok&&/^docker (image )?pull\b/.test(l)&&w.images.some(i=>i.repo==='hangar-7/kestrel-reactor')},
+{what:'List the images on your machine',cmd:'docker images',
+ parts:[['docker images','Show local images with their tag, ID and size.']],
+ saw:'One image, 187MB. That size is the sum of its layers. No container exists yet: images and containers are separate lists.',
+ test:(l,w,r)=>r.ok&&/^docker (images|image ls)\b/.test(l)},
+{what:'Look at the layers inside the image',cmd:'docker history hangar-7/kestrel-reactor',
+ parts:[['docker history','List an image\'s layers, newest at the top, with the build step that created each one and its size.'],['hangar-7/kestrel-reactor','The image to inspect.']],
+ saw:'Read it from the bottom up: a Debian base system, Python installed on top, then the reactor service itself: its folder, its list of libraries, the installed libraries, and last its code. Each row is one instruction from the Dockerfile that built this image. You will write the top four yourself in the next lesson. The word <missing> is normal for pulled images. It only means the intermediate build steps have no ID of their own on your machine.',
+ test:(l,w,r)=>r.ok&&!!r.meta.history},
+{what:'Start a container from the image',cmd:'docker run -d --name reactor hangar-7/kestrel-reactor',
+ parts:[['docker run -d --name reactor','Create and start a background container called reactor.'],['hangar-7/kestrel-reactor','Already downloaded, so there is nothing to pull this time.']],
+ saw:'Instant start, no download. The reactor card shows the eight read-only image layers with a new, empty writable layer on top. Docker did not copy the image. The container just points at it.',
+ test:(l,w,r)=>up(w,c=>c.name==='reactor'&&c.kind==='api')},
+{what:'Write a file inside the container',cmd:'docker exec reactor touch /tmp/burn.log',
+ parts:[['docker exec reactor','Run a command inside the running container reactor.'],['touch /tmp/burn.log','Create an empty file at that path.']],
+ saw:'The file landed in reactor\'s writable layer. Its card now lists it there. The image layers underneath did not change, and never can.',
+ test:(l,w,r)=>w.containers.some(c=>c.name==='reactor'&&c.rw.length>0)},
+{what:'Ask Docker what this container has changed',cmd:'docker diff reactor',
+ parts:[['docker diff','List every file a container has added (A), changed (C) or deleted (D) compared with its image. In other words, the contents of its writable layer.']],
+ saw:'burn.log is there with an A for added, and /tmp has a C for changed, because a file was added inside it. Everything else the container sees comes straight from the image.',
+ test:(l,w,r)=>r.ok&&!!r.meta.diff},
+{what:'Start a second container from the same image',cmd:'docker run -d --name reactor2 hangar-7/kestrel-reactor',
+ parts:[['--name reactor2','A different name. Two containers cannot share one.']],
+ saw:'Two containers, one image. Both cards point at the same eight layers, stored once on disk. reactor2 has its own writable layer, and it is empty.',
+ test:(l,w,r)=>up(w,c=>c.name==='reactor2'&&c.kind==='api')},
+{what:'Look for the log file from the second container',cmd:'docker exec reactor2 ls /tmp',
+ parts:[['ls /tmp','List the files in /tmp, as seen from inside reactor2.']],
+ saw:'Nothing. burn.log exists only in reactor\'s writable layer. Containers share the image but never see each other\'s changes.',
+ test:(l,w,r)=>r.ok&&/exec\b.*\breactor2\b.*\bls\b/.test(l)},
+{what:'Remove both containers',cmd:'docker rm -f reactor reactor2',
+ parts:[['docker rm -f','Stop and remove. You can name several containers at once.']],
+ saw:'Both writable layers are gone, and burn.log with them. The image still has all eight layers, untouched.',
+ test:(l,w,r)=>r.ok&&!w.containers.some(c=>c.kind==='api')},
+{what:'Run a throwaway command in a tiny Linux',cmd:'docker run --rm alpine echo "hello from alpine"',
+ parts:[['--rm','Remove the container automatically when it exits.'],['alpine','A Linux image of only a few megabytes, popular for small jobs.'],['echo "hello from alpine"','Everything after the image name replaces the image\'s default start command.']],
+ saw:'Docker pulled alpine, a single small layer, ran echo inside it, printed the result and cleaned up. There is an alpine image now but no leftover container.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?run\b.*alpine/.test(l)&&/echo/.test(l)},
+{what:'Delete an image you no longer need',cmd:'docker rmi alpine',
+ parts:[['docker rmi','Remove an image and any of its layers that no other image uses. Docker refuses if a container, even a stopped one, still depends on it.']],
+ saw:'This worked because --rm had already removed the only container that used alpine.',
+ test:(l,w,r)=>r.ok&&/^docker (rmi|image rm)\b/.test(l)}],
+notes:`
+<h2>Choosing images</h2>
+<ul>
+<li>On Docker Hub, prefer images marked <strong>Docker Official Image</strong> or from a <strong>Verified Publisher</strong>. Anyone can upload an image, so treat unknown ones as you would any download from a stranger.</li>
+<li>Tags ending in <code>-slim</code> or <code>-alpine</code> are smaller variants with fewer tools included. <code>python:3.14-slim</code> is a sensible default for a Python service.</li>
+<li>Images add up. <code>docker images</code> shows what is using your disk.</li>
+<li>When two images are built on the same base, the shared layers are downloaded once. During a pull, Docker prints <code>Already exists</code> beside any layer it already has.</li>
+<li>The layer list in this sandbox is simplified. Real <code>docker history</code> output also shows zero-size rows for settings such as CMD and ENV, which change the image's configuration without adding files.</li>
+</ul>`,
+quiz:[
+{q:'You write image: postgres with no tag. What do you get?',opts:['An error','The oldest stable version','Whatever is currently tagged latest, which can change over time','The version that matches your operating system'],a:2,why:'latest is only a label that the publisher moves. Naming a version, such as postgres:17, keeps your setup the same next month.'},
+{q:'A container writes a file, then you remove the container. Where is the file?',opts:['Gone, with the container\'s writable layer','Saved back into the image','Moved to your home folder','Kept in Docker Hub'],a:0,why:'Writes go to the container\'s own thin layer. The image never changes. To keep data you need a volume.'}],
+reading:[
+['What is an image?','https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-an-image/','Official beginner page on images, tags and Docker Hub.'],
+['Understanding image layers','https://docs.docker.com/get-started/docker-concepts/building-images/understanding-image-layers/','How layers stack and why they are shared.'],
+['Docker Hub','https://hub.docker.com/search?badges=official','Browse the official images. Each page lists tags and usage notes.']]
+},
+
+{id:4,title:'Build your own image',mins:12,
+idea:`
+<p>So far you have run other people's images. To package your own app you write a <strong>Dockerfile</strong>: a plain text file, named exactly <code>Dockerfile</code>, that lists the steps to assemble the image. Then <code>docker build</code> follows those steps.</p>
+<p>The example in this lesson is the Kestrel's reactor control service, a very small FastAPI app. The project folder holds three files:</p>
+<pre class="file"><b>main.py</b>            the reactor API: three routes, /, /status and /healthz
+<b>requirements.txt</b>   the libraries it needs: fastapi and uvicorn
+<b>Dockerfile</b>         the build steps, shown below</pre>
+<p>Each instruction in a Dockerfile produces one layer. Docker <strong>caches</strong> every layer and reuses it on the next build if nothing that feeds into it has changed. Once one step has to be redone, every step after it is redone too. So the order of the steps decides how fast your rebuilds are.</p>`,
+widget:'dockerfile',widgetTitle:'Read the Dockerfile, then see the cache work',
+widgetIntro:'First, tap any line of the Dockerfile to see what it does. Underneath is a guided experiment that shows why the lines are in this order.',
+labIntro:'Build the image, build it again to see the cache, then run your own API.',
+tasks:[
+{what:'Build an image from the Dockerfile',cmd:'docker build -t kestrel-reactor .',
+ parts:[['docker build','Read a Dockerfile and produce an image.'],['-t kestrel-reactor','Tag. The name to give the finished image. With no tag after a colon it becomes kestrel-reactor:latest. There is no hangar-7/ in front this time: this image is yours, built on this machine.'],['.','The build context: the folder whose files Docker may copy in. A dot means "the folder I am in". Forgetting the dot is the most common build mistake.']],
+ saw:'Five numbered steps, one per layer. The pip install step took nearly all the time.',
+ test:(l,w,r)=>r.ok&&/^docker (image )?build\b/.test(l)},
+{what:'Build again without changing anything',cmd:'docker build -t kestrel-reactor .',
+ parts:[['(same command)','Nothing changed, so Docker should have nothing to do.']],
+ saw:'Every step says CACHED and the build finishes in under a second. Docker reused all five layers.',
+ test:(l,w,r)=>r.ok&&/^docker (image )?build\b/.test(l)&&r.meta.builds>=2},
+{what:'Run your image',cmd:'docker run -d -p 8000:8000 --name reactor kestrel-reactor',
+ parts:[['-p 8000:8000','The Dockerfile starts the app on port 8000 inside the container. Publish it on port 8000 of your computer.'],['kestrel-reactor','Your own image, used exactly like one from a registry.']],
+ saw:'The reactor is online from a module you built yourself. The blueprint shows it lit.',
+ test:(l,w,r)=>up(w,c=>c.kind==='api'&&c.ports.some(p=>p.c===8000))},
+{what:'Call the API',cmd:'curl localhost:8000/healthz',
+ parts:[['/healthz','A route defined in main.py that reports whether the service is alive.']],
+ saw:'JSON straight from FastAPI. On a real machine, http://localhost:8000/docs would show FastAPI\'s interactive documentation page.',
+ test:(l,w,r)=>r.ok&&/^curl\b/.test(l)},
+{what:'Stop and remove it in one step',cmd:'docker rm -f reactor',
+ parts:[['-f','Force. Stop the container if it is running, then remove it.']],
+ saw:'The container is gone. The kestrel-reactor image stays until you remove it with docker rmi.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?rm\b/.test(l)&&!has(w,'reactor')}],
+notes:`
+<h2>Good to know</h2>
+<ul>
+<li><strong>Why <code>--host 0.0.0.0</code>?</strong> By default a development server listens only on the container's own loopback address, where nothing outside can reach it. Listening on 0.0.0.0 means "all interfaces", so the published port works. A container that runs but cannot be reached is very often this.</li>
+<li><strong>.dockerignore</strong> is a file listing what to leave out of the build context: <code>.git</code>, <code>.venv</code>, <code>__pycache__</code>, <code>.env</code>. It makes builds faster and keeps secrets out of images.</li>
+<li><strong>Never bake secrets into an image.</strong> Anyone who has the image can read every layer. Pass passwords and keys at run time. The next lesson shows how.</li>
+<li><strong>After you change code you must rebuild</strong> and start a new container. A running container keeps using the image it was started from.</li>
+</ul>`,
+quiz:[
+{q:'Why copy requirements.txt and install libraries before copying the rest of the code?',opts:['Docker requires that order','So a code change does not force the slow install step to run again','It makes the image smaller','So the libraries are installed twice for safety'],a:1,why:'Code changes often and requirements rarely. With the install step above the code copy, editing main.py invalidates only the last, fast layer.'},
+{q:'What does the dot at the end of docker build -t kestrel-reactor . mean?',opts:['End of the command','Use the default settings','Use the current folder as the build context','Build every Dockerfile on the machine'],a:2,why:'It is the path to the build context, the set of files that COPY can see. Docker looks for the Dockerfile there too.'}],
+reading:[
+['Dockerfile reference','https://docs.docker.com/reference/dockerfile/','Every instruction explained. FROM, RUN, COPY and CMD cover most needs.'],
+['Docker build cache','https://docs.docker.com/build/cache/','How cache invalidation works, with diagrams.'],
+['FastAPI in containers','https://fastapi.tiangolo.com/deployment/docker/','FastAPI\'s own guide, with the same pattern as this lesson explained at length.'],
+['Building best practices','https://docs.docker.com/build/building/best-practices/','The official checklist for writing good Dockerfiles.']]
+},
+
+{id:5,title:'Ports, settings and looking inside',mins:10,
+idea:`
+<p>A container is sealed off on purpose. That raises three practical questions, and each has a standard answer.</p>
+<dl class="terms">
+<dt>How do I reach it?</dt><dd>Publish a port with <code>-p host:container</code>. The container side must match the port the program inside is actually listening on.</dd>
+<dt>How do I configure it?</dt><dd>With <strong>environment variables</strong>, set with <code>-e NAME=value</code>. The same image can then run in development, testing and production with different settings. Passwords and connection strings go in this way, never into the image.</dd>
+<dt>How do I see what it is doing?</dt><dd><code>docker logs</code> shows everything the program has printed. <code>docker exec</code> runs an extra command inside a running container, so you can look around.</dd>
+</dl>
+<p>These three tools are also how you debug. When a container will not stay up, the answer is nearly always in its logs.</p>`,
+widget:'ports',widgetTitle:'Try a port mapping',
+widgetIntro:'This container runs the reactor service, which listens on port 8000 inside the container. Change the numbers and see whether a browser on your computer could reach it.',
+labIntro:'The reactor needs somewhere to keep its readings: a PostgreSQL database in its own container, called db. You are going to start that database the wrong way on purpose, find out why it failed, and fix it. This is the debugging routine you will reuse constantly.',
+tasks:[
+{what:'Start PostgreSQL with no settings',cmd:'docker run -d --name db postgres:17',
+ parts:[['postgres:17','The official PostgreSQL image.']],
+ saw:'You got a container ID, so it looks like it worked. It did not.',
+ test:(l,w,r)=>has(w,'db')&&/^docker (container )?run\b/.test(l)},
+{what:'Check whether it is running',cmd:'docker ps -a',
+ parts:[['-a','Without -a the list would be empty, which tells you something is wrong but not what.']],
+ saw:'Status Exited (1). A code other than 0 means the program ended with an error.',
+ test:(l,w,r)=>r.ok&&/^docker (ps|container ls)\b.*(-a|--all)/.test(l)},
+{what:'Read its logs to find out why',cmd:'docker logs db',
+ parts:[['docker logs','Print everything the container\'s main program wrote. Works on stopped containers too.']],
+ saw:'The image refuses to start a database with no superuser password, and it tells you the exact variable to set.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?logs\b/.test(l)},
+{what:'Remove the failed container',cmd:'docker rm db',
+ parts:[['docker rm db','Free up the name db so you can try again.']],
+ saw:'Clean slate.',
+ test:(l,w,r)=>r.ok&&!has(w,'db')},
+{what:'Start it properly',cmd:'docker run -d --name db -e POSTGRES_PASSWORD=secret -p 5432:5432 postgres:17',
+ parts:[['-e POSTGRES_PASSWORD=secret','Set an environment variable inside the container. This image reads it on first start to set the database password.'],['-p 5432:5432','Publish PostgreSQL\'s standard port, so a database tool on your computer can connect to localhost:5432.']],
+ saw:'The sandbox panel shows db as running this time.',
+ test:(l,w,r)=>up(w,c=>c.kind==='postgres'&&c.env.POSTGRES_PASSWORD)},
+{what:'Look at the settings from inside the container',cmd:'docker exec db env',
+ parts:[['docker exec db','Run an extra command inside the running container named db.'],['env','The command to run: print all environment variables.']],
+ saw:'POSTGRES_PASSWORD is there, visible to the program inside. On a real machine, docker exec -it db bash opens a shell inside the container so you can explore.',
+ test:(l,w,r)=>r.ok&&/^docker (container )?exec\b/.test(l)},
+{what:'Clean up',cmd:'docker rm -f db',
+ parts:[['docker rm -f','Stop and remove.']],
+ saw:'Done. Keep this routine in mind: ps -a, then logs, then fix and run again.',
+ test:(l,w,r)=>r.ok&&!has(w,'db')}],
+notes:`
+<h2>Good to know</h2>
+<ul>
+<li><code>docker logs -f db</code> follows the logs live, like a ticker. Press Ctrl+C to stop following. The container keeps running.</li>
+<li>With many settings, put them in a file of <code>NAME=value</code> lines and pass <code>--env-file .env</code>. Keep that file out of Git.</li>
+<li><code>-it</code> on <code>docker exec</code> or <code>docker run</code> means "interactive, with a terminal". You need it for anything you type into, such as a shell.</li>
+</ul>`,
+quiz:[
+{q:'A container shows Exited (1) straight after you start it. What is the best first move?',opts:['Reinstall Docker','Run docker logs with the container\'s name','Delete the image and pull it again','Restart your computer'],a:1,why:'The logs hold whatever the program printed before it died, which is usually the exact reason.'},
+{q:'Where should a database password go?',opts:['In the Dockerfile, with ENV','In the image\'s source code','Passed at run time, for example with -e or an env file','In the image tag'],a:2,why:'Anything in the image can be read by anyone who has the image. Settings passed at run time stay out of it, and can differ per environment.'}],
+reading:[
+['postgres official image','https://hub.docker.com/_/postgres','Lists every environment variable the image understands. Most official images document their settings this way.'],
+['docker exec reference','https://docs.docker.com/reference/cli/docker/container/exec/','Flags and examples.'],
+['docker logs reference','https://docs.docker.com/reference/cli/docker/container/logs/','Following, tailing and timestamps.']]
+},
+
+{id:6,title:'Keep data with volumes',mins:10,
+idea:`
+<p>Lesson 3 said that a container's writes live in its own thin layer and die with it. For a web server that is fine. For a database it is a disaster: remove the container and your data is gone.</p>
+<p>A <strong>volume</strong> is a storage area that Docker manages <em>outside</em> any container. You attach it to a folder inside the container with <code>-v name:/path</code>. The program writes to that folder as usual, but the files land in the volume. Remove the container, start a new one with the same volume attached, and the data is still there.</p>
+<dl class="terms">
+<dt>Named volume</dt><dd><code>-v pgdata:/var/lib/postgresql/data</code>. Docker stores the data and you refer to it by name. Use this for databases.</dd>
+<dt>Bind mount</dt><dd><code>-v ./src:/app</code>. A folder from your own computer appears inside the container. Use this in development, so code edits show up without rebuilding.</dd>
+</dl>
+<p>The rule of thumb: containers are disposable, volumes are not.</p>`,
+labIntro:'First lose some data, then keep it. Both halves use the same commands. The only difference is one -v flag.',
+tasks:[
+{what:'Start a database with no volume',cmd:'docker run -d --name db -e POSTGRES_PASSWORD=secret postgres:17',
+ parts:[['(no -v)','Nothing tells Docker to keep the data anywhere but inside this container.']],
+ saw:'A normal running database.',
+ test:(l,w,r)=>up(w,c=>c.name==='db'&&c.kind==='postgres'&&!pgVol(c))},
+{what:'Create a table in it',cmd:'docker exec db psql -U postgres -c "CREATE TABLE readings (id int)"',
+ parts:[['docker exec db','Run a command inside the db container.'],['psql -U postgres','PostgreSQL\'s command-line client, connecting as the postgres user.'],['-c "..."','Run this one SQL statement and exit.']],
+ saw:'CREATE TABLE confirms the table exists.',
+ test:(l,w,r)=>r.ok&&r.meta.created},
+{what:'Remove the container',cmd:'docker rm -f db',
+ parts:[['docker rm -f db','Imagine this is an upgrade, a crash, or a tidy-up.']],
+ saw:'The container and its writable layer are gone.',
+ test:(l,w,r)=>r.ok&&!has(w,'db')},
+{what:'Start a fresh database the same way',cmd:'docker run -d --name db -e POSTGRES_PASSWORD=secret postgres:17',
+ parts:[['(same command as step 1)','Same image, same name, same settings.']],
+ saw:'It starts happily.',
+ test:(l,w,r)=>up(w,c=>c.name==='db'&&c.kind==='postgres')},
+{what:'Look for your table',cmd:'docker exec db psql -U postgres -c "\\dt"',
+ parts:[['\\dt','A psql shortcut meaning "list tables".']],
+ saw:'"Did not find any relations." The table went with the old container. This new one is a brand-new, empty database.',
+ test:(l,w,r)=>r.ok&&r.meta.tables===0},
+{what:'Remove it and start again, this time with a volume',cmd:'docker rm -f db',
+ parts:[['docker rm -f db','Clear the way for the proper setup.']],
+ saw:'Gone.',
+ test:(l,w,r)=>r.ok&&!has(w,'db')},
+{what:'Start the database with a named volume',cmd:'docker run -d --name db -e POSTGRES_PASSWORD=secret -v pgdata:/var/lib/postgresql/data postgres:17',
+ parts:[['-v pgdata:/var/lib/postgresql/data','Attach the volume called pgdata to the folder where this image keeps its database files. Docker creates the volume if it does not exist yet.']],
+ saw:'A volume named pgdata has appeared in the sandbox panel.',
+ test:(l,w,r)=>up(w,c=>c.name==='db'&&pgVol(c))},
+{what:'Create the table again',cmd:'docker exec db psql -U postgres -c "CREATE TABLE readings (id int)"',
+ parts:[['(same as step 2)','This time the files land in the volume.']],
+ saw:'CREATE TABLE.',
+ test:(l,w,r)=>r.ok&&r.meta.created},
+{what:'Remove the container',cmd:'docker rm -f db',
+ parts:[['docker rm -f db','The container goes. Look at the sandbox panel: the volume stays.']],
+ saw:'No container, but pgdata is still listed.',
+ test:(l,w,r)=>r.ok&&!has(w,'db')&&w.volumes.some(v=>v.name==='pgdata')},
+{what:'Start a new container with the same volume',cmd:'docker run -d --name db -e POSTGRES_PASSWORD=secret -v pgdata:/var/lib/postgresql/data postgres:17',
+ parts:[['(same as step 7)','A brand-new container, pointed at the existing data.']],
+ saw:'PostgreSQL found existing data in the folder and skipped its first-time setup.',
+ test:(l,w,r)=>up(w,c=>c.name==='db'&&pgVol(c))},
+{what:'Look for your table',cmd:'docker exec db psql -U postgres -c "\\dt"',
+ parts:[['\\dt','List tables.']],
+ saw:'readings is there. The data outlived the container that created it.',
+ test:(l,w,r)=>r.ok&&r.meta.tables>0}],
+notes:`
+<h2>Good to know</h2>
+<ul>
+<li><code>docker volume ls</code> lists volumes. <code>docker volume rm pgdata</code> deletes one, and the data in it, for good. Docker refuses while a container still uses it.</li>
+<li>The folder to mount depends on the image. For PostgreSQL 17 and earlier it is <code>/var/lib/postgresql/data</code>. From PostgreSQL 18 the official image expects the volume at <code>/var/lib/postgresql</code>. Always check the image's Docker Hub page.</li>
+<li>Environment variables such as POSTGRES_PASSWORD only take effect when the data folder is empty. If a volume already holds a database, changing the variable does not change the password.</li>
+<li>A volume is not a backup. It protects data from container removal, not from mistakes or disk failure.</li>
+</ul>`,
+quiz:[
+{q:'You run docker rm -f db on a database container that has a named volume attached. What happens to the data?',opts:['It is deleted with the container','It stays in the volume','It moves into the image','It is uploaded to Docker Hub'],a:1,why:'Removing a container never removes a named volume. A new container that mounts the same volume finds the data again.'},
+{q:'Which mount suits live code editing during development?',opts:['A named volume','No mount, just rebuild each time','A bind mount of your project folder','An environment variable'],a:2,why:'A bind mount shows your computer\'s folder inside the container, so edits appear at once. Named volumes are for data Docker should look after.'}],
+reading:[
+['Volumes','https://docs.docker.com/engine/storage/volumes/','The official guide: creating, mounting, backing up.'],
+['Bind mounts','https://docs.docker.com/engine/storage/bind-mounts/','When and how to share a host folder.'],
+['Persisting container data','https://docs.docker.com/get-started/docker-concepts/running-containers/persisting-container-data/','A beginner walkthrough that uses PostgreSQL, like this lesson.']]
+},
+
+{id:7,title:'Let containers talk to each other',mins:8,
+idea:`
+<p>A real app is several containers: an API, a database, perhaps a cache. The API has to find the database. Inside a container, <code>localhost</code> means <em>that container itself</em>, so pointing the API at localhost:5432 fails. This is the most common networking mistake.</p>
+<p>The answer is a <strong>user-defined network</strong>. Put containers on the same network and Docker gives them a private phone book: each container can reach the others <strong>by container name</strong>. If the database container is called <code>db</code>, the API connects to host <code>db</code>, port 5432.</p>
+<p>Two more facts complete the picture:</p>
+<ul>
+<li>Containers on the same network reach each other on any port directly. <code>-p</code> is only for traffic coming from <em>your computer</em>. A database that only the API uses does not need a published port at all, which is also safer.</li>
+<li>Containers on different networks cannot see each other. Networks are how you keep projects apart.</li>
+</ul>`,
+labIntro:'Create a network, put a database on it, then test whether other containers can find it by name.',
+tasks:[
+{what:'Create a network',cmd:'docker network create kestrel-net',
+ parts:[['docker network create','Make a new private network.'],['kestrel-net','A name you choose.']],
+ saw:'The long string is the network\'s ID.',
+ test:(l,w,r)=>r.ok&&w.networks.some(n=>n.name==='kestrel-net')},
+{what:'Start a database on that network',cmd:'docker run -d --name db --network kestrel-net -e POSTGRES_PASSWORD=secret postgres:17',
+ parts:[['--network kestrel-net','Attach the container to kestrel-net. Its name, db, becomes its address on that network.'],['(no -p)','Deliberately not published. Only containers on kestrel-net can reach it.']],
+ saw:'db is running and attached to kestrel-net.',
+ test:(l,w,r)=>up(w,c=>c.name==='db'&&c.network==='kestrel-net')},
+{what:'From another container on the same network, look for db',cmd:'docker run --rm --network kestrel-net alpine ping -c 1 db',
+ parts:[['--rm ... alpine','A throwaway container, used as a test probe.'],['--network kestrel-net','Join the same network as the database.'],['ping -c 1 db','Send one network ping to the host named db.']],
+ saw:'The name db resolved to a private address and answered. Any app on kestrel-net could now use db:5432 as its database host.',
+ test:(l,w,r)=>r.meta.ping===true},
+{what:'Try the same from a container that is not on the network',cmd:'docker run --rm alpine ping -c 1 db',
+ parts:[['(no --network)','This container lands on Docker\'s default network, where names are not looked up.']],
+ saw:'"bad address". From outside kestrel-net, db does not exist. That is isolation working as intended.',
+ test:(l,w,r)=>r.meta.ping===false},
+{what:'List networks',cmd:'docker network ls',
+ parts:[['docker network ls','Show all networks. bridge, host and none are built in.']],
+ saw:'kestrel-net sits beside the three built-in networks.',
+ test:(l,w,r)=>r.ok&&/^docker network ls/.test(l)},
+{what:'Clean up',cmd:'docker rm -f db',
+ parts:[['docker rm -f db','Remove the database container.']],
+ saw:'Done. docker network rm kestrel-net would remove the network too.',
+ test:(l,w,r)=>r.ok&&!has(w,'db')}],
+notes:`
+<h2>Good to know</h2>
+<ul>
+<li>A connection string inside a container uses the <strong>container name</strong> as host: <code>postgresql://postgres:secret@db:5432/postgres</code>.</li>
+<li>A container that needs to reach a service running directly on your computer, not in Docker, can use the special host name <code>host.docker.internal</code> on Docker Desktop.</li>
+<li>Typing <code>--network</code> on every command gets tedious. Docker Compose, in the next lesson, creates the network for you.</li>
+</ul>`,
+quiz:[
+{q:'Your API container and your database container are on the same user-defined network. The database container is named db. What host should the API connect to?',opts:['localhost','127.0.0.1','db','The database container\'s ID in full'],a:2,why:'On a user-defined network, container names work as host names. localhost would point the API back at itself.'},
+{q:'Only the API uses the database. Does the database need -p 5432:5432?',opts:['Yes, or the API cannot reach it','No. Containers on the same network reach each other without published ports','Only on Linux','Only if the database has a volume'],a:1,why:'-p opens a door from your computer into the container. Container-to-container traffic on a shared network does not go through that door.'}],
+reading:[
+['Networking overview','https://docs.docker.com/engine/network/','How container networking works, and the network drivers.'],
+['Bridge networks','https://docs.docker.com/engine/network/drivers/bridge/','Explains the difference between the default bridge and user-defined ones.']]
+},
+
+{id:8,title:'Run the whole stack with Compose',mins:12,
+idea:`
+<p>To run the API and its database by hand you would create a network, create a volume, build an image, and type two long <code>docker run</code> commands in the right order. Every teammate would have to do the same, exactly.</p>
+<p><strong>Docker Compose</strong> replaces all of that with one file. In <code>compose.yaml</code> you <em>describe</em> the containers you want, called <strong>services</strong>, with their images, ports, settings and volumes. Then one command starts everything, and one command takes it all down.</p>
+<p>Compose also does three helpful things without being asked:</p>
+<ul>
+<li>It creates a private network for the project and puts every service on it, so services reach each other by <strong>service name</strong>.</li>
+<li>It prefixes everything with the project name, which is the folder name by default. That keeps one project's containers apart from another's.</li>
+<li>When you run <code>up</code> again it only recreates what changed.</li>
+</ul>
+<p>The file belongs in Git beside your code. It is the written-down answer to "how do I run this project?"</p>`,
+widget:'compose',widgetTitle:'Read the compose file',
+widgetIntro:'This file describes the reactor service from lesson 4 and its PostgreSQL log store with a volume, as in lesson 6. Tap any line.',
+labIntro:'The sandbox folder is called kestrel and already holds this compose.yaml. Bring the stack up, use it, and take it down.',
+tasks:[
+{what:'Start everything',cmd:'docker compose up -d',
+ parts:[['docker compose','Compose is built into the docker command. Note the space: docker-compose with a hyphen is the old version.'],['up','Create and start everything the file describes: build images, create the network and volumes, start the containers.'],['-d','Detached, in the background, as with docker run.']],
+ saw:'Compose built the reactor image, created a network and a volume, started the database, waited for it to report healthy, then started the reactor. Look at the names: all begin with kestrel. On the blueprint, reactor, log store, data cell and data bus are all live.',
+ test:(l,w,r)=>r.ok&&r.meta.composeUp},
+{what:'See the project\'s containers',cmd:'docker compose ps',
+ parts:[['docker compose ps','Like docker ps, but only for this project, with a SERVICE column.']],
+ saw:'Two services. Only reactor has a published port. The database is reachable from reactor, but not from your computer.',
+ test:(l,w,r)=>r.ok&&/^docker compose ps/.test(l)},
+{what:'Call the API',cmd:'curl localhost:8000/healthz',
+ parts:[['localhost:8000','The port published by the reactor service.']],
+ saw:'The reactor answered. It reached the database at host db, a name that exists only on the project\'s network.',
+ test:(l,w,r)=>r.ok&&/^curl\b/.test(l)},
+{what:'Read one service\'s logs',cmd:'docker compose logs reactor',
+ parts:[['docker compose logs','Show logs for the project. Each line is labelled with its service.'],['reactor','Limit the output to one service. Leave it off to see every service interleaved.']],
+ saw:'Start-up lines, the database connection, and the request you just made.',
+ test:(l,w,r)=>r.ok&&/^docker compose logs/.test(l)},
+{what:'Stop and remove everything',cmd:'docker compose down',
+ parts:[['down','Stop and remove the project\'s containers and its network. The opposite of up.']],
+ saw:'Containers and network removed. The volume is not in that list.',
+ test:(l,w,r)=>r.ok&&r.meta.composeDown&&w.volumes.some(v=>v.name==='kestrel_pgdata')},
+{what:'Check the volume survived',cmd:'docker volume ls',
+ parts:[['docker volume ls','List all volumes.']],
+ saw:'kestrel_pgdata is still there. down keeps your data, so the next up finds the same database.',
+ test:(l,w,r)=>r.ok&&/^docker volume ls/.test(l)},
+{what:'Remove the data as well',cmd:'docker compose down -v',
+ parts:[['-v','Also remove the volumes named in the file. Use this when you want a completely fresh start. The data is gone for good.']],
+ saw:'The volume is removed. The next up would create an empty database.',
+ test:(l,w,r)=>r.ok&&r.meta.composeDown&&!w.volumes.some(v=>v.name==='kestrel_pgdata')}],
+notes:`
+<h2>Good to know</h2>
+<ul>
+<li><code>docker compose up -d --build</code> rebuilds images first. Use it after changing code or the Dockerfile.</li>
+<li><code>docker compose exec db psql -U postgres</code> opens a database prompt in the running db service.</li>
+<li><code>docker compose logs -f</code> follows all services live.</li>
+<li>Keep real passwords out of the file. Write <code>POSTGRES_PASSWORD: \${DB_PASSWORD}</code> and put the value in a <code>.env</code> file next to it, which Compose reads automatically and which stays out of Git.</li>
+<li><code>depends_on</code> alone only controls start order. The <code>healthcheck</code> plus <code>condition: service_healthy</code> is what makes the reactor wait until the database can actually accept connections.</li>
+</ul>`,
+quiz:[
+{q:'In this compose file, what host name does the reactor service use to reach the database?',opts:['localhost','db, the service name','kestrel_pgdata','postgres:17'],a:1,why:'Compose puts every service on one project network and makes each service name a host name on it.'},
+{q:'What is the difference between docker compose down and docker compose down -v?',opts:['-v is verbose output','down keeps named volumes. down -v deletes them too','-v also deletes the images','There is no difference'],a:1,why:'Plain down removes containers and the network but leaves volumes, so data survives. Adding -v removes the data as well.'}],
+reading:[
+['Docker Compose overview','https://docs.docker.com/compose/','What Compose is and how it fits with the rest of Docker.'],
+['Compose file reference','https://docs.docker.com/reference/compose-file/','Every key you can put in compose.yaml.'],
+['Compose quickstart','https://docs.docker.com/compose/gettingstarted/','A hands-on tutorial that builds a small Python web app with a second service.']]
+},
+
+{id:9,title:'Housekeeping and where next',mins:8,
+idea:`
+<p>Docker keeps things until you say otherwise: stopped containers, old images, unused networks, and build cache. After a few weeks of work this can take many gigabytes. Tidying is safe as long as you remember one rule: <strong>volumes hold your data, everything else can be recreated</strong>.</p>
+<p>You now know the whole everyday workflow:</p>
+<ol>
+<li>Write a <strong>Dockerfile</strong> to package the app.</li>
+<li>Write a <strong>compose.yaml</strong> to describe the app and the services it needs.</li>
+<li><code>docker compose up -d</code> to start, <code>logs</code> and <code>exec</code> to look inside, <code>down</code> to stop.</li>
+</ol>
+<p>The same image you run locally is what gets deployed. You <code>docker push</code> it to a registry, and a hosting service pulls it from there and runs it. That is the point of the whole exercise: what you tested is what ships.</p>`,
+labIntro:'Make a little mess, then clean it up.',
+tasks:[
+{what:'Leave a stopped container behind',cmd:'docker run hello-world',
+ parts:[['docker run hello-world','It prints and exits, leaving an exited container.']],
+ saw:'Finished, but not removed, because there was no --rm.',
+ test:(l,w,r)=>r.ok&&/hello-world/.test(l)},
+{what:'See the leftovers',cmd:'docker ps -a',
+ parts:[['docker ps -a','List all containers, including exited ones.']],
+ saw:'One exited container with an invented name. These pile up quickly.',
+ test:(l,w,r)=>r.ok&&/^docker (ps|container ls)\b.*(-a|--all)/.test(l)},
+{what:'Clean up in one go',cmd:'docker system prune',
+ parts:[['docker system prune','Remove stopped containers, unused networks, dangling images and build cache. It asks for confirmation first. It does not touch volumes or images that are still tagged.']],
+ saw:'The stopped container is gone. The hello-world image is still there, because it has a tag.',
+ test:(l,w,r)=>r.ok&&/^docker system prune/.test(l)},
+{what:'Check what images remain',cmd:'docker images',
+ parts:[['docker images','List local images.']],
+ saw:'To remove one image use docker rmi. To remove every image not used by a container, real Docker offers docker image prune -a.',
+ test:(l,w,r)=>r.ok&&/^docker (images|image ls)\b/.test(l)}],
+widget:'cheats',widgetTitle:'Cheat sheet',
+widgetIntro:'Every command from this guide, with a filter. This list is also available from the navigation at any time.',
+notes:`
+<h2>Where this leads in a FastAPI and PostgreSQL project</h2>
+<dl class="terms">
+<dt>Local development</dt><dd>One <code>compose.yaml</code> runs the API and a real PostgreSQL, so every developer and every coding agent starts from the same environment with one command.</dd>
+<dt>Automated tests</dt><dd>Libraries such as <strong>Testcontainers</strong> start a throwaway PostgreSQL container from inside the test suite and remove it afterwards. Tests then run against a real database instead of a stand-in, which matters for features that only exist in the database itself, such as row-level security.</dd>
+<dt>Continuous integration</dt><dd>The CI server builds the same Dockerfile and runs the same tests in containers, so "passes on my machine" and "passes in CI" mean the same thing.</dd>
+<dt>Cloud hosting</dt><dd>Services such as Google Cloud Run, AWS App Runner and Azure Container Apps take a container image and run it for you. The database is usually a managed service rather than a container, and the API gets its address through an environment variable, exactly as in lesson 5.</dd>
+</dl>
+<h2>Good next steps</h2>
+<ul>
+<li>Install Docker Desktop and repeat lessons 2 to 8 for real. The commands are identical.</li>
+<li>Take a small project you know and write a Dockerfile and a compose.yaml for it.</li>
+<li>Later topics, once the basics feel easy: multi-stage builds for smaller images, running as a non-root user, health checks, and image scanning.</li>
+</ul>`,
+quiz:[
+{q:'Which of these does docker system prune leave alone by default?',opts:['Stopped containers','Unused networks','Volumes','Build cache'],a:2,why:'Volumes hold data, so prune skips them unless you add --volumes. Everything else it removes can be rebuilt or pulled again.'},
+{q:'How does the image you tested locally reach a cloud hosting service?',opts:['You email the Dockerfile','You push the image to a registry and the service pulls it','The service logs into your laptop','It has to be rebuilt by hand on the server'],a:1,why:'Registries are the hand-off point. Build once, push, and every environment pulls the identical image.'}],
+reading:[
+['docker system prune','https://docs.docker.com/reference/cli/docker/system/prune/','Exactly what is removed, and the flags that widen it.'],
+['Docker workshop','https://docs.docker.com/get-started/workshop/','Docker\'s own longer hands-on course. A good second pass after this guide.'],
+['Testcontainers: getting started','https://testcontainers.com/getting-started/','How tests start real services in containers.'],
+['Deploying to Cloud Run','https://cloud.google.com/run/docs/deploying','One example of running a container image on a managed cloud service.']]
+}];
+
+const DOCKERFILE_NOTES=[
+['FROM python:3.14-slim','<b>Start from an existing image.</b> Every Dockerfile begins with FROM. This one gives you a small Debian Linux with Python 3.14 already installed, so you do not have to install Python yourself. Naming the version keeps builds the same over time.'],
+['WORKDIR /app','<b>Set the working folder</b> inside the image, creating it if needed. Every later instruction, and the running app, starts from /app.'],
+['COPY requirements.txt .','<b>Copy one file</b> from your project folder into the image. The first path is on your computer, the second is inside the image, and the dot means the working folder, /app. Only the list of libraries is copied at this point, on purpose. The cache test below shows why.'],
+['RUN pip install --no-cache-dir -r requirements.txt','<b>Run a command while building</b> and save the result as a layer. Here it installs the libraries. This is the slow step. The --no-cache-dir flag stops pip keeping its download cache, which would only make the image bigger.'],
+['COPY . .','<b>Copy everything else</b> from the project folder into /app: your code. It comes after the install so that editing code does not trigger a reinstall.'],
+['EXPOSE 8000','<b>Documentation only.</b> It records that the app listens on port 8000. It does not open or publish anything. You still need -p when you run the container.'],
+['CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]','<b>The command a container runs when it starts.</b> Here it launches uvicorn, the server that runs FastAPI apps. main:app means "the object called app in main.py". Listening on 0.0.0.0 is what lets traffic from outside the container reach it. RUN happens once, at build time. CMD happens every time a container starts.']
+];
+const COMPOSE_NOTES=[
+['services:','<b>The list of containers to run.</b> Each entry below, indented by two spaces, is one service. Indentation matters in YAML: use spaces, never tabs.'],
+['  db:','<b>A service named db.</b> The name is yours to choose. It also becomes the host name other services use to reach it.'],
+['    image: postgres:17','<b>Use a ready-made image.</b> The same as naming the image in docker run.'],
+['    environment:','<b>Environment variables</b> for this service. The same as -e.'],
+['      POSTGRES_PASSWORD: secret','The password the database is created with. In a real project the value comes from a .env file, not from this file.'],
+['    volumes:','<b>Storage to attach.</b> The same as -v.'],
+['      - pgdata:/var/lib/postgresql/data','Mount the named volume pgdata at the folder where PostgreSQL keeps its files, so data survives when the container is replaced.'],
+['    healthcheck:','<b>A way for Docker to ask "are you ready?"</b> Starting a database takes a few seconds. Running is not the same as ready.'],
+['      test: ["CMD-SHELL", "pg_isready -U postgres"]','The command Docker runs inside the container. pg_isready is PostgreSQL\'s own readiness check.'],
+['      interval: 5s','Ask every five seconds.'],
+['      retries: 5','After five failures in a row, mark the service unhealthy.'],
+['  reactor:','<b>A second service, named reactor.</b>'],
+['    build: .','<b>Build the image from the Dockerfile</b> in this folder instead of pulling one. The same as docker build.'],
+['    ports:','<b>Ports to publish.</b> The same as -p.'],
+['      - "8000:8000"','Host port 8000 to container port 8000. The quotes stop YAML misreading the colon. Note that db has no ports section: nothing outside the project can reach the database.'],
+['    environment:',''],
+['      DATABASE_URL: postgresql://postgres:secret@db:5432/postgres','The connection string the API reads. The host is <b>db</b>, the service name, not localhost.'],
+['    depends_on:','<b>Start order.</b> This service needs another one first.'],
+['      db:',''],
+['        condition: service_healthy','Wait until db passes its health check before starting reactor. Without this, the API could start first and crash because the database is not accepting connections yet.'],
+['',''],
+['volumes:','<b>Named volumes used by the project</b> are declared at the top level.'],
+['  pgdata:','Declares the volume. Compose creates it as kestrel_pgdata, prefixed with the project name.']
+];
+const CHEATS=[
+['Run','docker run IMAGE','Create and start a container'],
+['Run','docker run -d IMAGE','Run in the background'],
+['Run','docker run -p 8080:80 IMAGE','Publish host port 8080 to container port 80'],
+['Run','docker run --name web IMAGE','Give the container a name'],
+['Run','docker run -e KEY=value IMAGE','Set an environment variable'],
+['Run','docker run -v data:/path IMAGE','Attach a named volume'],
+['Run','docker run --rm IMAGE command','Run once and remove afterwards'],
+['Run','docker run -it IMAGE sh','Open an interactive shell in a new container'],
+['Containers','docker ps','List running containers'],
+['Containers','docker ps -a','List all containers, including stopped'],
+['Containers','docker stop NAME','Stop a container'],
+['Containers','docker start NAME','Start a stopped container'],
+['Containers','docker rm NAME','Remove a stopped container'],
+['Containers','docker rm -f NAME','Stop and remove'],
+['Inspect','docker logs NAME','Show a container\'s output'],
+['Inspect','docker logs -f NAME','Follow the output live'],
+['Inspect','docker exec NAME command','Run a command inside a running container'],
+['Inspect','docker exec -it NAME bash','Open a shell inside a running container'],
+['Images','docker images','List local images'],
+['Images','docker pull IMAGE:TAG','Download an image'],
+['Images','docker build -t NAME .','Build an image from the Dockerfile in this folder'],
+['Images','docker rmi IMAGE','Remove an image'],
+['Images','docker history IMAGE','List an image\'s layers'],
+['Inspect','docker diff NAME','List files a container has added or changed'],
+['Images','docker push NAME','Upload an image to a registry'],
+['Volumes','docker volume ls','List volumes'],
+['Volumes','docker volume rm NAME','Delete a volume and its data'],
+['Networks','docker network create NAME','Create a network'],
+['Networks','docker network ls','List networks'],
+['Compose','docker compose up -d','Start everything in compose.yaml'],
+['Compose','docker compose up -d --build','Rebuild images, then start'],
+['Compose','docker compose ps','List the project\'s containers'],
+['Compose','docker compose logs -f SERVICE','Follow a service\'s logs'],
+['Compose','docker compose exec SERVICE command','Run a command in a service'],
+['Compose','docker compose down','Stop and remove containers and network'],
+['Compose','docker compose down -v','Also remove the project\'s volumes'],
+['Clean up','docker system prune','Remove stopped containers, unused networks, dangling images, build cache'],
+['Clean up','docker system df','Show how much disk Docker is using']
+];
+const BRIEFS={
+1:`Hangar 7 is fitting out the <b>KF-07 Kestrel Mk II</b>. Each of the suit's systems (reactor, guidance, propulsion) is software, and each one ships as a sealed module (an <b>image</b>) that runs as its own fenced-off process (a <b>container</b>). You are the tech responsible for one of them: the <b>reactor system</b>. Over nine lessons you will start it, look inside it, build it yourself, give it a log store, and finally bring the pair online with one command. The Kestrel is only the setting. Every command and every term in brackets is real Docker.`,
+2:`First start-up. The reactor control module (the image <code>hangar-7/kestrel-reactor</code>) sits on the hangar's parts shelf (a <b>registry</b>). You will fetch it, start it as a container, check it answers, then shut it down. The image name is invented for this guide, so it only exists in this sandbox. On your own machine, practise the same commands with a real image such as <code>nginx</code>.`,
+3:`Before you trust a module, look inside it. The reactor module is not one block: it is a stack of sealed plates (<b>layers</b>), and every suit in the hangar that uses the same plates shares one copy.`,
+4:`So far the reactor module arrived ready-made. Now the engineers hand you its source and a build sheet (a <b>Dockerfile</b>), and you assemble the module (build the <b>image</b>) yourself.`,
+5:`The reactor needs somewhere to keep its readings. That log store is a PostgreSQL database running in its own container, <code>db</code>. It refuses to start, and your job is to find out why. This is the tech's standard fault-finding routine.`,
+6:`A container swap must not wipe the reactor's readings. Docker's answer is a data cell that lives outside any container (a <b>volume</b>). You will lose the readings once without it, then keep them with it.`,
+7:`The reactor has to reach its log store over the suit's internal data bus (a user-defined <b>network</b>), where each system answers to its own name. Nothing outside the suit should be able to reach the log store at all.`,
+8:`Typing every start-up command by hand does not scale to a whole suit. The start-up sheet (<code>compose.yaml</code>) describes the reactor and its log store together, and <b>Docker Compose</b> brings both online in the right order with one command.`,
+9:`End of shift: clear the hangar floor of stopped containers and leftovers. The Kestrel's other systems are waiting, and running many containers across several machines is the next guide in this series, Kubernetes from Zero.`};
+LESSONS.forEach(L=>{L.brief=BRIEFS[L.id];});
+
+
+/* ---------- UI ---------- */
+(function(){
+const KEY='docker-guide-v1';
+let saved={done:{},quiz:{}};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.done&&s.quiz)saved=s;}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(saved));}catch(e){}};
+const $=(s,r)=>(r||document).querySelector(s);
+function el(tag,attrs,...kids){
+  const n=document.createElement(tag);
+  for(const k in (attrs||{})){const v=attrs[k];
+    if(k==='html')n.innerHTML=v;else if(k==='text')n.textContent=v;else if(k.startsWith('on'))n.addEventListener(k.slice(2),v);
+    else if(v!==false&&v!=null)n.setAttribute(k,v===true?'':v);}
+  kids.flat(Infinity).forEach(c=>{if(c!=null)n.append(c);});
+  return n;
+}
+const quizDone=L=>L.quiz.every((q,i)=>saved.quiz[L.id+'-'+i]===q.a);
+const lessonDone=L=>L.tasks?!!saved.done[L.id]:quizDone(L);
+
+/* ----- navigation ----- */
+function renderNav(active){
+  const nav=$('#nav');nav.textContent='';
+  LESSONS.forEach(L=>{
+    nav.append(el('a',{href:'#lesson-'+L.id,class:'nav-item'+(active===L.id?' active':'')+(lessonDone(L)?' done':''),'aria-current':active===L.id?'page':null},
+      el('span',{class:'num',text:lessonDone(L)?'✓':('0'+L.id)}),el('span',{class:'nav-title',text:L.title})));
+  });
+  nav.append(el('a',{href:'#cheat-sheet',class:'nav-item'+(active==='cheats'?' active':'')},el('span',{class:'num',text:'≡'}),el('span',{class:'nav-title',text:'Cheat sheet'})));
+  const n=LESSONS.filter(lessonDone).length;
+  $('#progress-text').textContent='['+n+'/'+LESSONS.length+'] lessons complete';
+  $('#progress-bar').style.width=(n/LESSONS.length*100)+'%';
+  const a=$('.nav-item.active',nav);if(a&&a.scrollIntoView)a.scrollIntoView({block:'nearest',inline:'center'});
+}
+
+/* ----- widgets ----- */
+const W={};
+W.vm=function(box){
+  const stack=el('div',{class:'stack'}),cap=el('p',{class:'caption'});
+  const VIEW={
+    vm:{rows:[[['App A','app'],['App B','app']],[['Libraries','lib'],['Libraries','lib']],[['Guest OS','os'],['Guest OS','os']],[['Hypervisor','eng']],[['Host operating system','host']],[['Hardware','hw']]],
+      cap:'Each virtual machine carries a complete guest operating system. That gives strong isolation, but each one takes gigabytes of disk, a fixed slice of memory, and tens of seconds to boot.'},
+    ct:{rows:[[['App A','app'],['App B','app']],[['Libraries','lib'],['Libraries','lib']],[['Docker Engine','eng']],[['Host operating system (shared kernel)','host']],[['Hardware','hw']]],
+      cap:'Containers share the host\'s kernel. Each carries only its app and libraries, so an image is megabytes and a container starts in about a second. On Mac and Windows, Docker Desktop quietly runs one small Linux virtual machine and all your containers share it.'}};
+  const btns={};
+  function show(k){
+    stack.textContent='';VIEW[k].rows.forEach(r=>stack.append(el('div',{class:'stack-row'},r.map(c=>el('div',{class:'blk '+c[1],text:c[0]})))));
+    cap.textContent=VIEW[k].cap;for(const b in btns)btns[b].setAttribute('aria-pressed',b===k);
+  }
+  btns.ct=el('button',{type:'button',class:'seg',text:'Containers',onclick:()=>show('ct')});
+  btns.vm=el('button',{type:'button',class:'seg',text:'Virtual machines',onclick:()=>show('vm')});
+  box.append(el('div',{class:'segs',role:'group','aria-label':'Compare'},btns.ct,btns.vm),stack,cap);show('ct');
+};
+W.layers=function(box){
+  const LAY=[['Your code','COPY . .','2 MB'],['Libraries: fastapi, uvicorn','RUN pip install','58 MB'],['Python 3.14','from python:3.14-slim','45 MB'],['Debian Linux (slim)','from python:3.14-slim','75 MB']];
+  let n=0,next=1;const list=[];
+  const img=el('div',{class:'image-col'},el('div',{class:'col-h',text:'Image kestrel-reactor (read-only)'}),LAY.map(l=>el('div',{class:'layer'},el('b',{text:l[0]}),el('span',{text:l[1]+' · '+l[2]}))));
+  const cons=el('div',{class:'cons'}),cap=el('p',{class:'caption'});
+  function draw(){
+    cons.textContent='';
+    list.forEach(id=>cons.append(el('div',{class:'con'},el('div',{class:'col-h',text:'Container '+id}),el('div',{class:'layer rw'},el('b',{text:'Writable layer'}),el('span',{text:'this container only'})),el('div',{class:'uses',text:'↓ reads the image below'}),
+      el('button',{type:'button',class:'mini',text:'Remove',onclick:()=>{list.splice(list.indexOf(id),1);draw();}}))));
+    if(!list.length)cons.append(el('p',{class:'empty',text:'No containers yet.'}));
+    cap.textContent=list.length?('1 image, '+list.length+' container'+(list.length>1?'s':'')+'. The 180 MB of image layers are stored once and shared. Each container adds only its own thin writable layer, and removing a container removes only that layer.'):'The image is a stack of read-only layers. Start a container to see what gets added.';
+    add.disabled=list.length>=3;
+  }
+  const add=el('button',{type:'button',class:'btn',text:'Start a container',onclick:()=>{list.push(next++);draw();}});
+  box.append(el('div',{class:'layers-grid'},img,cons),add,cap);draw();
+};
+function annotated(box,notes,label){
+  const pre=el('div',{class:'code-lines',role:'group','aria-label':label}),panel=el('div',{class:'explain','aria-live':'polite'});
+  const btns=[];
+  notes.forEach((n,i)=>{
+    if(!n[1]){pre.append(el('div',{class:'cl plain',text:n[0]||' '}));return;}
+    const b=el('button',{type:'button',class:'cl',text:n[0],onclick:()=>pick(i)});btns[i]=b;pre.append(b);
+  });
+  function pick(i){btns.forEach((b,k)=>b&&b.setAttribute('aria-pressed',k===i));panel.innerHTML='<code>'+notes[i][0].trim().replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</code><p>'+notes[i][1]+'</p>';}
+  box.append(el('div',{class:'scroll-x'},pre),panel);pick(0);
+}
+W.dockerfile=function(box,ctx){
+  annotated(box,DOCKERFILE_NOTES,'Dockerfile');
+  const wrap=el('div',{class:'cache'});
+  const BUILD='docker build -t kestrel-reactor .';
+  wrap.append(el('h3',{text:'See the cache work: a guided experiment'}),
+    el('p',{text:'Building an image can be slow, mostly because of installing libraries. Docker avoids repeating work by remembering the result of every step. Three rules explain everything you are about to see:'}),
+    el('ol',{class:'rules'},
+      el('li',{text:'Docker runs the steps from top to bottom.'}),
+      el('li',{text:'At each step it asks: has anything this step uses changed since last time? If not, it reuses the saved result. That is a cache hit, and it takes no time.'}),
+      el('li',{text:'The first step that has to be redone breaks the chain. Every step below it is redone too, even if nothing they use has changed.'})),
+    el('p',{text:'Follow the six short experiments below. You run every build yourself in the terminal, with the real command. The two Edit buttons stand in for changing a file in your code editor and saving it, and the order switch stands in for rearranging lines in the Dockerfile. The thing to press next is outlined.'}));
+  const FN={main:'main.py',req:'requirements.txt'};
+  const GUIDE=[
+    ['Build for the first time','The Dockerfile below copies requirements.txt and installs the libraries before it copies your code. Load the build command, press Run in the terminal, and watch Docker work down the steps.'],
+    ['Build again, changing nothing','Nothing in the project has changed. Run the same build command again. Predict first: how many steps will Docker redo?'],
+    ['Change your code','Pretend you fixed a bug in main.py. Press Edit main.py, then run the build. Watch which step is the first to be redone.'],
+    ['Try the other order','Now switch to "Copy everything first". This Dockerfile copies all files, code included, before installing. Switch, then run the build to fill its cache.'],
+    ['Change your code again','Same one-line change as before, different order. Press Edit main.py, then run the build. Watch the install step.'],
+    ['Change the libraries','Last one. Pretend you added a library: press Edit requirements.txt, then run the build.'],
+    ['Done. Over to you','You have seen the whole idea. Keep experimenting with any combination, then carry on with the lab.']];
+  const WHY={first:'run for the first time: nothing is cached yet',new:'run: this Dockerfile has no saved result for this step yet',cascade:'redone, because a step above it was redone',hit:'reused from cache: nothing it uses has changed'};
+  let g=0;const times={};
+  const coach=el('div',{class:'coach','aria-live':'polite'}),files=el('div',{class:'files'}),steps=el('ol',{class:'steps'}),msg=el('p',{class:'result','aria-live':'polite'}),score=el('div',{class:'score'});
+  const seg={},B={};
+  const P=()=>ctx.sim().world.proj;
+  function nextBtn(){
+    if(g>5)return null;const d=P().dirty;
+    if(g<=1)return B.build;
+    if(g===2||g===4)return d.includes('main')?B.build:B.main;
+    if(g===3)return P().ord!=='bad'?seg.bad:B.build;
+    return d.includes('req')?B.build:B.req;
+  }
+  function chrome(){
+    const p=P();coach.textContent='';
+    coach.append(el('span',{class:'sb-h',text:g>5?'All six experiments done':'Experiment '+(g+1)+' of 6'}),el('b',{text:GUIDE[g][0]}),el('span',{text:GUIDE[g][1]}));
+    files.textContent='';
+    files.append(el('span',{class:'hint',text:'Project files:'}),...['main','req'].map(k=>el('span',{class:'chip'+(p.dirty.includes(k)?' vol':''),text:FN[k]+(p.dirty.includes(k)?' · edited, not built yet':' · unchanged')})));
+    for(const k in seg)seg[k].setAttribute('aria-pressed',k===p.ord);
+    const n=nextBtn();[seg.good,seg.bad,B.build,B.main,B.req].forEach(b=>b.classList.toggle('next',b===n));
+    score.textContent='';
+    if(times.good!=null||times.bad!=null){
+      score.append(el('h4',{text:'Rebuild time after a one-line code change'}),
+        el('div',{class:'sc-row'},el('span',{text:'Requirements first'}),el('b',{class:'ok',text:times.good!=null?times.good+' s':'not tried yet'})),
+        el('div',{class:'sc-row'},el('span',{text:'Copy everything first'}),el('b',{class:'re',text:times.bad!=null?times.bad+' s':'not tried yet'})));
+      if(times.good!=null&&times.bad!=null)score.append(el('p',{text:'Same change, same result, about '+Math.round(times.bad/times.good)+' times slower. The only difference is the order of two lines. On a real project the install step can take minutes, and you rebuild many times a day.'}));
+    }
+  }
+  function idle(){
+    const p=P();steps.textContent='';
+    ctx.sim().project.steps().forEach((s,i)=>steps.append(el('li',{},el('div',{class:'st-top'},el('code',{text:s[0]}),el('span',{class:'pill',text:i<p.valid?'in cache':'not built'})),el('span',{class:'why',text:s[1].length?'uses: '+s[1].map(d=>FN[d]).join(', '):'uses no project files'}))));
+    chrome();
+  }
+  function onBuild(b){
+    steps.textContent='';
+    b.steps.forEach(s=>steps.append(el('li',{class:s.broke?'redo':'hit'},el('div',{class:'st-top'},el('code',{text:s.text}),el('span',{class:'pill '+(s.broke?'re':'ok'),text:s.broke?'redone · '+s.t+' s':'cached · 0 s'})),
+      el('span',{class:'why',text:s.why==='changed'?'redone: '+s.hit.map(x=>FN[x]).join(' and ')+' changed. The chain breaks here':WHY[s.why]}))));
+    const codeOnly=b.dirty.includes('main')&&!b.dirty.includes('req')&&b.wasValid===b.n;let txt;
+    if(b.first)txt='First build: about '+b.total+' seconds. Nothing was cached, so every step ran. Nearly all the time went to downloading the base image and installing libraries.';
+    else if(b.wasValid<b.n)txt='About '+b.total+' seconds. The first two steps are identical in both Dockerfiles, so Docker reused them. From the first different line onward it had nothing saved.';
+    else if(!b.redo)txt='A fraction of a second. Docker checked all '+b.n+' steps, found nothing changed, and reused every saved result. In the terminal, every step is marked CACHED.';
+    else if(codeOnly&&b.ord==='good')txt='About '+b.total+' seconds. main.py is first used by the last step, COPY . ., so the chain only broke there. The slow install sits above it and was reused.';
+    else if(codeOnly&&b.ord==='bad')txt='About '+b.total+' seconds. Here COPY . . sits above the install. Your edit broke the chain at COPY, and rule 3 forced the install to run again, although the list of libraries had not changed at all.';
+    else txt='About '+b.total+' seconds. requirements.txt really did change, so the install has to run again. That is correct: no ordering can avoid it. Good ordering only avoids reinstalling when the libraries have not changed.';
+    msg.className='result '+(b.redo&&b.total>5&&!b.first?'slow':'fast');msg.textContent=txt;
+    if(codeOnly)times[b.ord]=b.total;
+    const ok=[b.ord==='good'&&b.first,!b.redo,codeOnly&&b.ord==='good',b.ord==='bad'&&b.wasValid<b.n,codeOnly&&b.ord==='bad',b.dirty.includes('req')][g];
+    if(ok)g++;
+    chrome();
+    if(!WIDE.matches){ctx.hold=true;setTimeout(()=>{if(steps.scrollIntoView)steps.scrollIntoView({block:'center',behavior:'smooth'});},900);}
+  }
+  const clear=()=>{msg.className='result';msg.textContent='';};
+  seg.good=el('button',{type:'button',class:'seg',text:'Requirements first',onclick:()=>{ctx.sim().project.order('good');clear();idle();}});
+  seg.bad=el('button',{type:'button',class:'seg',text:'Copy everything first',onclick:()=>{ctx.sim().project.order('bad');clear();idle();}});
+  B.build=el('button',{type:'button',class:'cmd',title:'Put this command in the terminal',onclick:()=>ctx.load(BUILD)},el('code',{text:BUILD}),el('span',{class:'tap',text:'Tap to load, then press Run in the terminal'}));
+  B.main=el('button',{type:'button',class:'btn ghost',text:'Edit main.py',onclick:()=>{ctx.sim().project.edit('main');chrome();}});
+  B.req=el('button',{type:'button',class:'btn ghost',text:'Edit requirements.txt',onclick:()=>{ctx.sim().project.edit('req');chrome();}});
+  wrap.append(coach,el('div',{class:'row'},el('span',{class:'hint',text:'Dockerfile order:'}),el('div',{class:'segs',role:'group','aria-label':'Step order'},seg.good,seg.bad)),
+    el('div',{class:'row'},el('span',{class:'hint',text:'In your editor:'}),B.main,B.req),files,
+    el('div',{class:'row'},el('span',{class:'hint',text:'In the terminal:'})),B.build,steps,msg,score,
+    el('button',{type:'button',class:'mini',text:'Start the experiments again',onclick:()=>{ctx.sim().project.reset();restart();}}));
+  function restart(){g=0;delete times.good;delete times.bad;clear();idle();}
+  ctx.onRun=(line,r)=>{if(r.meta&&r.meta.build)onBuild(r.meta.build);};
+  ctx.onReset=restart;
+  box.append(wrap);
+};
+W.compose=function(box){annotated(box,COMPOSE_NOTES,'compose.yaml');};
+W.ports=function(box){
+  const h=el('input',{id:'port-host',type:'number',min:'1',max:'65535',value:'8080',inputmode:'numeric'});
+  const c=el('input',{id:'port-container',type:'number',min:'1',max:'65535',value:'8000',inputmode:'numeric'});
+  const cmd=el('code',{class:'cmdline'}),path=el('div',{class:'path'}),verdict=el('p',{class:'verdict','aria-live':'polite'});
+  function draw(){
+    const H=+h.value,C=+c.value,valid=Number.isInteger(H)&&Number.isInteger(C)&&H>0&&C>0&&H<65536&&C<65536;
+    cmd.textContent='docker run -d -p '+(h.value||'?')+':'+(c.value||'?')+' hangar-7/kestrel-reactor';
+    path.textContent='';
+    if(!valid){verdict.className='verdict bad';verdict.textContent='Ports are whole numbers from 1 to 65535.';return;}
+    const ok=C===8000;
+    path.append(el('div',{class:'hop',html:'Your browser<br><b>localhost:'+H+'</b>'}),el('div',{class:'arrow',text:'→'}),
+      el('div',{class:'hop',html:'Docker forwards to<br><b>container port '+C+'</b>'}),el('div',{class:'arrow '+(ok?'':'broken'),text:ok?'→':'✕'}),
+      el('div',{class:'hop',html:'the reactor service listens on<br><b>port 8000</b>'}));
+    verdict.className='verdict '+(ok?'good':'bad');
+    verdict.textContent=ok?('Works. Open http://localhost:'+H+' and you reach the reactor service.'+(H<1024?' Note that host ports below 1024 can need administrator rights on Linux.':'')):
+      ('Does not work. The traffic arrives at port '+C+' inside the container, but nothing is listening there. The reactor service listens on 8000, so the right side of the mapping must be 8000. The left side is yours to choose.');
+  }
+  h.addEventListener('input',draw);c.addEventListener('input',draw);
+  const preset=(a,b)=>el('button',{type:'button',class:'mini',text:a+':'+b,onclick:()=>{h.value=a;c.value=b;draw();}});
+  box.append(el('div',{class:'port-form'},el('label',{for:'port-host'},'Host port',h),el('span',{class:'colon',text:':'}),el('label',{for:'port-container'},'Container port',c)),
+    el('div',{class:'row'},el('span',{class:'hint',text:'Try:'}),preset(8080,8000),preset(3000,8000),preset(8080,8080),preset(8000,80)),cmd,path,verdict);draw();
+};
+W.cheats=function(box){
+  const q=el('input',{id:'cheat-filter',type:'search',placeholder:'Filter, for example: volume',autocomplete:'off',autocapitalize:'off',spellcheck:'false'});
+  const out=el('div',{class:'cheats'});
+  function draw(){
+    const f=q.value.trim().toLowerCase();out.textContent='';let g=null,tb=null,n=0;
+    CHEATS.forEach(r=>{
+      if(f&&!(r[0]+' '+r[1]+' '+r[2]).toLowerCase().includes(f))return;n++;
+      if(r[0]!==g){g=r[0];out.append(el('h3',{text:g}));tb=el('dl',{class:'cheat'});out.append(tb);}
+      tb.append(el('dt',{},el('code',{text:r[1]})),el('dd',{text:r[2]}));
+    });
+    if(!n)out.append(el('p',{class:'empty',text:'No command matches "'+q.value+'".'}));
+  }
+  q.addEventListener('input',draw);
+  box.append(el('label',{for:'cheat-filter',class:'sr',text:'Filter commands'}),q,out);draw();
+};
+
+/* ----- bench: status map on top, terminal at the bottom ----- */
+const WIDE=window.matchMedia('(min-width:1040px)');
+let benchEl=null,slotEl=null;
+function placeBench(){if(!benchEl)return;const host=WIDE.matches?$('#bench'):slotEl;if(host&&benchEl.parentNode!==host)host.append(benchEl);}
+WIDE.addEventListener('change',placeBench);
+/* ----- the frame: KF-07 Kestrel Mk II, front elevation (the approved blueprint), in the Hangar 7 gantry. Left half drawn and mirrored about x=200. Redrawn from what Docker holds ----- */
+const BAL={U:[36,62,36,62],K:[138,114,58,170],C:[190,170,58,236],A:[239,29,302,14],R:[216,138,340,150],B:[224,162,344,214]};
+const KNAME={U:['parts uplink','registry and images'],R:['reactor','the reactor container'],C:['log store','the db container'],K:['data cell','volume'],A:['comms mast','published port'],B:['data bus','network']};
+function kStatus(w){
+  const isRx=c=>c.kind==='api',rx=w.containers.filter(isRx),db=w.containers.filter(c=>c.kind==='postgres');
+  const st=l=>!l.length?'none':l.some(c=>c.status==='running')?'running':l.some(c=>c.exit)?'crashed':'stopped';
+  const R=st(rx),D=st(db),run=rx.filter(c=>c.status==='running'),nRun=w.containers.filter(c=>c.status==='running');
+  const hasMod=w.images.some(i=>i.built||i.repo==='hangar-7/kestrel-reactor');
+  const pub=nRun.filter(c=>c.ports.length),att=nRun.filter(c=>c.mounts.some(m=>m.type==='volume'));
+  const nets=w.networks.filter(n=>!n.builtin),live=nets.filter(n=>nRun.some(c=>c.network===n.name));
+  const T=(s,none)=>s==='running'?['on','online']:s==='crashed'?['bad','exited with an error']:s==='stopped'?['warn','stopped, not removed']:['off',none];
+  const KS={rx:R,db:D,
+    U:w.images.length?['on',w.images.length+' image'+(w.images.length>1?'s':'')+' aboard']:['off','nothing pulled'],
+    R:R==='running'&&run.length>1?['on',run.length+' online']:T(R,hasMod?'module aboard, not started':'no module aboard'),
+    C:T(D,'not fitted'),
+    K:att.length?['on','attached to '+att.map(c=>c.alias||c.name).join(', ')]:w.volumes.length?['warn','kept, not attached']:['off','none'],
+    A:pub.length?['on',pub.map(c=>'localhost:'+c.ports[0].h+' → :'+c.ports[0].c).join(', ')]:['off','nothing published'],
+    B:live.length?['on',live[0].name]:nets.length?['warn',nets[0].name+', nobody on it']:['off','default only']};
+  KS.label=(R==='running'?'REACTOR ONLINE':R==='crashed'?'REACTOR EXITED WITH AN ERROR':R==='stopped'?'REACTOR STOPPED':hasMod?'REACTOR MODULE ABOARD, NOT STARTED':'NO REACTOR MODULE ABOARD')+(D==='running'?' · LOG STORE ONLINE':D==='crashed'?' · LOG STORE FAILED':'')+' · GANTRY LOCKED';
+  return KS;
+}
+function kestrel(KS,chg,changed){
+  chg=chg||new Set();
+  const P=(pts,cls)=>'<path class="'+cls+'" d="M'+pts.split('|').join(' L')+' z"/>';
+  const L=(d,cls)=>'<path class="'+(cls||'ln')+'" d="'+d+'"/>';
+  const both=h=>h+'<g transform="translate(400,0) scale(-1,1)">'+h+'</g>';
+  const cls=['kb','rx-'+KS.rx,'db-'+KS.db,'g-locked',KS.rx==='running'?'pw-on hp-healthy':'pw-off',KS.K[0]==='on'?'keys':KS.K[0]==='warn'?'keys-idle':'nokeys',KS.A[0]==='on'?'tls':'notls'];
+  if(changed)cls.push('refit');
+  if(chg.has('R')&&KS.rx==='running')cls.push('fx-ignite');
+  if((chg.has('R')&&KS.rx==='crashed')||(chg.has('C')&&KS.db==='crashed'))cls.push('fx-crash');
+  if(chg.has('K')&&KS.K[0]==='on')cls.push('fx-keys');
+  let s='<svg class="'+cls.join(' ')+'" viewBox="2 -8 396 586" role="img" aria-label="Blueprint of the KF-07 Kestrel Mk II in its hangar gantry, showing the state of the reactor system"><defs>'+
+    '<pattern id="kbT" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#0e3a6e"/><path d="M0 0V5" stroke="#7fb4ea" stroke-width=".8"/></pattern>'+
+    '<pattern id="kbA" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="#0e3a6e"/><path d="M0 0V4M0 0H4" stroke="#ffd27a" stroke-width=".7"/></pattern>'+
+    '<filter id="kbG" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  /* hangar gantry */
+  let g='<rect class="gan" x="22" y="40" width="14" height="512"/><rect class="gan" x="364" y="40" width="14" height="512"/><path class="gl" d="';
+  for(let y=40;y<540;y+=40)g+='M22 '+y+'l14 40M36 '+y+'l-14 40M364 '+y+'l14 40M378 '+y+'l-14 40';
+  g+='"/><g class="clamp cl-l"><path class="gan" d="M36 120h42l8 7v8l-8 7H36z"/><path class="gan" d="M36 470h60v9H36z"/></g><g class="clamp cl-r"><path class="gan" d="M364 120h-42l-8 7v8l8 7h42z"/><path class="gan" d="M364 470h-60v9h60z"/></g><rect class="gan" x="10" y="552" width="380" height="7"/>';
+  s+='<g class="gantry">'+g+'</g><path class="ctr" d="M200 -6V566"/><path class="cable" d="M36 62C96 44 150 66 194 88"/>';
+  /* wing binders: the standby core */
+  let wg=P('170 110|104 22|90 20|86 34|148 126','fr')+P('166 112|108 30|96 30|150 122','tl')+P('160 120|54 66|40 70|42 86|148 142','fr')+P('156 124|62 76|50 80|146 136','tl')+P('154 138|34 142|24 152|34 166|152 158','fr')+P('150 142|44 148|38 154|44 160|150 154','tl')+L('M150 122L104 44M146 136L70 88M148 151L56 154')+'<circle class="fr" cx="160" cy="128" r="11"/><circle class="ln" cx="160" cy="128" r="5"/>';
+  s+='<g class="asm a5"><g id="kb-wings">'+both(wg)+'</g></g>';
+  /* legs */
+  let up=P('166 264|197 270|194 328|160 328|152 300','wh')+P('160 300|170 296|172 328|160 328','tl')+P('156 322|197 324|195 336|158 336','am')+L('M166 286l28 5M158 314h36M163 300v20M186 300v20');
+  let kn=P('163 334|191 334|193 380|161 380','fr')+L('M168 336v42M186 336v42M172 336v42M182 336v42')+P('148 342|163 338|163 368|148 364','tl')+'<circle class="wh" cx="177" cy="354" r="14"/><circle class="ln" cx="177" cy="354" r="9.5"/><circle class="fr" cx="177" cy="354" r="4"/>'+L('M177 340v5M177 363v5M163 354h5M186 354h5')+'<circle class="rv" cx="155" cy="353" r="2.2"/>';
+  let lo=P('158 462|188 462|186 476|160 476','fr')+P('154 364|196 368|195 438|186 464|150 464|140 420','wh')+P('150 392|140 420|150 464|162 464|158 400','tl')+P('178 384|192 386|191 430|180 440','fr')+L('M181 396h9M181 406h9M181 416h9M181 426h8')+P('156 356|196 360|199 376|177 386|153 374','tl')+P('166 362|177 372|188 363|186 370|177 379|168 369','am')+P('150 476|192 476|197 502|128 502|134 486','wh')+P('128 502|134 486|150 484|146 502','am')+L('M150 452h38M160 490h34M148 400l6 58M170 388v70')+'<circle class="ln" cx="166" cy="470" r="3"/><circle class="ln" cx="182" cy="470" r="3"/>';
+  const hip='<circle class="fr" cx="170" cy="250" r="15"/><circle class="ln" cx="170" cy="250" r="9"/>';
+  s+='<g class="asm a0">'+both(hip+'<g transform="translate(-14,0) translate(182,264) scale(1.22,1.1) translate(-182,-264)">'+up+kn+'<g transform="translate(0,22)">'+lo+'</g></g>')+'</g>';
+  /* waist, skirts, abdomen */
+  let sk=P('168 214|148 220|136 266|156 270','wh')+P('148 220|136 266|146 268|156 222','tl')+P('199 226|170 220|158 266|190 276','wh')+L('M166 246l28 7')+P('172 228|186 231|184 241|170 238','am');
+  s+='<g class="asm a1">'+P('172 204|228 204|246 224|200 240|154 224','fr')+both('<g transform="translate(-11,0)">'+sk+'</g>')+P('188 228|212 228|209 274|200 284|191 274','tl')+P('176 170|224 170|218 206|182 206','fr')+L('M178 182h44M180 194h40')+P('188 174|212 174|210 202|190 202','wh')+'</g>';
+  /* arms */
+  let arm=P('101 152|129 150|127 198|105 198','fr')+L('M106 160v34M124 160v34')+'<circle class="tl" cx="116" cy="206" r="11"/><circle class="ln" cx="116" cy="206" r="4.5"/>'+P('96 214|134 214|139 272|127 288|100 288|91 270','wh')+P('96 214|108 214|104 288|100 288|91 270','tl')+P('118 226|132 226|135 262|120 262','fr')+L('M121 236h12M121 246h13M121 256h13')+P('103 290|126 290|124 312|105 312','fr')+L('M105 300h20');
+  s+='<g class="asm a2">'+both(arm)+'</g>';
+  /* torso, reactor, cockpit core */
+  let ch=P('200 108|150 108|136 124|144 160|172 174|200 174','wh')+P('150 108|136 124|144 160|156 166|148 126|158 108','tl')+P('156 114|184 114|181 134|153 130','fr')+L('M158 119h24M157 124h24M156 129h23');
+  s+='<g class="asm a3">'+P('180 96|220 96|230 108|170 108','fr')+both(ch)+L('M186 108l-6 20M214 108l6 20')+
+    '<g class="corep">'+P('186 160|214 160|210 180|190 180','cp')+L('M192 168h16')+'</g>'+
+    '<g class="reactor"><circle class="fr" cx="200" cy="138" r="19"/><circle class="ring" cx="200" cy="138" r="14.5"/><circle class="rcore" cx="200" cy="138" r="9"/><circle class="pip" cx="200" cy="138" r="3.5"/>'+L('M200 121v5M200 150v5M183 138h5M212 138h5','ring2')+'</g></g>';
+  /* shoulders, key slots, shield */
+  let sh=P('150 98|108 92|84 110|80 148|102 160|142 152|152 124','wh')+P('84 110|80 148|102 160|142 152|144 140|104 146|92 138|94 114','tl')+P('100 118|124 114|126 132|102 136','fr')+L('M103 123h21M103 128h22M112 104l30 3')+P('130 108|144 108|146 120|132 120','key')+'<circle class="rv" cx="92" cy="116" r="1.3"/><circle class="rv" cx="88" cy="142" r="1.3"/><circle class="rv" cx="144" cy="146" r="1.3"/>';
+  s+='<g class="asm a4">'+both(sh)+P('292 186|326 202|322 272|292 326|262 272|258 202','wh')+P('292 198|314 208|311 268|292 304|273 268|270 208','tl')+P('292 214|302 232|292 286|282 232','am')+L('M292 186v12M262 272l11-4M322 272l-11-4M270 208l22 10 22-10')+'</g>';
+  /* head, visor, comms mast */
+  s+='<g class="asm a5"><g transform="translate(200,98) scale(.8) translate(-200,-98)"><rect class="fr" x="190" y="84" width="20" height="14"/><g class="mastg">'+L('M221 44L247 14','mast')+'<circle class="ball" cx="249" cy="12" r="4.5"/><path class="wave w1" d="M256 2a12 12 0 0 1 4 16"/><path class="wave w2" d="M262 -4a20 20 0 0 1 6 28"/></g>'+
+    both(P('177 60|166 72|171 90|188 94|183 78','tl'))+P('200 32|217 38|227 58|223 78|212 90|188 90|177 78|173 58|183 38','wh')+P('200 6|207 36|204 54|196 54|193 36','am')+L('M200 12v40M186 44l-6 12M214 44l6 12M183 74h34')+
+    P('179 58|221 58|218 70|182 70','fr')+P('182 60.5|218 60.5|216 67.5|184 67.5','visor')+P('192 80|208 80|205 92|195 92','fr')+L('M196 85h8')+'</g></g>';
+  s+='<path class="route'+(KS.B[0]==='on'?' live':'')+'" d="M219 142C242 150 240 176 213 172"/>';
+  for(const k in BAL){const b=BAL[k],t=KS[k][0];if(b[0]!==b[2]||b[1]!==b[3])s+='<path class="lead" d="M'+b[2]+' '+b[3]+'L'+b[0]+' '+b[1]+'"/><circle class="ldot" cx="'+b[0]+'" cy="'+b[1]+'" r="1.8"/>';
+    s+='<g class="bal '+t+(chg.has(k)?' chg':'')+'">'+(chg.has(k)?'<circle class="ping" cx="'+b[2]+'" cy="'+b[3]+'" r="9"/><circle class="ping p2" cx="'+b[0]+'" cy="'+b[1]+'" r="7"/>':'')+'<circle cx="'+b[2]+'" cy="'+b[3]+'" r="9"/><text x="'+b[2]+'" y="'+(b[3]+3.8)+'">'+k+'</text></g>';}
+  s+='<text class="lbl" x="200" y="574">'+KS.label+'</text><rect class="scan" x="2" y="-8" width="396" height="3"/></svg>';
+  return s;
+}
+function lab(L,sec,ctx){
+  ctx=ctx||{};
+  const tasks=L.tasks||[];
+  let sim=createSim(),cur=saved.done[L.id]?tasks.length:0;const hist=[];let hi=0;let sig={};const skipped=new Set();
+  const list=el('ol',{class:'tasks'}),term=el('div',{class:'term-out',tabindex:'0','aria-label':'Terminal output',role:'log'}),map=el('div',{class:'zones'}),kwrap=el('div',{class:'kduo'}),stepbar=el('div',{class:'stepbar'});
+  const input=el('input',{id:'term-in',type:'text',autocomplete:'off',autocapitalize:'off',autocorrect:'off',spellcheck:'false','aria-label':'Command',placeholder:'type a command'});
+  const form=el('form',{class:'term-in',onsubmit:e=>{e.preventDefault();runLine();}},el('span',{class:'prompt',text:L.id===8?'kestrel $':'$'}),input,el('button',{type:'submit',class:'run',text:'Run'}));
+  const banner=el('div',{class:'banner',hidden:true});
+  function print(text,cls){if(text==='')return;term.append(el('div',{class:'tl '+(cls||''),text:text}));term.scrollTop=term.scrollHeight;term.scrollLeft=0;}
+  function loadCmd(c,jump){input.value=c;if(jump&&!WIDE.matches)form.scrollIntoView({block:'center',behavior:'smooth'});}
+  const cmdBtn=(c,jump)=>el('button',{type:'button',class:'cmd',title:'Put this command in the terminal',onclick:()=>loadCmd(c,jump)},el('code',{text:c}),el('span',{class:'tap',text:'Tap to load'}));
+  const ranBtn=c=>el('button',{type:'button',class:'ran',title:'Put this command in the terminal',onclick:()=>loadCmd(c,true)},el('code',{text:c}));
+  function redo(){cur=0;reset(true);}
+  const norm=s=>s.replace(/\s+/g,' ').trim();
+  function drawTasks(){
+    list.textContent='';
+    tasks.forEach((t,i)=>{
+      const st=i<cur?(skipped.has(i)?'skip':'done'):i===cur?'now':'todo';
+      const li=el('li',{class:'task '+st},el('div',{class:'task-h'},el('span',{class:'mark',text:st==='done'?'✓':st==='skip'?'–':String(i+1)}),el('span',{class:'what',text:t.what})));
+      if(st==='done')li.append(ranBtn(t.cmd),el('p',{class:'saw',text:t.saw}));
+      if(st==='now')li.append(cmdBtn(t.cmd,true),el('dl',{class:'parts'},t.parts.map(p=>[el('dt',{},el('code',{text:p[0]})),el('dd',{text:p[1]})])));
+      if(st==='todo')li.append(ranBtn(t.cmd));
+      if(st==='skip')li.append(ranBtn(t.cmd),el('p',{class:'saw',text:'Skipped. You can still run it.'}));
+      list.append(li);
+    });
+    const all=tasks.length&&cur>=tasks.length;banner.hidden=!all;
+    if(all){banner.textContent='';banner.append(el('strong',{text:'Lab complete. '}),document.createTextNode('The sandbox is still live, so experiment freely. Type help to see what it understands. '),el('button',{type:'button',class:'mini',text:'Do the lab again',onclick:redo}));}
+    stepbar.textContent='';
+    if(!tasks.length)stepbar.append(el('span',{class:'sb-h',text:'Free sandbox'}),el('span',{class:'sb-w',text:'Nothing to complete here. Try a command:'}),cmdBtn('docker run hello-world'));
+    else if(all)stepbar.append(el('span',{class:'sb-h',text:'Lab complete'}),el('span',{class:'sb-w',text:'Experiment freely, or type help.'}));
+    else stepbar.append(el('span',{class:'sb-h',text:'Step '+(cur+1)+' of '+tasks.length}),el('span',{class:'sb-w',text:tasks[cur].what}),cmdBtn(tasks[cur].cmd));
+  }
+  let ksig=null;
+  function drawK(flash){
+    const KS=kStatus(sim.world),now={};for(const k in BAL)now[k]=KS[k].join('|');
+    const chg=new Set();if(flash&&ksig)for(const k in now)if(now[k]!==ksig[k])chg.add(k);
+    ksig=now;kwrap.textContent='';
+    kwrap.append(el('div',{class:'kfig bp',html:kestrel(KS,chg,chg.size>0)}),
+      el('ul',{class:'klegend'},Object.keys(BAL).map(k=>el('li',{class:'kl '+KS[k][0]+(chg.has(k)?' chgd':'')},el('span',{class:'kbadge',text:k}),
+        el('span',{class:'kn'},el('b',{text:KNAME[k][0]}),el('i',{text:' ('+KNAME[k][1]+')'})),el('span',{class:'ks',text:KS[k][1]})))));
+  }
+  function drawMap(flash){
+    drawK(flash);
+    const w=sim.world;map.textContent='';const next={};
+    const chip=(t,c)=>el('span',{class:'chip '+(c||''),text:t});
+    const zone=(key,title,sub,items,empty,exit,wide)=>{
+      next[key]=JSON.stringify(items.map(n=>n.textContent));
+      const z=el('div',{class:'zone z-'+key+(wide?' wide':'')},el('h3',{text:title}),el('div',{class:'zsub',text:sub}),el('div',{class:'zlist'},items.length?items:el('span',{class:'empty',text:empty})),el('div',{class:'exit',text:exit}));
+      if(flash&&sig[key]!==undefined&&sig[key]!==next[key]){z.classList.add('flash');requestAnimationFrame(()=>requestAnimationFrame(()=>z.classList.remove('flash')));}
+      map.append(z);
+    };
+    zone('containers','Containers','running or stopped instances',w.containers.map(c=>el('div',{class:'card '+(c.status==='running'?'up':'down')},
+      el('div',{class:'card-h'},el('span',{class:'pill '+(c.status==='running'?'ok':c.exit?'bad':'off'),text:c.status==='running'?'running':c.exit?'exited ('+c.exit+')':'exited'}),el('b',{text:c.name})),
+      el('div',{class:'cstack'},
+        el('div',{class:'cl-rw'},el('span',{text:'writable layer'}),el('em',{text:c.rw.length?c.rw.join(', '):'empty'})),
+        (()=>{const im=w.images.find(i=>i.repo+':'+i.tag===(c.image.includes(':')?c.image:c.image+':latest'));const n=im?im.layers.length:0;const sh=w.containers.filter(x=>x!==c&&x.image===c.image).map(x=>x.name);
+          return el('div',{class:'cl-ro'},el('div',{class:'lstack'},Array.from({length:n},()=>el('i',{class:'lb on'}))),el('span',{text:n+' read-only layer'+(n===1?'':'s')+' from '+c.image+(sh.length?' · shared with '+sh.join(', '):'')}));})()),
+      el('div',{class:'chips'},
+        c.ports.map(p=>chip('localhost:'+p.h+' → :'+p.c,c.status==='running'?'port':'')),
+        c.mounts.map(m=>chip((m.type==='volume'?'vol ':'bind ')+m.src,'vol')),
+        c.network!=='bridge'?chip('net '+c.network,'net'):null,
+        Object.keys(c.env).map(k=>chip('env '+k))))),'none yet','docker ps -a',true);
+    zone('images','Images','read-only templates',w.images.map(i=>el('div',{class:'rowi'},el('b',{text:i.repo+':'+i.tag}),el('div',{class:'lstack'},i.layers.map(()=>el('i',{class:'lb on'}))),el('span',{class:'sub',text:i.layers.length+' layer'+(i.layers.length===1?'':'s')+' · '+i.size+(i.built?' · built here':'')}))),'none yet','docker images');
+    zone('volumes','Volumes','data that outlives containers',w.volumes.map(v=>{const u=w.containers.filter(c=>c.mounts.some(m=>m.src===v.name)).map(c=>c.name);
+      return el('div',{class:'rowi'},el('b',{text:v.name}),el('span',{class:'sub',text:(v.data.tables.length?'tables: '+v.data.tables.join(', '):v.data.init?'database files':'empty')+(u.length?' · used by '+u.join(', '):' · not attached')}));}),'none yet','docker volume ls');
+    zone('networks','Networks','who can reach whom by name',w.networks.filter(n=>n.name!=='host'&&n.name!=='none').map(n=>{const m=w.containers.filter(c=>c.network===n.name&&c.status==='running').map(c=>c.alias||c.name);
+      return el('div',{class:'rowi'},el('b',{text:n.name+(n.builtin?' (default)':'')}),el('span',{class:'sub',text:m.length?m.join(' ↔ '):'no running containers'}));}),'','docker network ls');
+    sig=next;
+  }
+  function reset(clearTerm){
+    sim=createSim();sig={};ksig=null;skipped.clear();runId++;busy=false;form.classList.remove('busy');input.disabled=false;if(clearTerm)term.textContent='';
+    print('Simulated Docker sandbox. Nothing is installed or run on your device. Type help for the command list.','note');
+    if(L.id===8)print('You are in the folder kestrel. Type ls to see its files, or cat compose.yaml to read one.','note');
+    drawTasks();drawMap(false);
+    if(ctx.onReset)ctx.onReset();
+  }
+  /* image downloads: a three-second progress bar per layer, like the real client */
+  let busy=false,runId=0;
+  function pullAnim(marker,id){
+    const f=marker.split('|'),mode=f[1],ref=f[2],lay=f[3].split(',').map(x=>{const p=x.split('~'),m=/^([\d.]+)(\w+)$/.exec(p[1])||[0,'0','B'];return {name:p[0],num:+m[1],unit:m[2]};});
+    const shown=lay.slice(0,8),more=lay.length-shown.length,DUR=3000,W=18;
+    const rows=shown.map(()=>{const d=el('div',{class:'tl'});term.append(d);return d;});
+    if(more>0)term.append(el('div',{class:'tl note',text:'(+'+more+' more layers)'}));
+    const bar=p=>{const n=Math.round(p*W);return '['+'='.repeat(Math.max(0,n-1))+(n>0&&n<W?'>':n>=W?'=':'')+' '.repeat(W-n)+']';};
+    const kb=$('.kb',kwrap);if(kb)kb.classList.add('fx-pull');
+    let mapRow=null,bars=[],cap=null,lastDone=-1;
+    if(mode==='L'){
+      const zl=$('.z-images .zlist',map);
+      if(zl){const e=$('.empty',zl);if(e)e.remove();bars=lay.map(()=>el('i',{class:'lb'}));cap=el('span',{class:'sub'});
+        mapRow=el('div',{class:'rowi pulling'},el('b',{text:ref}),el('div',{class:'lstack'},bars),cap);zl.append(mapRow);}
+    }
+    return new Promise(res=>{
+      const t0=performance.now();
+      const tick=()=>{
+        if(id!==runId){clearInterval(iv);res();return;}
+        const t=Math.min(DUR,performance.now()-t0);let done=0;
+        rows.forEach((d,i)=>{
+          const L=shown[i],st=i*180,en=DUR*(0.55+0.45*(i+1)/rows.length),p=Math.max(0,Math.min(1,(t-st)/(en-st))),dl=Math.min(1,p/0.85),full=L.num.toFixed(1)+L.unit;
+          const lab=mode==='C'?' '+(p>=1?'✔':'⠇')+' '+L.name+' ':L.name+': ';
+          if(p>=1)done++;
+          d.textContent=p>=1||(p>0&&L.num===0)?lab+(mode==='C'?'Pulled':'Pull complete'):p<=0?lab+'Waiting':p<0.85?lab+(mode==='C'?'Pulling     ':'Downloading ')+bar(dl)+' '+(L.num*dl).toFixed(1)+L.unit+'/'+full:lab+'Extracting  '+bar(1)+' '+full+'/'+full;
+        });
+        if(mapRow&&done!==lastDone){lastDone=done;const k=done>=rows.length?lay.length:done;bars.forEach((b,n)=>b.classList.toggle('on',n<k));cap.textContent='downloading: '+k+' of '+lay.length+' layers';}
+        term.scrollTop=term.scrollHeight;
+        if(t>=DUR){clearInterval(iv);if(kb)kb.classList.remove('fx-pull');res();}
+      };
+      const iv=setInterval(tick,80);tick();
+    });
+  }
+  /* output arrives one line at a time, and the newest line is kept in view */
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  function showLine(text,cls){const d=el('div',{class:'tl '+(cls||''),text:text});term.append(d);term.scrollTop=term.scrollHeight;term.scrollLeft=0;return d;}
+  async function printOut(text,cls,id){
+    if(text==='')return;
+    const lines=text.split('\n'),gap=Math.max(25,Math.min(110,2600/lines.length));
+    for(let n=0;n<lines.length;n++){
+      const ln=lines[n];
+      if(ln.charCodeAt(0)===1)await pullAnim(ln,id);
+      else{showLine(ln,cls);if(n<lines.length-1)await sleep(gap);}
+      if(id!==runId)return;
+    }
+    await sleep(gap);
+  }
+  function keepInView(){if(WIDE.matches)return;const b=form.getBoundingClientRect();if(b.bottom>window.innerHeight||b.top<80)form.scrollIntoView({block:'end',behavior:'smooth'});}
+  async function runLine(){
+    if(busy)return;
+    const line=input.value.trim();if(!line)return;input.value='';hist.push(line);hi=hist.length;
+    print('$ '+line,'in');
+    keepInView();
+    const r=sim.exec(line);
+    if(r.clear){term.textContent='';return;}
+    const id=runId;busy=true;form.classList.add('busy');input.disabled=true;
+    await printOut(r.out,r.ok?'':'err',id);
+    if(id!==runId)return;
+    busy=false;form.classList.remove('busy');input.disabled=false;
+    if(ctx.onRun)ctx.onRun(line,r);
+    if(cur<tasks.length){
+      const l=norm(line);let pass=false,jump=0;try{pass=!!tasks[cur].test(l,sim.world,r);}catch(e){}
+      /* ran a later step's command: move on to it and mark the ones in between as skipped */
+      if(!pass)for(let k=cur+1;k<tasks.length;k++){let ok=false;try{ok=l===norm(tasks[k].cmd)&&!!tasks[k].test(l,sim.world,r);}catch(e){}
+        if(ok){for(let s=cur;s<k;s++)skipped.add(s);jump=k-cur;cur=k;pass=true;break;}}
+      /* went back to a skipped step: tick it off */
+      if(!pass)for(const s of [...skipped]){let ok=false;try{ok=l===norm(tasks[s].cmd)&&!!tasks[s].test(l,sim.world,r);}catch(e){}
+        if(ok){skipped.delete(s);print('✓ Step '+(s+1)+' of '+tasks.length+' done. '+tasks[s].saw,'ok');drawTasks();break;}}
+      if(pass){
+        const t=tasks[cur];cur++;
+        print('✓ Step '+cur+' of '+tasks.length+' done'+(jump?' ('+jump+' earlier step'+(jump>1?'s':'')+' skipped). ':'. ')+t.saw,'ok');
+        if(cur>=tasks.length){saved.done[L.id]=true;save();renderNav(L.id);print('✓ Lesson '+L.id+' lab complete.','ok');}
+        drawTasks();
+        if(WIDE.matches){const n=$('.task.now',list)||banner;if(n.scrollIntoView)n.scrollIntoView({block:'nearest'});}
+      }else if(!r.ok&&/^docker\b/.test(line)){print('Hint: read the message above. This step is waiting for: '+tasks[cur].cmd,'note');}
+    }
+    drawMap(true);
+    if(ctx.hold)ctx.hold=false;else requestAnimationFrame(keepInView);
+  }
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();runLine();}
+    else if(e.key==='ArrowUp'&&hist.length){e.preventDefault();hi=Math.max(0,hi-1);input.value=hist[hi];}
+    else if(e.key==='ArrowDown'&&hist.length){e.preventDefault();hi=Math.min(hist.length,hi+1);input.value=hist[hi]||'';}
+  });
+  if(sec&&tasks.length)sec.append(el('p',{text:L.labIntro}),list,banner);
+  const bench=el('div',{class:'bench-in'},
+    el('section',{class:'map','aria-label':'What Docker holds right now'},el('div',{class:'map-head'},el('b',{text:'KF-07 Kestrel Mk II · Hangar 7'}),el('span',{text:'what Docker holds right now'})),kwrap,map),
+    stepbar,
+    el('section',{class:'term','aria-label':'Terminal'},el('div',{class:'term-bar'},el('span',{text:'Terminal (simulated)'}),el('span',{class:'row'},el('button',{type:'button',class:'mini dark',text:'help',onclick:()=>{input.value='help';runLine();}}),el('button',{type:'button',class:'mini dark',text:'reset',onclick:()=>{if(cur<tasks.length)cur=0;reset(true);}}))),term,form));
+  ctx.sim=()=>sim;ctx.load=c=>loadCmd(c,true);
+  reset(false);
+  return bench;
+}
+
+/* ----- quiz ----- */
+function quiz(L,sec){
+  L.quiz.forEach((q,i)=>{
+    const key=L.id+'-'+i,fb=el('p',{class:'fb','aria-live':'polite'}),opts=el('div',{class:'opts'});
+    function draw(){
+      const ch=saved.quiz[key];opts.textContent='';
+      q.opts.forEach((o,k)=>opts.append(el('button',{type:'button',class:'opt'+(ch===k?(k===q.a?' right':' wrong'):''),'aria-pressed':ch===k,text:o,onclick:()=>{saved.quiz[key]=k;save();draw();renderNav(L.id);}})));
+      fb.className='fb'+(ch==null?'':ch===q.a?' good':' bad');
+      fb.textContent=ch==null?'':ch===q.a?'Correct. '+q.why:'Not quite. Have another look at the options, or re-read the section above.';
+    }
+    sec.append(el('div',{class:'q'},el('p',{class:'qt',text:(i+1)+'. '+q.q}),opts,fb));draw();
+  });
+}
+
+/* ----- page ----- */
+function mount(art,bench,slot){
+  const main=$('#main'),old=benchEl;main.textContent='';if(old)old.remove();
+  main.append(art);benchEl=bench;slotEl=slot;placeBench();
+}
+function showLesson(id){
+  const L=LESSONS.find(x=>x.id===id)||LESSONS[0];
+  const art=el('article',{}),slot=el('div',{class:'slot'}),ctx={};
+  art.append(el('p',{class:'eyebrow',text:'Lesson '+L.id+' of '+LESSONS.length+' · about '+L.mins+' minutes'}),el('h1',{text:L.title}),L.brief?el('aside',{class:'brief'},el('span',{class:'sb-h',text:'Hangar 7 briefing'}),el('p',{html:L.brief})):null,el('section',{class:'prose',html:L.idea}));
+  const widget=()=>{if(!L.widget)return;const box=el('div',{class:'widget'});art.append(el('section',{},el('h2',{text:L.widgetTitle}),el('p',{text:L.widgetIntro}),box));W[L.widget](box,ctx);};
+  if(L.widget!=='cheats')widget();
+  let bench;
+  if(L.tasks){const s=el('section',{class:'lab'},el('h2',{text:'Try it'}));art.append(s);bench=lab(L,s,ctx);s.append(slot);}
+  else{bench=lab(L,null,ctx);art.append(el('section',{class:'slot-sec'},el('h2',{text:'Sandbox'}),el('p',{text:'This lesson has no lab, but the sandbox is open if you want to look around.'}),slot));}
+  if(L.widget==='cheats')widget();
+  if(L.notes)art.append(el('section',{class:'prose notes',html:L.notes}));
+  const qs=el('section',{},el('h2',{text:'Check yourself'}));art.append(qs);quiz(L,qs);
+  art.append(el('section',{},el('h2',{text:'Further reading'}),el('ul',{class:'reading'},L.reading.map(r=>el('li',{},el('a',{href:r[1],target:'_blank',rel:'noopener',text:r[0]}),el('span',{text:r[2]}))))));
+  const prev=LESSONS.find(x=>x.id===L.id-1),next=LESSONS.find(x=>x.id===L.id+1);
+  art.append(el('nav',{class:'pager','aria-label':'Lessons'},prev?el('a',{href:'#lesson-'+prev.id,class:'btn ghost',text:'← '+prev.title}):el('span'),next?el('a',{href:'#lesson-'+next.id,class:'btn',text:next.title+' →'}):el('a',{href:'#cheat-sheet',class:'btn',text:'Cheat sheet →'})));
+  mount(art,bench,slot);renderNav(L.id);
+}
+function showCheats(){
+  const box=el('div',{class:'widget'}),slot=el('div',{class:'slot'});
+  const art=el('article',{},el('p',{class:'eyebrow',text:'man docker  # reference'}),el('h1',{text:'Cheat sheet'}),el('p',{class:'prose',text:'Every command from the nine lessons. Words in capitals are placeholders for your own names. The sandbox here is free play: try any of them.'}),box,el('section',{class:'slot-sec'},el('h2',{text:'Sandbox'}),slot));
+  W.cheats(box);mount(art,lab({id:0},null),slot);renderNav('cheats');
+}
+function route(){
+  const h=location.hash.replace('#','');const m=/^lesson-(\d+)$/.exec(h);
+  if(h==='cheat-sheet')showCheats();else showLesson(m?+m[1]:1);
+  $('#main').scrollTop=0;window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);route();
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Structure from Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: lesson on the left; on the right a live map (the repository tree beside the Kestrel blueprint) above a terminal that changes it. */
+:root{
+  --bg:#ECEFF3; --surface:#FFFFFF; --sunk:#F4F6F8; --ink:#141D27; --muted:#566575; --line:#D2D9E0;
+  --accent:#C93A16; --accent-soft:#FBE4DC;
+  --add:#1B7447; --add-soft:#DDF2E6; --pr:#0B5CD6; --pr-soft:#DCE9FC; --del:#B4261C; --warn:#8A5A00; --warn-soft:#FBEFD0;
+  --term-bg:#121A23; --term-ink:#DCE4EC; --term-muted:#8496A8; --term-line:#263341;
+  --t-add:#6FD39A; --t-del:#FF8F84; --t-accent:#FF8A66; --t-coach:#F2C14E;
+  --font-display:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
+  --font-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E141B; --surface:#17202A; --sunk:#121A23; --ink:#E4EAF0; --muted:#94A4B4; --line:#2A3743;
+    --accent:#FF7A55; --accent-soft:#3A2018;
+    --add:#5BC98C; --add-soft:#16301F; --pr:#7DB4FF; --pr-soft:#13294B; --del:#FF8A7E; --warn:#E3B341; --warn-soft:#33290F;
+    --term-bg:#090E14; --term-line:#1E2935;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E141B; --surface:#17202A; --sunk:#121A23; --ink:#E4EAF0; --muted:#94A4B4; --line:#2A3743;
+  --accent:#FF7A55; --accent-soft:#3A2018;
+  --add:#5BC98C; --add-soft:#16301F; --pr:#7DB4FF; --pr-soft:#13294B; --del:#FF8A7E; --warn:#E3B341; --warn-soft:#33290F;
+  --term-bg:#090E14; --term-line:#1E2935;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--font-body);-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+code,.mono{font-family:var(--font-mono);font-size:.9em}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.15}
+
+.app{display:flex;flex-direction:column;min-height:100%}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;padding:12px 20px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand b{font:700 22px/1 var(--font-display);letter-spacing:.01em}
+.brand b i{font-style:normal;color:var(--accent)}
+.brand span{color:var(--muted);font-size:13px;display:none}
+@media (min-width:1500px){.brand span{display:inline}}
+.nav{display:flex;gap:6px;overflow-x:auto;flex:1 1 420px;padding:2px}
+.nav button{flex:none;display:flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border:1px solid var(--line);background:var(--sunk);border-radius:999px;font-size:14px;white-space:nowrap}
+.nav button .n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--line);font:600 12px/1 var(--font-mono)}
+.nav button.done .n{background:var(--add);border-color:var(--add);color:var(--surface)}
+.nav button[aria-current="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.nav button[aria-current="true"] .n{color:var(--ink)}
+.nav button[aria-current="true"].done .n{color:var(--surface)}
+.nav button.sheet{padding-left:12px}
+
+.work{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+.lesson{padding:24px 20px 40px;background:var(--surface)}
+.lesson-in{max-width:66ch;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.eyebrow{margin:0;font:600 12px/1 var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lesson h1{font-size:34px;font-weight:700}
+.lesson h2{font-size:20px;font-weight:700;margin-top:8px}
+.prose{display:flex;flex-direction:column;gap:12px}
+.prose p,.prose ul,.prose dl{margin:0}
+.prose ul{padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.prose dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px}
+.prose dt{font-weight:600}
+.prose dd{margin:0;color:var(--muted)}
+.note{border-left:3px solid var(--warn);background:var(--warn-soft);padding:10px 14px;border-radius:0 6px 6px 0;font-size:15px}
+.note p{margin:0}
+.note p+p{margin-top:6px}
+
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.step .dot{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);font:600 13px/1 var(--font-mono);color:var(--muted)}
+.step.done .dot{background:var(--add);border-color:var(--add);color:var(--surface)}
+.step.now{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.step.now .dot{border-color:var(--accent);color:var(--accent)}
+.step.next{background:var(--sunk);color:var(--muted)}
+.step .body{display:flex;flex-direction:column;gap:8px;min-width:0}
+.step p{margin:0}
+.steps .part{font:600 12.5px/1.3 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:10px}
+.flow{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0}
+.flow li{flex:1 1 150px;border:1px solid var(--line);border-top:3px solid var(--ink);border-radius:6px;padding:8px 10px;font-size:14px;line-height:1.4;background:var(--sunk)}
+.flow b{display:block;font:600 13px/1.5 var(--font-mono);color:var(--accent)}
+.owntoggle{display:flex;flex-direction:column;gap:8px;border:1px solid var(--pr);border-left-width:3px;background:var(--pr-soft);border-radius:0 8px 8px 0;padding:10px 12px;font-size:15px;cursor:pointer}
+.owntoggle label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.step .own.ide{border-left-color:var(--ink)}
+.owntoggle input{margin-top:4px;width:16px;height:16px;flex:none;accent-color:var(--pr)}
+.step.next .own{color:var(--muted)}
+.step .own{font-size:14.5px;border-left:3px solid var(--pr);padding-left:10px}
+.step .after{font-size:14.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.cmd{display:inline-block;max-width:100%;text-align:left;font:500 13.5px/1.4 var(--font-mono);padding:3px 8px;margin:1px 0;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--sunk);color:var(--ink);overflow-wrap:anywhere}
+.cmd:hover{border-color:var(--accent);color:var(--accent)}
+.hint{font-size:13px;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);font-weight:500;font-size:14.5px}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#1a0d08}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn.primary{color:#1a0d08}}
+.btn.primary:hover{filter:brightness(1.08)}
+.complete{border:1px solid var(--add);background:var(--add-soft);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.complete h3{font-size:18px}
+.complete ul{margin:0;padding-left:20px}
+.reading ul{margin:6px 0 0;padding-left:20px;font-size:15px}
+.sheet-table{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 12px/1.2 var(--font-mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--sunk)}
+tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap}
+
+.bench{display:flex;flex-direction:column;gap:12px;padding:16px 20px 24px;min-width:0}
+.map{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:auto}
+.map-head{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
+.map-head b{font:700 14px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
+.zones{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.zone.wide{grid-column:span 2}
+.zone{display:flex;flex-direction:column;gap:8px;padding:10px 12px 8px;border-top:3px solid var(--ink);border-right:1px solid var(--line);min-width:0;transition:background-color .6s}
+.zone.flash{background:var(--accent-soft);transition:none}
+.zone h3{font-size:15px;letter-spacing:.06em;text-transform:uppercase}
+.zone .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.zone .list{display:flex;flex-direction:column;gap:6px;flex:1;font-size:13px}
+.zone .empty{color:var(--muted);font-size:13px}
+.zone .exit{font:500 12px/1.3 var(--font-mono);color:var(--accent);border-top:1px dashed var(--line);padding-top:6px}
+.file{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+.file .mono{overflow-wrap:anywhere}
+.chip{font:500 11px/1 var(--font-mono);padding:3px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.untracked{border-style:dashed;border-color:var(--accent);color:var(--accent)}
+.chip.changed{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+.chip.staged,.chip.new{border-color:var(--add);color:var(--add);background:var(--add-soft)}
+.chip.head{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.chip.merged{background:var(--add);border-color:var(--add);color:var(--surface)}
+.file.ignored .mono{color:var(--muted);text-decoration:line-through}
+.commit{display:grid;grid-template-columns:12px minmax(0,1fr);gap:8px;position:relative}
+.commit::before{content:"";width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);background:var(--surface);margin-top:4px;z-index:1}
+.commit.side::before{border-color:var(--accent);margin-left:0}
+.commit:not(:last-child)::after{content:"";position:absolute;left:4px;top:14px;bottom:-10px;width:2px;background:var(--line)}
+.commit .c-body{display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;min-width:0}
+.commit .hash{font:400 12px/1.3 var(--font-mono);color:var(--muted)}
+.commit .msg{overflow-wrap:anywhere}
+.commit .chip,.pr .chip{white-space:normal;overflow-wrap:anywhere;line-height:1.3}
+.ico{width:14px;height:14px;flex:none;color:var(--muted)}
+.ico.dir{color:var(--accent)}
+.win,.repo{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);font-size:12.5px}
+.win{box-shadow:0 2px 8px rgba(20,29,39,.10)}
+.win-bar{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.win-bar .dots{display:flex;gap:4px}
+.win-bar .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.win-title{display:flex;gap:5px;align-items:center;font-weight:600}
+.win-path{padding:4px 8px;color:var(--muted);font:400 11.5px/1.4 var(--font-mono);border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.win-cols{display:flex;justify-content:space-between;padding:4px 8px;font:600 10.5px/1.2 var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.win-row{display:flex;flex-wrap:wrap;align-items:center;gap:3px 6px;width:100%;padding:5px 8px;border:0;background:none;text-align:left;font-size:12.5px;color:var(--ink)}
+button.win-row:hover{background:var(--accent-soft)}
+.win-row .mono{overflow-wrap:anywhere}
+.win-row .chip{margin-left:auto}
+.win-row.dotfile .ico,.win-row.dotfile .mono{opacity:.72}
+.win-row.empty{color:var(--muted)}
+.snip{tab-size:4;max-height:190px;overflow:auto}
+.win-row.ignored .mono{color:var(--muted);text-decoration:line-through}
+.win-foot{padding:4px 8px;border-top:1px solid var(--line);color:var(--muted);font-size:11.5px}
+.repo-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:8px 10px 4px;font-size:13.5px}
+.repo-head .owner{color:var(--muted)}
+.repo-tabs{display:flex;flex-wrap:wrap;gap:2px;padding:0 6px;border-bottom:1px solid var(--line)}
+.repo-tabs button{display:flex;gap:4px;align-items:center;border:0;border-bottom:2px solid transparent;background:none;padding:6px 6px;font-size:12px;color:var(--muted);white-space:nowrap}
+.repo-tabs button[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--ink);font-weight:600}
+.count{background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:0 6px;font:500 11px/1.5 var(--font-mono);color:var(--ink)}
+.repo-body{display:flex;flex-direction:column;gap:8px;padding:8px}
+.repo-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;color:var(--muted);font-size:12px}
+.repo select{font:600 12px/1.3 var(--font-body);padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--sunk);color:var(--ink);max-width:100%}
+.repo-box{border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.repo-latest{display:flex;flex-wrap:wrap;gap:3px 6px;align-items:center;padding:6px 8px;background:var(--sunk);border-bottom:1px solid var(--line)}
+.repo-latest .msg{overflow-wrap:anywhere}
+.repo-latest .hash{font:400 11.5px/1.3 var(--font-mono);color:var(--muted);margin-left:auto}
+.avatar{display:grid;place-items:center;width:18px;height:18px;flex:none;border-radius:50%;background:var(--ink);color:var(--surface);font:600 10px/1 var(--font-body)}
+.repo-file{display:grid;grid-template-columns:14px minmax(0,auto) minmax(0,1fr);gap:6px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--line)}
+.repo-file:last-child{border-bottom:0}
+.repo-file .mono{overflow-wrap:anywhere}
+.repo-file .m{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-size:11.5px}
+.pr{border:1px solid var(--line);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--sunk);font-size:13px}
+.pr.open{border-color:var(--pr);border-left-width:3px}
+.pr-name{display:inline-block;background:var(--pr-soft);color:var(--pr);border:1px solid var(--pr);border-radius:5px;padding:2px 8px;font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.pr label{font-weight:600;color:var(--pr)}
+.pr .pr-input{border-color:var(--pr);color:var(--pr);font-weight:600}
+.count.hot{background:var(--pr);border-color:var(--pr);color:var(--surface)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.term-out .pr{color:#8FC0FF;border:0;padding:0;display:block;background:none;font-size:inherit}
+.pr.banner{border-color:var(--warn);background:var(--warn-soft)}
+.pr input{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:5px;background:var(--surface)}
+.pr .btn{font-size:13px;padding:6px 10px}
+.pr .btn.merge{background:var(--add);border-color:var(--add);color:var(--surface)}
+.diff{font:400 12px/1.5 var(--font-mono);border:1px solid var(--line);border-radius:5px;background:var(--surface);overflow-x:auto}
+.diff div{padding:0 8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.diff .f{color:var(--muted);border-bottom:1px solid var(--line)}
+.diff .a{color:var(--add);background:var(--add-soft)}
+.diff .d{color:var(--del)}
+
+.term{display:flex;flex-direction:column;border-radius:8px;background:var(--term-bg);color:var(--term-ink);font:400 13.5px/1.5 var(--font-mono);min-height:300px;border:1px solid var(--term-line);overflow:hidden}
+.term-bar{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--term-line);color:var(--term-muted);font-size:12px}
+.term-bar button{background:none;border:1px solid var(--term-line);color:var(--term-muted);border-radius:4px;padding:2px 8px;font-size:12px}
+.term-bar select{background:var(--term-bg);border:1px solid var(--term-line);color:var(--term-muted);border-radius:4px;padding:2px 4px;font:inherit;font-size:12px;max-width:150px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.errs{display:flex;flex-direction:column;gap:10px}
+.err{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+.err p{margin:0}
+.err .m{font:500 12.5px/1.5 var(--font-mono);color:var(--del);background:var(--sunk);border-radius:5px;padding:6px 8px;overflow-wrap:anywhere}
+.fix{font:500 13px/1.5 var(--font-mono);background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:1px 6px;overflow-wrap:anywhere}
+.note .mono{overflow-wrap:anywhere}
+.shellbox{border:1px solid var(--line);border-left:3px solid var(--pr);border-radius:0 8px 8px 0;background:var(--sunk);padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px}
+.shellbox p{margin:0}
+.shellbox h3{font-size:17px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.term-bar button:hover{color:var(--term-ink);border-color:var(--term-muted)}
+.pane{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+[hidden]{display:none!important}
+.tabs{display:flex;gap:4px}
+.term-bar .tabs button{border-color:transparent;font:600 13px/1.4 var(--font-body);padding:4px 12px}
+.term-bar .tabs button[aria-selected="true"]{color:var(--term-ink);background:var(--term-line);border-color:var(--term-line)}
+.ed-files{display:flex;gap:2px;align-items:center;overflow-x:auto;padding:6px 8px 0;border-bottom:1px solid var(--term-line)}
+.ed-files button,.ed-files input{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--term-muted);font:inherit;font-size:12.5px;padding:5px 9px;white-space:nowrap}
+.ed-files button:hover{color:var(--term-ink)}
+.ed-files button[aria-selected="true"]{color:var(--term-ink);border-bottom-color:var(--t-accent)}
+.ed-files form{display:flex;gap:4px;align-items:center}
+.ed-files input{border:1px solid var(--term-line);border-radius:4px;color:var(--term-ink);width:130px}
+.ed-files #ed-add,.ed-files form button{color:var(--t-accent)}
+#ed-text{flex:1 1 240px;min-height:240px;width:100%;resize:none;border:0;background:transparent;color:var(--term-ink);font:inherit;line-height:1.6;padding:10px 12px;tab-size:4;white-space:pre;overflow:auto}
+#ed-text:focus{outline:none;box-shadow:inset 0 0 0 2px var(--t-accent)}
+.ed-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;border-top:1px solid var(--term-line);color:var(--term-muted);font-size:12.5px}
+.ed-foot button{background:var(--t-accent);color:#1a0d08;border:0;border-radius:5px;padding:5px 14px;font:600 13px/1.4 var(--font-body)}
+.ed-foot button:disabled{opacity:.45;cursor:default}
+.ed-foot button{white-space:nowrap}
+.ed-foot button.ghost{background:none;border:1px solid var(--term-muted);color:var(--term-ink)}
+.ed-foot .row{flex-wrap:nowrap;gap:8px}
+.chip.conflict{border-color:var(--del);color:var(--del);align-self:flex-start}
+.snip{display:block;width:100%;text-align:left;font:500 13.5px/1.5 var(--font-mono);padding:6px 10px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:5px;background:var(--sunk);color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.snip:hover{border-color:var(--accent);color:var(--accent)}
+.term-out{flex:1 1 240px;height:240px;overflow:auto;padding:10px 12px}
+.term-out div{white-space:pre-wrap;overflow-wrap:anywhere;min-height:1.5em}
+.term-out .in{color:var(--term-ink);font-weight:600}
+.term-out .in span,.term-form label{color:var(--t-accent)}
+.term-out .add{color:var(--t-add)}
+.term-out .del{color:var(--t-del)}
+.term-out .meta{color:var(--term-muted)}
+.term-out .coach{color:var(--t-coach)}
+.term-out .ok{color:var(--t-add);font-weight:600}
+.term-form{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--term-line)}
+.term-form label{white-space:nowrap;font-weight:600}
+.term-form input{flex:1;min-width:0;background:transparent;border:0;color:var(--term-ink);font:inherit;padding:6px 0}
+.term-form input:focus{outline:none}
+.term-form:focus-within{box-shadow:inset 0 0 0 2px var(--t-accent)}
+.term-form button{background:var(--t-accent);color:#1a0d08;border:0;border-radius:5px;padding:5px 12px;font:600 13px/1.4 var(--font-body)}
+
+@media (min-width:720px){
+  .zones{grid-template-columns:minmax(0,1.3fr) minmax(0,.8fr) minmax(0,1.05fr) minmax(0,1.75fr)}
+  .zone.wide{grid-column:auto}
+  .zone:last-child{border-right:0}
+}
+@media (min-width:1040px){
+  .app{height:100%}
+  .work{grid-template-columns:minmax(0,4fr) minmax(0,7fr);min-height:0}
+  .lesson{overflow:auto;border-right:1px solid var(--line)}
+  .bench{min-height:0;overflow:hidden;padding:16px}
+  .map{flex:0 1 auto;max-height:62%}
+  .term{flex:1 1 0;min-height:210px}
+  .term-out{height:auto;flex:1 1 0;min-height:0}
+  #ed-text{flex:1 1 0;min-height:0}
+}
+@media (prefers-reduced-motion: reduce){.zone{transition:none}}
+/* ---- the KF-07 Kestrel Mk II blueprint ---- */
+.kb .wh{fill:#0e3a6e}.kb .fr{fill:#08264a}.kb .tl{fill:url(#kbT)}.kb .am{fill:url(#kbA)}
+.kb .wh,.kb .fr,.kb .tl,.kb .am,.kb .cp{stroke:#e6f2ff;stroke-width:1.15;stroke-linejoin:round;transition:stroke .5s,fill .5s}
+.kb .ln,.kb .rv{fill:none;stroke:#9cc8f5;stroke-width:.7}
+.kb .gan{fill:#0a2d57;stroke:#6fa3d8;stroke-width:.9}.kb .gl{fill:none;stroke:#6fa3d8;stroke-width:.7}
+.kb .ctr{fill:none;stroke:#6fa3d8;stroke-width:.7;stroke-dasharray:14 3 2 3}
+.kb .cp{fill:#08264a;stroke-dasharray:3 2}
+.kb.sample .cp{fill:#ffd27a;stroke-dasharray:none;stroke-width:1.8;filter:url(#kbG)}
+.kb .ring{fill:#08264a;stroke:#52729b;stroke-width:2}.kb .ring2{fill:none;stroke:#52729b;stroke-width:1.2}.kb .rcore{fill:#12305a}.kb .pip{fill:#52729b}
+.kb.pw-on .ring{stroke:#ffd27a;filter:url(#kbG)}.kb.pw-on .ring2{stroke:#ffd27a}.kb.pw-on .rcore{fill:#ffd27a}.kb.pw-on .pip{fill:#fff3d6}
+.kb.pw-hot .ring,.kb.pw-hot .ring2{stroke:#ff9d4d}.kb.pw-hot .rcore{fill:#ff9d4d;animation:kbpulse .7s ease-in-out infinite alternate}
+.kb.over .ring,.kb.over .ring2{stroke:var(--bad)}.kb.over .rcore{fill:var(--bad);animation:kbblink .45s steps(1) infinite}
+@keyframes kbblink{50%{fill-opacity:.15}}
+@keyframes kbpulse{to{fill-opacity:.3}}
+.kb .visor{fill:#12305a;stroke:#e6f2ff;stroke-width:.8;transition:fill .5s}
+.kb.sy-sensors .visor{fill:#8ff6ff;filter:url(#kbG)}
+.kb .mast{fill:none;stroke:#e6f2ff;stroke-width:1.3}.kb .ball{fill:#08264a;stroke:#e6f2ff;stroke-width:1.15;transition:fill .5s}
+.kb.sy-comms .ball{fill:#8ff6ff;filter:url(#kbG)}
+.kb .wave{fill:none;stroke:#8ff6ff;stroke-width:1.8;stroke-linecap:round;opacity:0}
+.kb.sy-comms .wave{animation:kbwave 1.8s ease-out infinite}.kb.sy-comms .w2{animation-delay:.35s}
+@keyframes kbwave{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.kb.sy-propulsion #kb-wings .tl{stroke:#8ff6ff;stroke-width:1.9}
+.kb.sy-propulsion #kb-wings .fr{stroke:#8ff6ff}
+.kb.sy-shield .shieldg .wh,.kb.sy-shield .shieldg .tl{stroke:#8ff6ff;stroke-width:1.9}
+.kb.sy-shield .shieldg .am{filter:url(#kbG)}
+.kb.sy-limbs .armg .tl,.kb.sy-limbs .armg .wh,.kb.sy-limbs .jt{stroke:#8ff6ff;stroke-width:1.9}
+.kb.over.sy-propulsion #kb-wings .tl,.kb.over.sy-shield .shieldg .wh,.kb.over.sy-limbs .armg .wh,.kb.over.sy-limbs .jt{stroke:var(--bad);animation:kbflick .3s steps(1) infinite}
+.kb.over.sy-sensors .visor,.kb.over.sy-comms .ball{fill:var(--bad)}
+@keyframes kbflick{50%{stroke-opacity:.25}}
+.kb #kb-wings{transform-box:fill-box;transform-origin:50% 85%}
+.kb.fx-launch #kb-wings{animation:kbwing 1.5s ease-in-out}
+@keyframes kbwing{30%{transform:scale(1.1,1.14)}60%{transform:scale(.97)}}
+.kb .suit{transition:transform 1.2s ease-in-out}
+.kb.flying .suit{transform:translateY(-9px)}
+.kb .clamp{transition:transform 1.2s ease-in-out}
+.kb.g-open .cl-l{transform:translateX(-22px)}.kb.g-open .cl-r{transform:translateX(22px)}
+.kb.g-open.gmove .cl-l{animation:kbopenl 1.2s ease-in-out}.kb.g-open.gmove .cl-r{animation:kbopenr 1.2s ease-in-out}
+.kb.g-locked.gmove .cl-l{animation:kbopenl 1s ease-in-out reverse}.kb.g-locked.gmove .cl-r{animation:kbopenr 1s ease-in-out reverse}
+@keyframes kbopenl{from{transform:translateX(0)}to{transform:translateX(-22px)}}
+@keyframes kbopenr{from{transform:translateX(0)}to{transform:translateX(22px)}}
+.kb.g-locked .clamp .gan{stroke:var(--warn)}
+.kb.fx-scram .asm{animation:kbscram .5s steps(1) 3}
+@keyframes kbscram{50%{filter:brightness(2.2) saturate(.2)}}
+.kb.fx-refuse .reactor{animation:kbrefuse .5s}
+@keyframes kbrefuse{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+.kb.offline .suit{opacity:.4}
+.kb .scan{fill:#8ff6ff;opacity:0}
+.kb.refit .scan{animation:kbsweep 1.1s ease-out}
+@keyframes kbsweep{from{transform:translateY(0);opacity:.9}to{transform:translateY(586px);opacity:0}}
+.kb .lead{fill:none;stroke:#e6f2ff;stroke-width:.8}.kb .ldot{fill:#e6f2ff}
+.kb .bal circle{fill:#0b2f5c;stroke:#9cc8f5;stroke-width:1.3}
+.kb .bal text{font:700 10.5px var(--mono);fill:#fff;text-anchor:middle}
+.kb .bal.on circle{stroke:var(--good);stroke-width:2.2}.kb .bal.warn circle{stroke:var(--warn);stroke-width:2.2}
+.kb .bal.bad circle{stroke:var(--bad);stroke-width:2.2;fill:#3b1716}
+.kb .ping{fill:none;stroke:#8ff6ff;stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center;animation:kbping 1.1s ease-out 2}
+.kb .ping.p2{animation-delay:.25s}
+@keyframes kbping{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(3)}}
+.kb .lbl{font:700 9px var(--mono);fill:#a9cdf3;text-anchor:middle;letter-spacing:.06em}
+/* ---- additions for Project Structure: repository tree, blueprint, drill ---- */
+[data-sh-only]{display:none}
+html[data-sh="bash"] [data-sh-only~="bash"],html[data-sh="cmd"] [data-sh-only~="cmd"],html[data-sh="ps"] [data-sh-only~="ps"]{display:inline}
+.prose ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+.term-bar>span:first-child{font:600 13px/1.4 var(--font-body);color:var(--term-ink)}
+.map{overflow:hidden;display:flex;flex-direction:column}
+.zones{grid-template-columns:minmax(0,1fr);flex:1 1 auto;min-height:0}
+.zone{overflow:auto;border-right:0}
+#z-tree{max-height:52vh}
+.tree{display:flex;flex-direction:column;font-size:12.5px}
+.t-row{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;min-height:23px;padding:1px 6px 1px calc(2px + var(--d) * 15px);border-radius:4px}
+.t-row.dir>.mono{font-weight:600}
+.t-row.dot>.mono,.t-row.dot>.ico{opacity:.7}
+.t-row.here{background:var(--pr-soft)}
+.t-row.new{animation:tnew 2.6s ease-out}
+@keyframes tnew{0%,40%{background:var(--add-soft);box-shadow:inset 3px 0 0 var(--add)}100%{background:transparent;box-shadow:inset 3px 0 0 transparent}}
+.t-tog{flex:none;width:14px;border:0;background:none;padding:0;color:var(--muted);font-size:11px;line-height:1;text-align:center}
+button.t-tog:hover{color:var(--accent)}
+.t-more{color:var(--muted);font-size:11.5px}
+.t-badge{display:grid;place-items:center;width:17px;height:17px;flex:none;border-radius:50%;background:#0b2f5c;border:1px solid #9cc8f5;color:#fff;font:700 10px/1 var(--font-mono)}
+.kfig{--mono:var(--font-mono);--bad:#ff7b72;--warn:#f2b84b;--good:#3ddc97;border:1px solid #2a5a96;border-radius:6px;min-width:0;background:linear-gradient(#134177 1px,transparent 1px) 0 0/100% 20px,linear-gradient(90deg,#134177 1px,transparent 1px) 0 0/20px 100%,#0b2f5c}
+.kfig svg{display:block;width:100%;height:auto;max-height:300px;margin:0 auto}
+.kb .key{fill:#08264a;stroke:#e6f2ff;stroke-width:.8}
+.kb .asm{opacity:.14;transition:opacity .9s ease}
+.kb .suit{transition:opacity .9s ease,transform 1.2s ease-in-out}
+.kb.nosuit .suit{opacity:0}
+.kb.on-a0 .a0,.kb.on-a1 .a1,.kb.on-a2 .a2,.kb.on-a3 .a3,.kb.on-a4 .a4,.kb.on-a5 .a5,.kb.on-a6 .a6{opacity:1}
+.kb.api-on .gantry>rect:last-child{fill:#17528c;stroke:#8ff6ff;stroke-width:1.4}
+.kb .bal.off circle{stroke:#52729b}.kb .bal.off text{fill:#7f9cc0}
+.k-status{margin:0;font:600 11px/1.35 var(--font-mono);letter-spacing:.05em;color:var(--muted)}
+.k-status.bad{color:var(--del)}
+.kb .lbl{display:none}
+.legend{display:flex;flex-wrap:wrap;gap:4px}
+.lg{display:inline-flex;align-items:center;gap:5px;font:500 11px/1 var(--font-mono);padding:3px 7px 3px 3px;border:1px solid var(--line);border-radius:999px;color:var(--muted)}
+.lg b{display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:var(--sunk);border:1px solid var(--line);font-size:9.5px}
+.lg.on{border-color:var(--add);color:var(--add);background:var(--add-soft)}
+.lg.on b{background:var(--add);border-color:var(--add);color:var(--surface)}
+.lg.bad{border-color:var(--del);color:var(--del)}
+.lg.bad b{background:var(--del);border-color:var(--del);color:var(--surface)}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
+.cmp-col{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px solid var(--line);border-top:3px solid var(--muted);border-radius:6px;padding:10px 12px;background:var(--sunk)}
+.cmp-col.good{border-top-color:var(--add)}
+.cmp-col>b{font:700 15px/1.2 var(--font-display);letter-spacing:.05em;text-transform:uppercase}
+.cmp-col .sub{font-size:12px;color:var(--muted);margin-top:-4px}
+.cmp-col pre{margin:0;font:400 12px/1.45 var(--font-mono);overflow-x:auto}
+.cmp-col mark{background:var(--warn-soft);color:var(--warn);border-radius:2px;padding:0 2px}
+.cmp-col.good mark{background:var(--add-soft);color:var(--add)}
+.cmp-col p{margin:0;font-size:14px}
+.treepre{margin:0;font:400 12.5px/1.5 var(--font-mono);background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;white-space:pre}
+#agents-block{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto}
+.opts{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.opt{max-width:100%;text-align:left;font:500 13px/1.4 var(--font-mono);padding:5px 10px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;background:var(--sunk);overflow-wrap:anywhere}
+.opt:hover{border-color:var(--accent)}
+.opt.ok{border-color:var(--add);background:var(--add-soft);color:var(--add)}
+.opt.no{border-color:var(--del);color:var(--del)}
+.term-form input:disabled{opacity:.5}
+@media (min-width:720px){
+  .zones{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+  #z-tree{border-right:1px solid var(--line)}
+}
+@media (min-width:1040px){
+  #z-tree{max-height:none}
+  .kfig svg{max-height:max(170px,calc(62vh - 268px))}
+}
+@media (prefers-reduced-motion:reduce){.kb *,.t-row.new{animation:none!important;transition:none!important}}
+.where{margin:0;display:flex;flex-direction:column;gap:2px;padding:6px 9px;border-left:3px solid var(--line);background:var(--sunk);border-radius:0 5px 5px 0;font-size:12.5px}
+.where>div{display:flex;flex-wrap:wrap;gap:2px 8px}
+.where dt{flex:none;min-width:112px;color:var(--muted);font-weight:600}
+.where dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.step.now .where{border-left-color:var(--accent)}
+.commitbox{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;background:var(--surface)}
+.commitbox h3{margin:0;font:700 15px/1.2 var(--font-display);letter-spacing:.04em;text-transform:uppercase}
+.commitbox p{margin:0;font-size:14px}
+.commitbox{border-color:var(--accent);background:var(--pr-soft)}
+.commitbox.pre{background:var(--surface)}
+.commitbox .treepre{white-space:pre-wrap;overflow-wrap:anywhere}
+/* ---- sorting drill modal ---- */
+body.drill-open{overflow:hidden}
+.drill-back{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(10,18,30,.62)}
+.drill-back[hidden]{display:none}
+.drill{display:flex;flex-direction:column;width:min(980px,100%);max-height:100%;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-top:4px solid var(--accent);border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.4);overflow:hidden}
+.drill>header{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;padding:14px 18px 12px;border-bottom:1px solid var(--line)}
+.drill h2{margin:0 0 4px;font:700 20px/1.2 var(--font-display);letter-spacing:.03em;text-transform:uppercase}
+.drill>header p{margin:0;font-size:14px;color:var(--muted)}
+.drill-x{flex:none;width:34px;height:34px;border:1px solid var(--line);border-radius:6px;background:var(--sunk);font-size:20px;line-height:1}
+.drill-x:hover{border-color:var(--accent)}
+.drill-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:14px 18px;overflow:auto;min-height:0}
+.drill h3{margin:0 0 8px;display:flex;justify-content:space-between;gap:8px;align-items:baseline;font:700 13px/1.3 var(--font-display);letter-spacing:.08em;text-transform:uppercase}
+.drill h3 span{font:500 12px/1 var(--font-mono);letter-spacing:0;text-transform:none;color:var(--muted)}
+.pile,.bins{display:flex;flex-direction:column;gap:7px;min-width:0}
+.dfile{display:flex;gap:9px;align-items:flex-start;text-align:left;padding:8px 10px;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;background:var(--sunk);cursor:grab;touch-action:manipulation}
+.dfile>span{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:13.5px;line-height:1.35}
+.dfile b{font-size:13px;font-weight:600}
+.dfile:hover{border-color:var(--accent)}
+.dfile.sel{border-color:var(--accent);background:var(--pr-soft);box-shadow:0 0 0 2px var(--accent) inset}
+.dfile.dragging{opacity:.45}
+.dfile .ico{margin-top:2px}
+.pile-done{margin:0;padding:14px;border:1px dashed var(--add);border-radius:6px;color:var(--add);background:var(--add-soft);font-size:14px}
+.bin-group{display:flex;flex-direction:column;gap:6px}
+.bin-group>p{margin:4px 0 0;display:flex;gap:6px;align-items:center;font-size:12.5px;font-weight:600}
+.bin-kids{display:flex;flex-direction:column;gap:6px;margin-left:8px;padding-left:12px;border-left:2px solid var(--line)}
+.bin{display:flex;flex-direction:column;gap:6px;align-items:stretch;text-align:left;min-height:46px;padding:8px 10px;border:1.5px dashed var(--line);border-radius:6px;background:transparent}
+.bin-h{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;font-weight:600}
+.bin-files{display:flex;flex-wrap:wrap;gap:5px}
+.bin-files:empty{display:none}
+.bin:hover,.bin.over{border-color:var(--accent);border-style:solid;background:var(--pr-soft)}
+.bin.shake{animation:binshake .4s;border-color:var(--del)}
+@keyframes binshake{20%{transform:translateX(-5px)}40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+.dchip{display:inline-flex;gap:5px;align-items:center;font:500 12px/1 var(--font-mono);padding:4px 7px;border-radius:4px;background:var(--add-soft);color:var(--add);border:1px solid var(--add)}
+.drill>footer{display:flex;flex-direction:column;gap:10px;padding:12px 18px 14px;border-top:1px solid var(--line);background:var(--sunk)}
+.drill-fb{margin:0;min-height:2.9em;font-size:14px;line-height:1.45}
+.drill-fb strong{display:block}
+.drill-fb.ok{color:var(--add)}
+.drill-fb.no{color:var(--del)}
+.drill>footer .row{justify-content:flex-end}
+.drill>footer .hint{margin-right:auto}
+.step .btn{margin:4px 0 0}
+@media (min-width:760px){.drill-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}}
+@media (prefers-reduced-motion:reduce){.bin.shake{animation:none}}
+.startat{margin:0;padding:9px 12px;border:1px solid var(--line);border-left:3px solid var(--ink);border-radius:0 6px 6px 0;background:var(--sunk);font-size:14px}
+.startat .own-start{display:block;margin-top:6px;padding-top:6px;border-top:1px dashed var(--line)}
+.dfile code{display:block;font:500 12px/1.4 var(--font-mono);padding:3px 6px;border-radius:4px;background:var(--surface);border:1px solid var(--line);overflow-wrap:anywhere}
+.bin-t{font:700 14px/1.2 var(--font-display);letter-spacing:.04em;text-transform:uppercase}
+.bin.good{border-color:var(--add)}
+.drill-rules{margin:0 0 4px;padding:9px 12px 9px 28px;display:flex;flex-direction:column;gap:5px;font-size:13px;line-height:1.4;border:1px solid var(--line);border-radius:6px;background:var(--sunk)}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>Project<i>/</i>Structure</b><span>Where every file goes</span></div>
+    <nav class="nav" id="nav" aria-label="Lessons"></nav>
+  </header>
+  <div class="work">
+    <main class="lesson" id="lesson" tabindex="-1"></main>
+    <aside class="bench" aria-label="Sandbox">
+      <section class="map" id="map" aria-label="The repository, and the Kestrel blueprint"></section>
+      <section class="term" aria-label="Terminal">
+        <div class="term-bar">
+          <span>Terminal</span>
+          <span class="row" id="term-tools"><label class="sr" for="shell-sel">Terminal type</label><select id="shell-sel"><option value="bash">Mac / Linux / Git Bash</option><option value="cmd">Windows Command Prompt</option><option value="ps">Windows PowerShell</option></select><button type="button" id="btn-help">help</button><button type="button" id="btn-clear">clear</button></span>
+        </div>
+        <div class="pane" id="pane-term">
+          <div class="term-out" id="tout" aria-live="polite"></div>
+          <form class="term-form" id="tform" autocomplete="off">
+            <label for="tin" id="tprompt">~ $</label>
+            <input id="tin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="Type a command">
+            <button type="submit">Run</button>
+          </form>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="drill-back" id="drill" hidden></div>
+
+<script id="engine">
+/* ---------- Simulated file system and commands: pure functions, no DOM ---------- */
+const HOME = '/home/you', REPO = HOME + '/kestrel-simulator', CK = REPO + '/cockpit', API = REPO + '/api';
+const FS = (() => {
+  const VITE = ['.gitignore', 'README.md', 'eslint.config.js', 'index.html', 'package.json', 'tsconfig.app.json', 'tsconfig.json', 'tsconfig.node.json', 'vite.config.ts', 'public/', 'public/vite.svg', 'src/', 'src/App.css', 'src/App.tsx', 'src/index.css', 'src/main.tsx', 'src/assets/', 'src/assets/react.svg'];
+  const TXT = {
+    readme: '## kestrel-simulator\n\nA browser cockpit console for the KF-07 Kestrel Mk II.\nBuilt step by step along the Designer Learning Path.',
+    gitignore: '.env',
+    env: 'API_KEY=',
+    viteIgnore: '# Logs\nlogs\n*.log\n\nnode_modules\ndist\ndist-ssr\n*.local',
+    pkg: '{\n  "name": "cockpit",\n  "private": true,\n  "version": "0.0.0",\n  "type": "module",\n  "scripts": {\n    "dev": "vite",\n    "build": "tsc -b && vite build",\n    "lint": "eslint .",\n    "preview": "vite preview"\n  }\n}',
+    main: "import { StrictMode } from 'react'\nimport { createRoot } from 'react-dom/client'\nimport './index.css'\nimport App from './App.tsx'\n\ncreateRoot(document.getElementById('root')!).render(\n  <StrictMode>\n    <App />\n  </StrictMode>,\n)",
+    pyproject: '[project]\nname = "api"\nversion = "0.1.0"\nrequires-python = ">=3.14"\ndependencies = []'
+  };
+  const fresh = () => ({
+    cwd: HOME, lint: '',
+    n: { '/': 'd', '/home': 'd', [HOME]: 'd', [REPO]: 'd', [REPO + '/.git']: 'd', [REPO + '/.env.example']: 'f', [REPO + '/.gitignore']: 'f', [REPO + '/README.md']: 'f', [REPO + '/tokens']: 'd', [REPO + '/tokens/kestrel.tokens.json']: 'f' },
+    txt: { [REPO + '/README.md']: TXT.readme, [REPO + '/.gitignore']: TXT.gitignore, [REPO + '/.env.example']: TXT.env }
+  });
+  const clone = S => JSON.parse(JSON.stringify(S));
+  const abs = (S, p) => {
+    p = String(p).replace(/\\/g, '/');
+    if (p === '~') p = HOME; else if (p.startsWith('~/')) p = HOME + p.slice(1);
+    const out = [];
+    for (const x of (p.startsWith('/') ? p : S.cwd + '/' + p).split('/')) { if (!x || x === '.') continue; if (x === '..') out.pop(); else out.push(x); }
+    return '/' + out.join('/');
+  };
+  const parent = p => p.slice(0, p.lastIndexOf('/')) || '/';
+  const base = p => p.slice(p.lastIndexOf('/') + 1);
+  const kids = (S, d) => Object.keys(S.n).filter(k => k !== d && parent(k) === d).sort((a, b) => base(a).toLowerCase() < base(b).toLowerCase() ? -1 : 1);
+  const under = (S, d) => Object.keys(S.n).filter(k => k === d || k.startsWith(d + '/'));
+  const tokenize = line => (line.match(/"[^"]*"|'[^']*'|\S+/g) || []).map(t => t.replace(/^(["'])(.*)\1$/, '$2'));
+  const violations = S => Object.keys(S.n).filter(k => S.n[k] === 'f' && /\/features\/[^/]+\/domain\/use[A-Z][^/]*\.tsx?$/.test(k)).sort();
+
+  function put(S, path, kind, text) { S.n[path] = kind; if (text != null) S.txt[path] = text; }
+  function mkdirs(S, path) { const made = []; let cur = ''; for (const part of path.split('/').filter(Boolean)) { cur += '/' + part; if (!S.n[cur]) { S.n[cur] = 'd'; made.push(cur); } } return made; }
+
+  /* run one canonical (bash-style) command against a copy of S */
+  function run(S0, line) {
+    const S = clone(S0), out = [], changed = [];
+    const say = (t, cls) => out.push([t, cls || '']);
+    const res = extra => Object.assign({ S, out, changed, mut: JSON.stringify(S) !== JSON.stringify(S0), slow: 0, err: false, clear: false }, extra || {});
+    const fail = t => { say(t); return res({ S: clone(S0), err: true, mut: false, changed: [] }); };
+    const tk = tokenize(line.trim()), w = tk[0] || '', args = tk.slice(1);
+    const flags = args.filter(a => /^-/.test(a)), paths = args.filter(a => !/^-/.test(a));
+    if (!w) return res();
+    if (w === 'pwd') { say(S.cwd); return res(); }
+    if (w === 'clear') return res({ clear: true });
+    if (w === 'help') {
+      ['pwd                      show the folder the terminal is in', 'ls [-a] [folder]         list a folder (-a includes hidden names)', 'cd <folder>   cd ..       move into a folder, or up one level', 'mkdir [-p] <folder>      make a folder (-p makes the folders in between too)', 'touch <file>             make an empty file', 'mv <from> <to>           move or rename (git mv works the same here)', 'cat <file>               print a file', 'npm create vite@latest cockpit -- --template react-ts', 'npm install              download the packages package.json lists', 'npm run lint             check the code against the project rules', 'uv init api --bare       start a Python project', 'clear                    empty this window'].forEach(l => say(l, 'meta'));
+      return res();
+    }
+    if (w === 'ls') {
+      const all = flags.some(f => /a/i.test(f)), target = abs(S, paths[0] || '.');
+      if (!S.n[target]) return fail(`ls: cannot access '${paths[0]}': No such file or directory`);
+      if (S.n[target] === 'f') { say(paths[0]); return res(); }
+      if (base(target) === 'node_modules') { say('(187 package folders, downloaded by npm install)', 'meta'); return res(); }
+      const names = kids(S, target).filter(k => all || !base(k).startsWith('.')).map(k => base(k) + (S.n[k] === 'd' ? '/' : ''));
+      if (names.length) say(names.join('   '));
+      return res();
+    }
+    if (w === 'cd') {
+      const target = abs(S, paths[0] || '~');
+      if (!S.n[target]) return fail(`cd: ${paths[0]}: No such file or directory`);
+      if (S.n[target] === 'f') return fail(`cd: ${paths[0]}: Not a directory`);
+      S.cwd = target; return res();
+    }
+    if (w === 'mkdir') {
+      if (!paths.length) return fail('mkdir: missing operand');
+      const p = flags.includes('-p');
+      for (const a of paths) {
+        const t = abs(S, a);
+        if (!t.startsWith(HOME + '/')) return fail(`mkdir: cannot create directory '${a}': Permission denied`);
+        if (S.n[t]) { if (p && S.n[t] === 'd') continue; return fail(`mkdir: cannot create directory '${a}': File exists`); }
+        if (!p && S.n[parent(t)] !== 'd') return fail(`mkdir: cannot create directory '${a}': No such file or directory`);
+        changed.push(...mkdirs(S, t));
+      }
+      return res();
+    }
+    if (w === 'touch') {
+      if (!paths.length) return fail('touch: missing file operand');
+      for (const a of paths) {
+        const t = abs(S, a);
+        if (S.n[parent(t)] !== 'd' || !t.startsWith(HOME + '/')) return fail(`touch: cannot touch '${a}': No such file or directory`);
+        if (!S.n[t]) { put(S, t, 'f', ''); changed.push(t); }
+      }
+      return res();
+    }
+    if (w === 'mv' || (w === 'git' && args[0] === 'mv')) {
+      const pp = w === 'git' ? paths.slice(1) : paths;
+      if (pp.length !== 2) return fail(`${w === 'git' ? 'usage: git mv <source> <destination>' : 'mv: this sandbox moves one thing at a time: mv <from> <to>'}`);
+      const from = abs(S, pp[0]); let to = abs(S, pp[1]);
+      if (!S.n[from] || from === HOME || from === REPO) return fail(`mv: cannot stat '${pp[0]}': No such file or directory`);
+      if (S.n[to] === 'd') to = to + '/' + base(from);
+      else if (/[\/\\]$/.test(pp[1])) return fail(`mv: cannot move '${pp[0]}' to '${pp[1]}': Not a directory`);
+      if (S.n[parent(to)] !== 'd') return fail(`mv: cannot move '${pp[0]}' to '${pp[1]}': No such file or directory`);
+      if (to === from) return res();
+      if (S.n[to]) return fail(`mv: this sandbox will not overwrite '${pp[1]}'`);
+      if (to.startsWith(from + '/')) return fail(`mv: cannot move '${pp[0]}' to a subdirectory of itself`);
+      for (const k of under(S, from)) { const nk = to + k.slice(from.length); S.n[nk] = S.n[k]; delete S.n[k]; if (k in S.txt) { S.txt[nk] = S.txt[k]; delete S.txt[k]; } changed.push(nk); }
+      return res();
+    }
+    if (w === 'cat') {
+      if (!paths.length) return fail('cat: missing file operand');
+      const t = abs(S, paths[0]);
+      if (!S.n[t]) return fail(`cat: ${paths[0]}: No such file or directory`);
+      if (S.n[t] === 'd') return fail(`cat: ${paths[0]}: Is a directory`);
+      const text = S.txt[t];
+      if (text) text.split('\n').forEach(l => say(l)); else say(text === '' ? '(empty file)' : '(the contents of this file do not matter for this tutorial)', 'meta');
+      return res();
+    }
+    if (w === 'npm') {
+      const sub = args[0];
+      if (sub === 'create' || sub === 'init') {
+        if (!/^vite(@.*)?$/.test(args[1] || '')) return fail('npm error This sandbox scaffolds one thing: npm create vite@latest cockpit -- --template react-ts');
+        const name = args[2] && !/^-/.test(args[2]) ? args[2] : '', tpl = args.indexOf('--template');
+        if (!name) return fail('The real tool would now ask for a project name. In this sandbox, give it on the command line:\nnpm create vite@latest cockpit -- --template react-ts');
+        if (tpl < 0 || args[tpl + 1] !== 'react-ts') return fail('The real tool would now ask which framework and variant. In this sandbox, name the template:\nnpm create vite@latest ' + name + ' -- --template react-ts');
+        const root = abs(S, name);
+        if (S.n[root]) return fail(`Target directory "${name}" is not empty. Operation cancelled`);
+        put(S, root, 'd'); changed.push(root);
+        VITE.forEach(f => { const dir = f.endsWith('/'), p = root + '/' + f.replace(/\/$/, ''); put(S, p, dir ? 'd' : 'f'); changed.push(p); });
+        S.txt[root + '/.gitignore'] = TXT.viteIgnore; S.txt[root + '/package.json'] = TXT.pkg.replace('cockpit', name); S.txt[root + '/src/main.tsx'] = TXT.main;
+        say(''); say('> npx'); say(`> create-vite ${name} --template react-ts`); say(''); say('│'); say(`◇  Scaffolding project in ${root}...`); say('│'); say('└  Done. Now run:'); say(''); say(`  cd ${name}`); say('  npm install'); say('  npm run dev'); say('');
+        return res({ slow: 900, slowLabel: 'fetching create-vite' });
+      }
+      if (!S.n[S.cwd + '/package.json']) return fail(`npm error code ENOENT\nnpm error syscall open\nnpm error path ${S.cwd}/package.json\nnpm error enoent Could not read package.json: no such file or directory\n(npm acts on the folder the terminal is in. Move into cockpit first.)`);
+      if (sub === 'install' || sub === 'i') {
+        if (args.length > 1) return fail('This sandbox installs only what package.json already lists: npm install');
+        const nm = S.cwd + '/node_modules';
+        if (S.n[nm]) { say(''); say('up to date, audited 188 packages in 1s'); say(''); say('found 0 vulnerabilities'); return res(); }
+        put(S, nm, 'd'); put(S, S.cwd + '/package-lock.json', 'f'); changed.push(nm, S.cwd + '/package-lock.json');
+        say(''); say('added 187 packages, and audited 188 packages in 9s'); say(''); say('49 packages are looking for funding'); say('  run `npm fund` for details'); say(''); say('found 0 vulnerabilities');
+        return res({ slow: 3000, slowLabel: 'downloading packages' });
+      }
+      if (sub === 'run' && args[1] === 'lint') {
+        say(''); say('> cockpit@0.0.0 lint'); say('> eslint .'); say('');
+        if (!S.n[S.cwd + '/node_modules']) { say('sh: 1: eslint: not found'); say('(ESLint is one of the packages npm install downloads. Run npm install first.)', 'coach'); return res({ S: clone(S0), err: true, mut: false }); }
+        const v = violations(S);
+        if (!v.length) { S.lint = 'ok'; say('No problems found. Every file is where the rules say it may be.', 'ok'); return res({ slow: 700, slowLabel: 'checking' }); }
+        S.lint = 'bad';
+        v.forEach(f => { say(f); say("  1:1  error  'react' import is restricted from being used by a pattern. domain/ holds pure rules: no React, no network, no screens  no-restricted-imports", 'del'); say(''); });
+        say(`✖ ${v.length} problem${v.length === 1 ? '' : 's'} (${v.length} error${v.length === 1 ? '' : 's'}, 0 warnings)`, 'del');
+        return res({ slow: 700, slowLabel: 'checking', lintFail: true });
+      }
+      if (sub === 'run') return fail(`This sandbox only checks structure, so the one script it runs is: npm run lint\n(npm run ${args[1] || 'dev'} is covered in React + TypeScript from Zero.)`);
+      return fail('This sandbox\'s npm understands: create, install, run lint. Type help for the list.');
+    }
+    if (w === 'uv') {
+      if (args[0] !== 'init') return fail('This sandbox\'s uv understands one command: uv init api --bare');
+      const name = paths[1];
+      if (!name) return fail('Give the project folder a name: uv init api --bare');
+      const root = abs(S, name);
+      if (S.n[root + '/pyproject.toml']) return fail(`error: Project is already initialized in \`${root}\` (\`pyproject.toml\` file exists)`);
+      changed.push(...mkdirs(S, root)); put(S, root + '/pyproject.toml', 'f', TXT.pyproject.replace('"api"', '"' + name + '"')); changed.push(root + '/pyproject.toml');
+      if (!flags.includes('--bare')) { ['.python-version', 'README.md', 'main.py'].forEach(f => { put(S, root + '/' + f, 'f'); changed.push(root + '/' + f); }); }
+      say(`Initialized project \`${name}\` at \`${root}\``);
+      return res();
+    }
+    if (w === 'git') return fail('This sandbox handles files and folders only (git mv is the one exception). Practise the rest of git in Git Basics Sandbox.');
+    if (w === 'rm' || w === 'rmdir') return fail('Deleting is switched off in this sandbox. "Restart this lesson" puts everything back.');
+    if (w === 'code') return fail('On your own machine, "code ." opens the current folder in VS Code. There is no editor in this sandbox.');
+    return fail(`${w}: command not found`);
+  }
+  return { fresh, clone, abs, parent, base, kids, under, run, tokenize, violations, put, mkdirs, TXT };
+})();
+</script>
+<script id="lessons">
+/* ---------- Lessons: content and the one expected command per step ---------- */
+const esc = t => String(t).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+const c = cmd => `<button type="button" class="cmd" data-cmd="${esc(cmd)}" title="Put this in the terminal">${esc(cmd)}</button>`;
+const shv = (bash, cmd, ps) => `<span data-sh-only="bash">${bash}</span><span data-sh-only="cmd">${cmd}</span><span data-sh-only="ps">${ps == null ? bash : ps}</span>`;
+const FL = 'src/features/flight';
+const PILE = [];
+const INDEX_TS = "// The front door of the flight feature.\n// Other features import from here and nowhere deeper.\nexport { MainDisplay } from './components/MainDisplay'\nexport { AlertBar } from './components/AlertBar'\nexport { useFlight } from './hooks/useFlight'\nexport type { FlightState, Order } from './types'";
+const ESLINT_JS = "// eslint.config.js (the part that guards the structure)\n{\n  files: ['src/features/*/domain/**'],\n  rules: {\n    'no-restricted-imports': ['error', {\n      patterns: [{\n        group: ['react', 'react-dom', '**/components/**', '**/hooks/**', '**/services/**'],\n        message: 'domain/ holds pure rules: no React, no network, no screens',\n      }],\n    }],\n  },\n},";
+const BURN = "import { useEffect, useState } from 'react'\n\n// Counts the seconds a sprint burn has lasted.\nexport function useBurnTimer(burning: boolean) {\n  const [seconds, setSeconds] = useState(0)\n  useEffect(() => { /* ticks once a second while burning */ }, [burning])\n  return seconds\n}";
+
+const COMPARE = `<div class="cmp" role="group" aria-label="Two ways to organise the same files">
+  <div class="cmp-col"><b>By file type</b><span class="sub">bins of parts</span><pre>src/
+├── components/
+│   ├── CheckQueue.tsx
+│   ├── <mark>MainDisplay.tsx</mark>
+│   └── SignInForm.tsx
+├── hooks/
+│   ├── <mark>useFlight.ts</mark>
+│   └── usePreflight.ts
+├── services/
+│   ├── authApi.ts
+│   └── <mark>missionApi.ts</mark>
+├── utils/
+│   ├── <mark>power.ts</mark>
+│   └── starterCell.ts
+└── types/
+    └── <mark>flight.ts</mark></pre><p>One change to the 25 kW budget: <strong>5 folders</strong>, each shared with every other feature.</p></div>
+  <div class="cmp-col good"><b>By feature</b><span class="sub">sections of the suit</span><pre>src/
+└── features/
+    ├── auth/
+    ├── <mark>flight/</mark>
+    │   ├── <mark>components/</mark>
+    │   ├── <mark>hooks/</mark>
+    │   ├── <mark>domain/</mark>
+    │   ├── <mark>services/</mark>
+    │   └── <mark>types.ts</mark>
+    ├── missions/
+    └── preflight/</pre><p>The same change: <strong>1 folder</strong>. Everything about flight is in <code>flight/</code>, and nothing else is.</p></div>
+</div>`;
+
+const FLOW = `<ol class="flow" aria-label="Import direction inside a feature">
+  <li><b>components/</b>draw the screen. May import hooks, types, and <code>shared/</code>.</li>
+  <li><b>hooks/</b>hold state and react to events. May import domain, services, types.</li>
+  <li><b>domain/ · services/</b>rules, and calls to the API. May import types only.</li>
+  <li><b>types.ts</b>imports nothing. Everything may import it.</li>
+</ol>`;
+
+const LESSONS = [
+  {
+    short: 'One repo', title: 'One repository, two apps',
+    intro: `
+      <p>The Kestrel simulator has two halves. The <strong>cockpit</strong> is the front end: the screens that run in the pilot's browser. <strong>Kestrel control</strong> is the back end: the API (the program on a server that the cockpit sends requests to) that signs pilots in and keeps the mission log. The first structural decision is whether those halves share one repository or get one each.</p>
+      <p>For this project the answer is <strong>one repository</strong> holding both, each in its own top-level folder. A repository that holds more than one app is called a <strong>monorepo</strong>. The alternative, one repository per app, is called a polyrepo.</p>
+      <dl>
+        <dt>One change, one pull request</dt><dd>A feature usually touches the screen and the API together. In one repo they are reviewed, tested and merged together, so the two halves cannot drift apart.</dd>
+        <dt>One set of project files</dt><dd>The README, the agent files, the specs, the test cases and the design tokens are written once and describe the whole product.</dd>
+        <dt>One pipeline</dt><dd>The automatic checks that run on every pull request see both halves at once.</dd>
+        <dt>Shared test data</dt><dd>The flight rules exist twice, in TypeScript in the browser and in Python on the server, and must give the same answers. One folder of example missions can feed both test suites.</dd>
+      </dl>
+      <p>Separate repositories earn their extra coordination when different teams release on different schedules, when the two halves need different access permissions, or when one API serves several unrelated front ends. None of that applies to a small product built by one person and their coding agent.</p>
+      <p>Think of the repository as <strong>Hangar 7's gantry</strong>: one frame that holds the whole Kestrel while it is built. The blueprint on the right shows it, empty for now. It fills in as the structure does.</p>
+      <p>One rule keeps a monorepo tidy: <strong>each app is self-contained</strong>. It has its own folder with its own install, run and test commands, and code in <code>cockpit</code> never imports code from <code>api</code>. They talk to each other over the network only.</p>`,
+    steps: [
+      { do: `The repository from Git Basics is already on this pretend computer. Move into it: ${c('cd kestrel-simulator')}`, cmd: 'cd kestrel-simulator',
+        own: `move into your own repository folder, the one you created and pushed in Git Basics Sandbox.`,
+        after: `The prompt shows where the terminal is. Every command in this tutorial acts on the folder the terminal is in, so the prompt is worth a glance before each one.` },
+      { do: `See what is there, hidden names included: ${c('ls -a')}`, cmd: 'ls -a',
+        after: `A README, the design tokens, and two dot-files from Git Basics. The <strong>repository root</strong> (its top level) is for things that describe the whole project. No app code lives here.` },
+      { do: `You are at the repository root, and the next four steps all happen here. Make a folder for documents both halves share, starting with the test cases: ${c('mkdir docs')}`, cmd: 'mkdir docs',
+        after: `A command that makes a folder makes it inside the folder the terminal is in. The terminal is at the root, so <code>docs</code> is a top-level folder. Folder names are lowercase with hyphens and no spaces, the same convention as the repository name.` },
+      { do: `Put the first file in it. The path <code>docs/test-cases.md</code> reaches into the folder without moving the terminal there, so you are still at the root afterwards: ${c('touch docs/test-cases.md')}`, cmd: 'touch docs/test-cases.md',
+        own: `in practice you create files in your code editor (in VS Code: right-click the folder, New File). The command is the terminal equivalent.`,
+        after: `This creates an empty file.${shv('', ' In Command Prompt, <code>type nul &gt; file</code> is the usual way to say "make an empty file".', ' In PowerShell, <code>New-Item</code> is the command that makes one.')} It matters because <strong>Git does not record empty folders</strong>: a folder shows up on GitHub only once it contains a file. That is why you never need to create folders "for later".` },
+      { do: `Still at the root, make a second top-level folder beside <code>docs</code> (not inside it). This one is for specs, the one-page descriptions of each feature that you hand to a coding agent: ${c('mkdir specs')}`, cmd: 'mkdir specs',
+        after: `On the map, <code>specs</code> sits at the same level as <code>docs</code>, directly under <code>kestrel-simulator</code>. If yours landed inside <code>docs</code>, the terminal had moved: check the prompt, or run ${shv('<code>pwd</code>', '<code>cd</code> on its own', '<code>pwd</code>')}, before making a folder. It is empty for now, so Git will ignore it until the first spec is written. Agent Files Tutor covers what goes in one.` },
+      { do: `Now the front end. Still at the repository root, a scaffolding tool generates a working starter project into a new top-level folder, <code>cockpit</code>, beside <code>docs</code> and <code>specs</code>: ${c('npm create vite@latest cockpit -- --template react-ts')}`, cmd: 'npm create vite@latest cockpit -- --template react-ts',
+        own: `this needs Node.js 20.19 or newer (check with <span class="mono">node -v</span>). The first time, npm asks "Ok to proceed?" before downloading the tool: answer <span class="mono">y</span>. The tool may then ask a few questions. If it asks for a framework and variant, choose React, then TypeScript. At "Which linter to use?", choose <strong>ESLint</strong> (down arrow, then Enter): lesson 6 and the CI tutorial both rely on it. If it offers to install with npm and start now, answer No, because lesson 2 runs the install. When it finishes, npm may print a notice that a new version of npm is available. It is only an offer to upgrade. Ignore it. Do it once: when React + TypeScript from Zero reaches this same command, your <span class="mono">cockpit</span> folder already exists, so skip it there.`,
+        after: `<code>npm create vite@latest</code> runs Vite's project generator, <code>cockpit</code> is the folder name, and <code>react-ts</code> picks the React + TypeScript starter. On the blueprint, a bare frame now stands in the gantry.` },
+      { do: `And the back end, in its own top-level folder, <code>api</code>. It goes at the repository root beside <code>cockpit</code>, not inside it, so stay where you are: ${c('uv init api --bare')}`, cmd: 'uv init api --bare',
+        own: `this needs uv, the Python project tool. You probably do not have it yet, and that is expected: FastAPI from Zero is the tutorial that installs it. If the terminal answers <span class="mono">'uv' is not recognized as an internal or external command</span> (Windows) or <span class="mono">uv: command not found</span> (Mac, Linux), nothing is broken. From the same place, the repository root, make the folder by hand instead: <span class="mono">mkdir api</span>. That is all this tutorial needs, because lesson 7 only creates folders inside <span class="mono">api</span>. When you reach FastAPI from Zero and have uv, run <span class="mono">uv init --bare</span> from inside <span class="mono">api</span> to add the <span class="mono">pyproject.toml</span>.`,
+        after: `<code>--bare</code> creates only <code>pyproject.toml</code>, the Python equivalent of <code>package.json</code>: the project's name and the packages it needs.` },
+      { do: `Look at the root again: ${c('ls')}`, cmd: 'ls',
+        after: `Two apps, side by side, each self-contained. Everything else at the root describes the project as a whole.` }
+    ],
+    extra: `<div class="note"><p><strong>What else arrives at the root later</strong></p><p>Three more top-level folders come with their own tutorials, and each is created by that tutorial: <span class="mono">kestrel-tests/</span> (browser tests, Playwright + pytest), <span class="mono">deploy/</span> (server files, Cloud Deploy) and <span class="mono">.github/workflows/</span> (the pipeline, CI). You do not need them yet.</p></div>`,
+    commit: { msg: 'Add docs folder and scaffold the cockpit app', what: `<span class="mono">docs/test-cases.md</span> and the whole <span class="mono">cockpit</span> scaffold (plus <span class="mono">api/pyproject.toml</span> if uv created it). <span class="mono">specs</span> is empty, and so is an <span class="mono">api</span> folder made by hand, so Git does not list them yet. That is expected.` },
+    recap: ['A monorepo is one repository holding more than one app. It suits a small product where screen and API change together.', 'The root holds what describes the whole project: README, agent files, <code>docs/</code>, <code>specs/</code>, <code>tokens/</code>.', 'Each app gets one top-level folder, <code>cockpit/</code> and <code>api/</code>, with its own install, run and test commands.', 'Git does not record empty folders, so create a folder when its first file exists.'],
+    reading: [['monorepo.tools: what a monorepo is and when it helps', 'https://monorepo.tools/'], ['Vite: Getting Started', 'https://vite.dev/guide/'], ['uv: Creating projects', 'https://docs.astral.sh/uv/concepts/projects/init/']]
+  },
+  {
+    short: 'Scaffold', title: 'What the scaffold gave you',
+    intro: `
+      <p>A <strong>scaffold</strong> is the starter project a tool generates so you do not begin from an empty folder. Before adding structure of your own, learn what is already there. Most of it you will never edit.</p>
+      <dl>
+        <dt><code>package.json</code></dt><dd>The parts list: the packages the app needs and the commands it understands (<code>npm run dev</code>, <code>npm run build</code>, <code>npm run lint</code>).</dd>
+        <dt><code>index.html</code></dt><dd>The single page the browser loads. React draws everything else inside it.</dd>
+        <dt><code>src/</code></dt><dd>Your code. Everything you and your agent write for the cockpit goes in here, and the rest of this tutorial is about how to organise it.</dd>
+        <dt><code>public/</code></dt><dd>Files served exactly as they are, such as the favicon.</dd>
+        <dt>Config files</dt><dd><code>vite.config.ts</code>, the <code>tsconfig</code> files and <code>eslint.config.js</code> are settings for the build tool, TypeScript and the linter. Leave them until a tutorial tells you to change one.</dd>
+        <dt><code>node_modules/</code></dt><dd>The downloaded packages. It appears when you run <code>npm install</code>, it is huge, and it is never committed. The scaffold's own <code>.gitignore</code> already excludes it.</dd>
+      </dl>
+      <p>Inside <code>src/</code> you will add exactly three folders. They are the top level of a feature-based structure:</p>
+      <dl>
+        <dt><code>app/</code></dt><dd>The frame that assembles the application: which page shows at which address, and anything that wraps every page.</dd>
+        <dt><code>features/</code></dt><dd>One folder per feature. Most of the code lives here.</dd>
+        <dt><code>shared/</code></dt><dd>Things at least two features use: a button, the code that talks to the API, a date formatter.</dd>
+      </dl>
+      <p>Code depends in one direction only: <strong>app uses features, features use shared</strong>, never the reverse. Lesson 6 comes back to this.</p>`,
+    steps: [
+      { do: `Move into the front-end app: ${c('cd cockpit')}`, cmd: 'cd cockpit',
+        after: `From here on, paths such as <code>src/features</code> are relative to <code>cockpit</code>.` },
+      { do: `List what the scaffold generated: ${c('ls')}`, cmd: 'ls',
+        after: `Compare the list with the descriptions above. The exact files vary a little between Vite versions. The ones that matter are <code>package.json</code>, <code>index.html</code> and <code>src/</code>.` },
+      { do: `Download the packages that <code>package.json</code> lists. Run this inside <code>cockpit</code>, where that file is. It adds <code>node_modules</code> directly inside <code>cockpit</code>: ${c('npm install')}`, cmd: 'npm install',
+        own: `run it inside <span class="mono">cockpit</span>, not at the repository root. If npm reports that it cannot find <span class="mono">package.json</span>, the terminal is in the wrong folder. Your numbers will differ from the sandbox's. If the output ends with a line such as <span class="mono">11 high severity vulnerabilities</span>, the install still worked: npm checks every downloaded package against a public list of known security problems and reports how many matched. Carry on. If you like, run <span class="mono">npm audit</span> to see the list and <span class="mono">npm audit fix</span> to apply the safe updates. Do not run <span class="mono">npm audit fix --force</span>: it can jump packages to new major versions and break the scaffold. The line about packages looking for funding is about donations and can be ignored.`,
+        after: `<code>node_modules</code> and <code>package-lock.json</code> appeared. The lock file records the exact version of every package and <em>is</em> committed. <code>node_modules</code> is not: anyone can rebuild it by running <code>npm install</code>.` },
+      { do: `Look inside the source folder: ${c('ls src')}`, cmd: 'ls src',
+        after: `<code>main.tsx</code> is the entry point: the first code that runs, and the file that starts React. <code>App.tsx</code> is the one starter screen. Both are sitting loose in <code>src/</code>, which is fine for a demo and unworkable for a product.` },
+      { do: `The next three folders all go directly inside <code>cockpit/src</code>, side by side. The terminal stays in <code>cockpit</code>, and the path <code>src/app</code> puts the new folder inside <code>src</code>. First, the frame that will assemble the pages: ${c('mkdir src/app')}`, cmd: 'mkdir src/app' },
+      { do: `Beside <code>app</code>, also directly inside <code>src</code>, the home of every feature: ${c('mkdir src/features')}`, cmd: 'mkdir src/features' },
+      { do: `And a third folder at that same level, directly inside <code>src</code>, for things several features use: ${c('mkdir src/shared')}`, cmd: 'mkdir src/shared',
+        after: `Three folders, three jobs. <code>shared/</code> stays small on purpose: something moves there only when a second feature needs it. Until then it lives in the feature that uses it.` }
+    ],
+    commit: { msg: 'Install cockpit packages', what: `<span class="mono">cockpit/package-lock.json</span>. <span class="mono">node_modules</span> must <em>not</em> appear in <span class="mono">git status</span>: the scaffold's <span class="mono">.gitignore</span> excludes it. The three new folders in <span class="mono">src</span> are empty, so Git does not list them.` },
+    recap: ['The scaffold gives you a working app. You edit <code>src/</code>; the rest is configuration.', '<code>node_modules/</code> is generated by <code>npm install</code> and never committed. <code>package-lock.json</code> is committed.', '<code>src/</code> gets three folders: <code>app/</code> (assembles pages), <code>features/</code> (most of the code), <code>shared/</code> (used by two or more features).'],
+    reading: [['Vite: project structure and index.html', 'https://vite.dev/guide/#index-html-and-project-root'], ['npm Docs: package.json', 'https://docs.npmjs.com/cli/configuring-npm/package-json'], ['React: Start a new React project', 'https://react.dev/learn/creating-a-react-app']]
+  },
+  {
+    short: 'Features', title: 'Slice by feature, not by file type',
+    intro: `
+      <p>There are two common ways to organise <code>src/</code>. The first sorts files by <em>what kind of file they are</em>: all components in one folder, all hooks in another. The second sorts them by <em>what part of the product they belong to</em>.</p>
+      ${COMPARE}
+      <p>Hangar 7 does not store the Kestrel as a bin of bolts, a bin of armour plates and a bin of cables. It stores it by <strong>section</strong>: an arm, a leg, the reactor. Each section carries its own plates, wiring and control laws, so a tech servicing the arm works in one place. A <strong>feature folder</strong> is a section of the suit.</p>
+      <p>The benefits are practical:</p>
+      <ul>
+        <li><strong>Changes stay local.</strong> Most work touches one feature, so it touches one folder.</li>
+        <li><strong>The folder list reads like the product.</strong> Someone arriving cold, a person or a coding agent, sees what the app does before opening a file.</li>
+        <li><strong>A feature can be removed or rewritten</strong> without hunting through five shared folders for its pieces.</li>
+      </ul>
+      <p><strong>How to find the features:</strong> read what the user does. The Kestrel requirements list it under "What a pilot does":</p>
+      <table><thead><tr><th>The pilot…</th><th>Feature folder</th></tr></thead><tbody>
+        <tr><td>signs in</td><td><code>auth</code></td></tr>
+        <tr><td>runs preflight: queues subsystem checks and starts the preflight</td><td><code>preflight</code></td></tr>
+        <tr><td>flies Aster retrieval, giving orders while the power budget is enforced</td><td><code>flight</code></td></tr>
+        <tr><td>reads the mission log</td><td><code>missions</code></td></tr>
+      </tbody></table>
+      <p>A good feature is something a user could name, has its own screens and rules, and could be deleted without breaking the others. Name it in lowercase, with a hyphen if it needs two words.</p>`,
+    steps: [
+      { do: `Every feature is a folder directly inside <code>cockpit/src/features</code>, one level down from <code>src</code>. The terminal is still in <code>cockpit</code>. Create the first section: ${c('mkdir src/features/preflight')}`, cmd: 'mkdir src/features/preflight',
+        after: `Balloon 1 on the blueprint: the legs and waist are fitted. Each feature you add fits another section.` },
+      { do: `The mission itself, beside <code>preflight</code> and at the same level, directly inside <code>features</code>: ${c('mkdir src/features/flight')}`, cmd: 'mkdir src/features/flight',
+        after: `Balloon 2: the torso, the wing binders and the reactor housing. The reactor stays dark until the flight rules exist.` },
+      { do: `Signing in, also directly inside <code>features</code>: ${c('mkdir src/features/auth')}`, cmd: 'mkdir src/features/auth',
+        after: `Balloon 3: the head. <code>auth</code> is the conventional short name for authentication, which is why it is not called <code>sign-in</code>.` },
+      { do: `The mission log, the fourth folder directly inside <code>features</code>: ${c('mkdir src/features/missions')}`, cmd: 'mkdir src/features/missions',
+        after: `Balloon 4: the shoulders and the comms mast, which is now transmitting.` },
+      { do: `Read the product back from its folders: ${c('ls src/features')}`, cmd: 'ls src/features',
+        after: `Four names, and you know what the cockpit does. That is the test of a feature list.` }
+    ],
+    extra: `<div class="note"><p><strong>How big should a feature be?</strong></p><p>If two candidate features always change together, they are one feature. If one folder grows past a few dozen files and you can name two halves of it, split it. Features are cheap to rename early and expensive to rename late, so settle the names now, while the folders are empty.</p></div>`,
+    commit: { none: `Nothing to commit after this lesson: it created four empty folders, and Git does not record empty folders. Run <span class="mono">git status</span> to confirm it reports nothing new, then carry on.` },
+    recap: ['Sorting by file type scatters every change across the app. Sorting by feature keeps a change in one folder.', 'A feature is a part of the product a user could name: here <code>auth</code>, <code>preflight</code>, <code>flight</code>, <code>missions</code>.', 'Find the features by reading what the user does in the requirements.'],
+    reading: [['Bulletproof React: Project structure', 'https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md'], ['Feature-Sliced Design: Overview', 'https://feature-sliced.design/docs/get-started/overview'], ['React (legacy docs): File structure', 'https://legacy.reactjs.org/docs/faq-structure.html']]
+  },
+  {
+    short: 'Five places', title: 'Inside a feature: five places',
+    intro: `
+      <p>Every feature folder is organised the same way inside, so once you know one you know them all. There are five places, and each holds one kind of work:</p>
+      <div class="sheet-table"><table><thead><tr><th>Place</th><th>Its one job</th><th>In <code>flight</code></th></tr></thead><tbody>
+        <tr><td><code>components/</code></td><td>Draw the screen. A component is a reusable piece of interface, like a component in Figma. It shows what it is given and reports clicks. It decides nothing.</td><td><span class="mono">MainDisplay.tsx</span>, <span class="mono">AlertBar.tsx</span></td></tr>
+        <tr><td><code>hooks/</code></td><td>Hold the changing state and connect the screen to the rules. A hook is a function whose name starts with <code>use</code>. It is the wiring behind the panel.</td><td><span class="mono">useFlight.ts</span></td></tr>
+        <tr><td><code>domain/</code></td><td>The business rules, as plain functions: given this state and this order, what is allowed? No screen, no network.</td><td><span class="mono">power.ts</span>, <span class="mono">orders.ts</span></td></tr>
+        <tr><td><code>services/</code></td><td>Talk to the API. Every network request the feature makes is written here and nowhere else.</td><td><span class="mono">missionApi.ts</span></td></tr>
+        <tr><td><code>types.ts</code></td><td>The shapes of the feature's data: what a flight state or an order consists of. The spec sheet the other four agree on.</td><td><span class="mono">FlightState</span>, <span class="mono">Order</span></td></tr>
+      </tbody></table></div>
+      <p>In suit terms: components are the armour plates and instrument faces (what you see), hooks are the wiring, the domain is the control laws, services are the comms links, and <code>types.ts</code> is the section's spec sheet.</p>
+      <p>The split that matters most is <strong>domain apart from everything else</strong>. The Kestrel requirements put it as a ground rule: a screen may decide what to show, it may not decide what is allowed. Rules kept in <code>domain/</code> can be tested in milliseconds without opening a browser, and they survive a complete redesign of the screens.</p>
+      <p><strong>Not every feature needs all five.</strong> Preflight makes no network requests, so it will have no <code>services/</code>. Create a place when its first file exists, not before.</p>`,
+    steps: [
+      { do: `Build out the flight feature. The five places all go directly inside <code>cockpit/src/features/flight</code>, side by side, never inside one another. The terminal is still in <code>cockpit</code>. First the place for what the pilot sees: ${c('mkdir ' + FL + '/components')}`, cmd: 'mkdir ' + FL + '/components' },
+      { do: `Beside <code>components</code>, directly inside <code>flight</code>, the wiring between screen and rules: ${c('mkdir ' + FL + '/hooks')}`, cmd: 'mkdir ' + FL + '/hooks' },
+      { do: `At the same level, directly inside <code>flight</code>, the rules themselves: ${c('mkdir ' + FL + '/domain')}`, cmd: 'mkdir ' + FL + '/domain',
+        after: `The reactor housing lights on the blueprint: the section now has somewhere for its control laws. Business Logic from Zero writes the rules that go in this folder.` },
+      { do: `The fourth folder directly inside <code>flight</code>, the calls to Kestrel control: ${c('mkdir ' + FL + '/services')}`, cmd: 'mkdir ' + FL + '/services',
+        after: `When the suit docks, the cockpit sends the mission to the API. That one request will live here.` },
+      { do: `And the spec sheet, a single file directly inside <code>flight</code>, beside the four folders and not inside any of them: ${c('touch ' + FL + '/types.ts')}`, cmd: 'touch ' + FL + '/types.ts',
+        own: `create the file in your editor. If a feature's types outgrow one file, <span class="mono">types.ts</span> can become a <span class="mono">types/</span> folder later without changing anything else.`,
+        after: `<code>types.ts</code> is a file, not a folder, because most features need only a handful of types.` },
+      { do: `Check the section: ${c('ls ' + FL)}`, cmd: 'ls ' + FL,
+        after: `Five places. Any feature in any project organised this way will look the same inside.` }
+    ],
+    extra: `<div class="note"><p><strong>Where do tests go?</strong></p><p>A test for a rule sits beside the rule: <span class="mono">power.ts</span> and <span class="mono">power.test.ts</span> in the same <span class="mono">domain/</span> folder. You find the test by finding the file, and moving one moves the other. Browser tests that click through the whole app are different: they belong to no single feature, so they get their own top-level folder outside <span class="mono">cockpit</span>.</p></div>`,
+    commit: { msg: 'Add the flight feature\'s types file', what: `<span class="mono">cockpit/src/features/flight/types.ts</span>. It is the first file inside <span class="mono">features</span>, so this is the commit where <span class="mono">features/flight</span> first shows up on GitHub. The four folders beside it are still empty and still unlisted.` },
+    recap: ['<code>components/</code> draw, <code>hooks/</code> wire, <code>domain/</code> decides, <code>services/</code> call the API, <code>types.ts</code> describes the data.', 'The domain is kept free of screens and network code so the rules can be tested alone and outlive a redesign.', 'Create only the places a feature needs. A unit test lives beside the file it tests.'],
+    reading: [['React: Reusing logic with custom hooks', 'https://react.dev/learn/reusing-logic-with-custom-hooks'], ['React: Keeping components pure', 'https://react.dev/learn/keeping-components-pure'], ['TypeScript Handbook: Everyday types', 'https://www.typescriptlang.org/docs/handbook/2/everyday-types.html']]
+  },
+  {
+    short: 'Sort', title: 'Sort the pile',
+    ownLesson: `<strong>The sorting drill is practice.</strong> Its nine files exist only in the drill and on the sandbox map. You never created them and they are not on your machine, so do not look for them there. The one step to repeat on your own project is step 2, moving <span class="mono">App.tsx</span>.`,
+    setupNote: 'Tomo has sent nine prototype files. The sorting drill in step 1 decides where each one goes.',
+    intro: `
+      <p>Structure is a habit more than a diagram. The real skill is looking at one file and knowing where it goes. On a real project you use that skill at the moment you create a file: you make it directly in its place, and it never needs to move.</p>
+      <p>To practise, Tomo, the cockpit tech, has handed over a quick prototype: nine files in one pile, the way a first prototype usually arrives. You will sort them in a drag-and-drop drill, not with terminal commands, because the decision is the lesson and the typing is not.</p>
+      <p>For every file, ask three questions in order:</p>
+      <ol>
+        <li><strong>Which feature is it part of?</strong> If exactly one, it goes in that feature. If two or more features use it, it goes in <code>shared/</code>. If it assembles features into the app, it goes in <code>app/</code>.</li>
+        <li><strong>What kind of work does it do?</strong> Draws (component), wires (hook), decides (domain), calls the API (service), or describes data (types).</li>
+        <li><strong>Does it have a companion?</strong> A test travels with the file it tests.</li>
+      </ol>`,
+    steps: [
+      { drill: 'sort', apply(S) { DRILL.files.forEach(f => { const dir = CK + '/' + DRILL.bins.find(b => b.id === f.to).path; FS.mkdirs(S, dir); FS.put(S, dir + '/' + f.name, 'f'); }); },
+        do: `Sort Tomo's nine files into their folders. This step has no terminal command: <button type="button" class="btn primary" data-act="drill" data-drill="sort">Open the sorting drill</button>`,
+        own: `<strong>Sandbox only.</strong> The drill's files are not on your machine, so there is nothing to do there for this step.`,
+        after: `Nine files, nine decisions, no moves. The files now show on the map, each created directly inside the folder you chose, all under <code>kestrel-simulator/cockpit/src</code>. The arms on the blueprint are fitted: <code>shared/ui</code> holds the parts every section reaches for. <button type="button" class="btn" data-act="drill" data-drill="sort">Open the drill again</button>` },
+      { do: `One real file <em>is</em> in the wrong place: the scaffold's own <code>App.tsx</code>, loose directly inside <code>cockpit/src</code>. It belongs to no feature. It is the frame that will choose which page to show, so it goes directly inside <code>cockpit/src/app</code>. This is the one move in the tutorial: ${c('mv src/App.tsx src/app/App.tsx')}`, cmd: 'mv src/App.tsx src/app/App.tsx',
+        own: `<strong>This is the one step of this lesson to do on your own machine</strong>, because the scaffold gave you a real <span class="mono">App.tsx</span>. The easiest way is in VS Code: drag <span class="mono">App.tsx</span> from <span class="mono">cockpit/src</span> into <span class="mono">cockpit/src/app</span> in the Explorer and accept "Update imports", so the editor fixes the line that refers to it. If you move it from the terminal instead, first make sure the terminal is inside <span class="mono">cockpit</span>: if your prompt ends in <span class="mono">kestrel-simulator</span>, run <span class="mono">cd cockpit</span>. From the repository root this command fails with "cannot find the file specified", because <span class="mono">src</span> is inside <span class="mono">cockpit</span>. Then open <span class="mono">cockpit/src/main.tsx</span> and change <span class="mono">import App from './App.tsx'</span> to <span class="mono">import App from './app/App.tsx'</span> by hand. Then open <span class="mono">cockpit/src/app/App.tsx</span> itself: every import in it that starts with <span class="mono">'./'</span> now needs <span class="mono">'../'</span>, because the file is one folder deeper. In the Vite starter that is <span class="mono">'./App.css'</span> and the three <span class="mono">'./assets/...'</span> images. To confirm nothing is broken, run <span class="mono">npm run build</span> from inside <span class="mono">cockpit</span>: it stops with the file and line of any import it cannot find.`,
+        after: `${shv('<code>mv</code>', '<code>move</code>', '<code>mv</code>')} takes the current path, then the new one. Moving a file breaks every line that imports it by its old path, and every line inside it that imports a neighbour. Here that is two lines: <code>main.tsx</code> must now import <code>./app/App.tsx</code>, and <code>App.tsx</code> must import <code>../App.css</code>. That is the cost of sorting late, and the reason to place each file correctly when it is created.` },
+      { do: `Check what is still loose directly inside <code>cockpit/src</code>: ${c('ls src')}`, cmd: 'ls src',
+        own: `on your machine <span class="mono">cockpit/src</span> should now hold <span class="mono">main.tsx</span>, the two stylesheets, and the folders <span class="mono">app</span>, <span class="mono">assets</span>, <span class="mono">features</span> and <span class="mono">shared</span>, with <span class="mono">App.tsx</span> inside <span class="mono">app</span>.`,
+        after: `<code>main.tsx</code> and the two stylesheets stay at the top of <code>src/</code>. The entry point is the one file that belongs there.` }
+    ],
+    commit: { msg: 'Move App.tsx into src/app', what: `The drill's files exist only in the sandbox, so they are not part of this. The one real change is <span class="mono">App.tsx</span>, moved to <span class="mono">cockpit/src/app/App.tsx</span>, together with the import lines you updated in <span class="mono">cockpit/src/main.tsx</span> and in <span class="mono">App.tsx</span> itself. Git shows the move as a rename. If <span class="mono">main.tsx</span> is not in the list, its import line was not updated and the app will not start: fix it before committing.` },
+    recap: ['Three questions place any file: which feature, what kind of work, and does it have a companion.', 'Used by one feature: inside it. Used by two or more: <code>shared/</code>. Assembles features: <code>app/</code>.', 'Create each file directly in its place. A move breaks the imports that point at the old path, so it is the exception, not the routine.'],
+    reading: [['Git: git-mv', 'https://git-scm.com/docs/git-mv'], ['VS Code: Refactoring, including move and update imports', 'https://code.visualstudio.com/docs/editing/refactoring'], ['Bulletproof React: Project structure', 'https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md']]
+  },
+  {
+    short: 'Rules', title: 'Rules of the road: who may import whom',
+    setup(S) {
+      FS.put(S, CK + '/' + FL + '/index.ts', 'f', INDEX_TS);
+      FS.put(S, CK + '/' + FL + '/domain/useBurnTimer.ts', 'f', BURN);
+      S.txt[CK + '/eslint.config.js'] = ESLINT_JS;
+    },
+    ownLesson: `<strong>This whole lesson happens in the sandbox only.</strong> The import check is practice, and <span class="mono">index.ts</span>, <span class="mono">useBurnTimer.ts</span> and the extra linter rule exist on the pretend computer, not on yours. There is nothing to run on your own machine and nothing to commit. Your real project gets these when the later tutorials write the flight feature.`,
+    setupNote: 'Two files arrived overnight in kestrel-simulator/cockpit/src/features/flight/: index.ts directly inside flight, and a late addition from Tomo one level down, in flight/domain/useBurnTimer.ts.',
+    intro: `
+      <p>Folders describe where files live. They do not stop a file in one place from reaching into another. To <strong>import</strong> is for one file to use code from another, and every import is a dependency: if the imported file changes, the importing one may break. A structure only works if imports follow rules. There are three.</p>
+      <p><strong>1. Inside a feature, imports point one way.</strong></p>
+      ${FLOW}
+      <p>The screen depends on the rules. The rules never depend on the screen. That is what lets you redesign every panel without touching, or retesting, the 25 kW budget.</p>
+      <p><strong>2. Features meet only at the front door.</strong> Each feature has an <code>index.ts</code>, a file directly inside the feature folder (for flight, <code>cockpit/src/features/flight/index.ts</code>), that lists what it offers to the rest of the app. Other code imports from <code>features/flight</code> and never from <code>features/flight/domain/power</code>. Everything not listed at the door is private, and can be reorganised freely.</p>
+      <p><strong>3. Dependencies point down the stack.</strong> <code>app</code> may use features, features may use <code>shared</code>. <code>shared</code> never imports from a feature, and a feature never imports from <code>app</code>.</p>
+      <p>Nobody polices this by reading every file. A <strong>linter</strong> does: a tool that reads the code and flags broken rules. The scaffold already includes one, ESLint, and Tomo has added a rule to it that guards the <code>domain/</code> folders.</p>
+      <p>This lesson has two parts. First you apply the rules by hand, in a drag-and-drop check of ten imports. Then you watch the linter catch one of the same mistakes in the sandbox.</p>`,
+    steps: [
+      { drill: 'rules', apply(S) {},
+        do: `Apply the three rules yourself before a tool does it for you. Review ten imports and say which are allowed and which rule each of the others breaks. This step has no terminal command: <button type="button" class="btn primary" data-act="drill" data-drill="rules">Open the import check</button>`,
+        own: `<strong>Sandbox only.</strong> The ten imports are examples. None of these lines exists on your machine yet.`,
+        after: `Ten verdicts by hand. Notice what you looked at each time: which folder the importing file is in, and where the path ends. That is all the rules need, which is why a tool can check them. The remaining steps show the tool doing it. <button type="button" class="btn" data-act="drill" data-drill="rules">Open the import check again</button>` },
+      { do: `Read the flight feature's front door: ${c('cat ' + FL + '/index.ts')}`, cmd: 'cat ' + FL + '/index.ts',
+        own: `<strong>Sandbox only.</strong> This file exists on the pretend computer, not on yours, so there is nothing to do on your machine for this step. Run it here and move on.`,
+        after: `Two components, one hook and two types are offered. <code>power.ts</code> is not on the list, so no other feature can lean on it. The mission log can show a flight summary without knowing how flight works inside.` },
+      { do: `Ask the linter whether every file is where the rules allow: ${c('npm run lint')}`, cmd: 'npm run lint',
+        own: `<strong>Sandbox only.</strong> If you run it on your machine anyway, it reports no problems, because your project has no misplaced file and not yet the extra rule.`,
+        after: `One error, and it names the file: <code>domain/useBurnTimer.ts</code> imports React. Its name starts with <code>use</code>, it holds a ticking counter: it is a hook, filed with the rules by mistake. The reactor on the blueprint is flagged.` },
+      { do: `The code is fine. Its address is wrong. Move it: ${c('mv ' + FL + '/domain/useBurnTimer.ts ' + FL + '/hooks/useBurnTimer.ts')}`, cmd: 'mv ' + FL + '/domain/useBurnTimer.ts ' + FL + '/hooks/useBurnTimer.ts',
+        own: `<strong>Sandbox only.</strong> Nothing to move on your machine. To see the rule that caught it, run <span class="mono">cat eslint.config.js</span> here in the sandbox. On a real project, ask your coding agent to add the same <span class="mono">no-restricted-imports</span> rule, or use the <span class="mono">eslint-plugin-boundaries</span> package, which checks all three rules.`,
+        after: `A structural mistake is often fixed by a move, not a rewrite.` },
+      { do: `Check again: ${c('npm run lint')}`, cmd: 'npm run lint',
+        own: `<strong>Sandbox only.</strong> This check runs on the pretend computer, not on yours, so there is nothing to do on your machine for this step. Run it here and move on.`,
+        after: `Clean. The same command runs in the pipeline on every pull request, so a misplaced file is caught before it is merged, whether a person or an agent wrote it.` }
+    ],
+    extra: `<div class="note"><p><strong>Why this matters more with a coding agent</strong></p><p>An agent places files by following the patterns it can see and the rules it is told. A consistent structure gives it the pattern, the Project structure section of <span class="mono">AGENTS.md</span> states the rules in words, and the linter rejects what slips through. The Cheat sheet has a block you can paste into <span class="mono">AGENTS.md</span>.</p></div>`,
+    commit: { none: `Nothing to commit after this lesson: the linter exercise happened in the sandbox only, and nothing changed on your machine.` },
+    recap: ['Inside a feature: components use hooks, hooks use domain and services, everything may use types. Never the reverse.', 'Other features import from a feature\'s <code>index.ts</code> only. Everything else inside is private.', '<code>app</code> uses features, features use <code>shared</code>. A linter enforces all of it on every pull request.'],
+    reading: [['ESLint: no-restricted-imports', 'https://eslint.org/docs/latest/rules/no-restricted-imports'], ['eslint-plugin-boundaries', 'https://github.com/javierbrea/eslint-plugin-boundaries'], ['Bulletproof React: Project structure (unidirectional codebase)', 'https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md']]
+  },
+  {
+    short: 'The API', title: 'The API mirrors the features',
+    intro: `
+      <p>The back end gets the same treatment. Inside <code>api/</code>, the code lives in a folder named <code>app</code>, and <code>app</code> is sliced by feature just as <code>cockpit/src/features</code> is. A server has no screens, so the places inside a feature are different, but each has a counterpart you already know:</p>
+      <div class="sheet-table"><table><thead><tr><th>In an API feature</th><th>Its one job</th><th>Cockpit counterpart</th></tr></thead><tbody>
+        <tr><td><code>router.py</code></td><td>The endpoints: the addresses the cockpit can call, such as <span class="mono">POST /missions</span>. The feature's front door.</td><td><span class="mono">index.ts</span></td></tr>
+        <tr><td><code>rules.py</code></td><td>The business rules as plain functions. The server re-checks every mission with its own copy.</td><td><span class="mono">domain/</span></td></tr>
+        <tr><td><code>models.py</code></td><td>The database tables this feature owns.</td><td>none</td></tr>
+        <tr><td><code>schemas.py</code></td><td>The shapes of the data going in and out.</td><td><span class="mono">types.ts</span></td></tr>
+      </tbody></table></div>
+      <p>The feature lists on the two sides are <strong>similar, not identical</strong>, because each app is sliced by what <em>it</em> does:</p>
+      <table><thead><tr><th>Feature</th><th>In the cockpit</th><th>In the API</th></tr></thead><tbody>
+        <tr><td><code>auth</code></td><td>sign-in screen</td><td>checks the password, issues the token</td></tr>
+        <tr><td><code>flight</code></td><td>the mission, flown in the browser</td><td>the same rules in Python, to replay what was flown</td></tr>
+        <tr><td><code>missions</code></td><td>mission log screen</td><td>stores and lists missions</td></tr>
+        <tr><td><code>preflight</code></td><td>console and check queue</td><td>nothing: preflight is never stored</td></tr>
+        <tr><td><code>pilots</code></td><td>nothing in version 1</td><td>the roster</td></tr>
+      </tbody></table>
+      <p>Where a feature exists on both sides it has <strong>the same name on both sides</strong>. When a spec says "missions", you and your agent know to look in <code>cockpit/src/features/missions</code> and <code>api/app/missions</code>.</p>`,
+    steps: [
+      { do: `Go up one level and into the other app: ${c('cd ../api')}`, cmd: 'cd ../api',
+        after: `<code>..</code> means "the folder above". From <code>cockpit</code>, ${shv('<code>../api</code>', '<code>..\\api</code>', '<code>../api</code>')} is its neighbour.` },
+      { do: `See what uv created: ${c('ls')}`, cmd: 'ls',
+        own: `if you made <span class="mono">api</span> by hand in lesson 1 because uv was not installed, the folder is empty and the list shows nothing. That is fine. Carry on: the next steps work the same.`,
+        after: `Only <code>pyproject.toml</code>. A bare project leaves the structure to you.` },
+      { do: `The terminal is now in <code>api</code>, and everything in this lesson is created inside it. Make a folder named <code>app</code> directly inside <code>api</code>, and the first feature, <code>flight</code>, inside <code>app</code>, in one go: ${c('mkdir -p app/flight')}`, cmd: 'mkdir -p app/flight',
+        after: `${shv('<code>-p</code> made', 'One command made', 'One command made')} <code>app</code> and then <code>flight</code> inside it. On the blueprint, the gantry's base is live: ground systems.` },
+      { do: `The other features go beside <code>flight</code>, directly inside <code>api/app</code>. The mission log's server half: ${c('mkdir app/missions')}`, cmd: 'mkdir app/missions' },
+      { do: `Also directly inside <code>api/app</code>, the roster, which only the server has: ${c('mkdir app/pilots')}`, cmd: 'mkdir app/pilots' },
+      { do: `And signing in, the fourth folder directly inside <code>api/app</code>: ${c('mkdir app/auth')}`, cmd: 'mkdir app/auth' },
+      { do: `Every FastAPI project has one file that creates the application and plugs in each feature's router. It is a file directly inside <code>api/app</code>, beside the four feature folders and not inside any of them: ${c('touch app/main.py')}`, cmd: 'touch app/main.py',
+        own: `FastAPI from Zero writes this file. In Python, a folder becomes importable when it contains a file named <span class="mono">__init__.py</span>, usually empty. Add one to <span class="mono">app</span> and to each feature folder when you add its first Python file.`,
+        after: `<code>app/main.py</code> plays the part <code>src/app/</code> plays in the cockpit: it assembles the features and holds no rules of its own.` },
+      { do: `Back to the repository root: ${c('cd ..')}`, cmd: 'cd ..' },
+      { do: `Take in the whole structure: ${c('ls')}`, cmd: 'ls',
+        after: `One repository. Two self-contained apps. Each sliced by feature, with the same five kinds of work kept apart in every slice. The gantry clamps release: the frame is ready to be built on.` }
+    ],
+    extra: `<div class="note"><p><strong>Before you commit</strong></p><p>Run <span class="mono">git status</span> on your own project and you will not see the empty folders, because Git ignores them. That is expected. If you have been committing at the end of each lesson, as the reminders suggest when "on my own project" is ticked, everything with content is already saved. Then copy the Project structure block from the <strong>Cheat sheet</strong> into your <span class="mono">AGENTS.md</span>, so your coding agent files things the same way you do.</p></div>`,
+    commit: { msg: 'Add the API app entry file', what: `<span class="mono">api/app/main.py</span>. The four feature folders inside <span class="mono">api/app</span> are empty, so Git does not list them. If you pasted the Project structure block into <span class="mono">AGENTS.md</span>, include that file in this commit or give it one of its own.` },
+    recap: ['The API is sliced by feature too: <code>api/app/&lt;feature&gt;/</code> with router, rules, models and schemas.', 'Each app is sliced by what it does, so the two feature lists overlap without matching. Shared features share a name.', '<code>app/main.py</code> and <code>src/app/</code> do the same job: assemble features, hold no rules.'],
+    reading: [['FastAPI: Bigger applications, multiple files', 'https://fastapi.tiangolo.com/tutorial/bigger-applications/'], ['uv: Working on projects', 'https://docs.astral.sh/uv/guides/projects/'], ['Python Tutorial: Packages', 'https://docs.python.org/3/tutorial/modules.html#packages']]
+  }
+];
+
+/* ---------- Lesson 5 sorting drill: files, folders and the reason for each placement ---------- */
+const DRILL = {
+  title: 'Sorting drill: where does each file go?', folders: true,
+  how: 'Drag a file onto a folder. Or click (on a phone, tap) a file, then the folder. Ask: which feature, what kind of work, does it have a companion?',
+  pileTitle: "Tomo's pile", binsTitle: 'kestrel-simulator/cockpit/src/', doneMsg: 'All nine files are placed.', doneBtn: 'Put them on the map',
+  termLine: '(sorting drill finished: nine files placed, each created directly inside its folder)',
+  yes: (f, b) => `Yes: ${f.name} goes in ${b.group + b.name}`, no: (f, b) => `Not in ${b.group + b.name}`,
+  bins: [
+    { id: 'fc', path: 'src/features/flight/components', group: 'features/flight/', name: 'components/', role: 'draws' },
+    { id: 'fh', path: 'src/features/flight/hooks', group: 'features/flight/', name: 'hooks/', role: 'wires' },
+    { id: 'fd', path: 'src/features/flight/domain', group: 'features/flight/', name: 'domain/', role: 'decides' },
+    { id: 'fs', path: 'src/features/flight/services', group: 'features/flight/', name: 'services/', role: 'calls the API' },
+    { id: 'pd', path: 'src/features/preflight/domain', group: 'features/preflight/', name: 'domain/', role: 'decides' },
+    { id: 'su', path: 'src/shared/ui', group: 'shared/', name: 'ui/', role: 'used by 2+ features' },
+    { id: 'ap', path: 'src/app', group: '', name: 'app/', role: 'assembles pages' }
+  ],
+  files: [
+    { name: 'AlertBar.tsx', what: 'Shows the last flight alert in red, or "All systems nominal".', to: 'fc', why: 'It appears on the flight screens only, and it draws without deciding anything: a flight component.', hint: 'It only shows something, on the flight screens. Which place holds what the pilot sees?' },
+    { name: 'MainDisplay.tsx', what: 'Shows reactor output and the cruise/sprint control.', to: 'fc', why: 'It shows the control for sprint. Whether sprint is allowed is not its business. A flight component.', hint: 'It draws part of the flight screen and decides nothing.' },
+    { name: 'useFlight.ts', what: 'Holds the current flight state and passes the pilot\'s orders to the rules.', to: 'fh', why: 'A file starting with "use" that holds changing state is a hook. It is the only thing the components talk to.', hint: 'Look at how its name starts. It holds state and connects screen to rules.' },
+    { name: 'power.ts', what: 'Adds up the draw of every flight load and refuses anything over 25 kW.', to: 'fd', why: 'Arithmetic and a decision, with no screen and no network: a flight rule. This is the file a reviewer reads to check the budget.', hint: 'No screen, no network. It calculates and decides, for the flight feature.' },
+    { name: 'power.test.ts', what: 'Checks the budget rule just below, at, and just above 25 kW.', to: 'fd', why: 'A test travels with the file it tests, so it sits beside power.ts.', hint: 'Third question: does it have a companion? Where did that companion go?' },
+    { name: 'missionApi.ts', what: 'Sends the finished mission to Kestrel control and reports whether it was recorded.', to: 'fs', why: 'A network request, so a service. If the API\'s address ever changes, this is the one place to update.', hint: 'It talks to the server. Which place holds every network request of a feature?' },
+    { name: 'starterCell.ts', what: 'Returns 5 kW when the queued preflight load is under 50 kW, otherwise 0 kW.', to: 'pd', why: 'A rule, so domain. But it is a preflight rule, so it belongs to the preflight feature, not to flight.', hint: 'It is a rule. Ask the first question again: which feature is it part of?' },
+    { name: 'Button.tsx', what: 'A styled button. Flight, preflight, sign-in and the mission log all use it.', to: 'su', why: 'Four features use it, so it belongs to none of them. Shared interface pieces live in shared/ui.', hint: 'More than one feature uses it, so it cannot live inside any single feature.' },
+    { name: 'routes.tsx', what: 'Says that /queue shows the check queue and /missions shows the mission log.', to: 'ap', why: 'It assembles several features into the application. That is the job of app/.', hint: 'It belongs to no single feature. It joins several of them into pages.' }
+  ]
+};
+
+/* ---------- Lesson 6 import drill: is this import allowed, and if not, which rule does it break? ---------- */
+const IMPORTS = {
+  title: 'Import check: allowed, or which rule does it break?', folders: false,
+  how: 'Each card is one import: a file, and what it tries to use. Drag it onto the verdict. Or click (on a phone, tap) a card, then the verdict.',
+  order: ['i2', 'i4', 'i6', 'i9', 'i1', 'i8', 'i3', 'i10', 'i5', 'i7'],
+  pileTitle: 'Ten imports to review', binsTitle: 'Your verdict', doneMsg: 'All ten imports are reviewed.', doneBtn: 'Finish the review',
+  termLine: '(import check finished: ten imports reviewed by hand)',
+  rules: ['<strong>Rule 1.</strong> Inside a feature: components → hooks → domain and services → types. Never the reverse. Domain and services import types only.', '<strong>Rule 2.</strong> Another feature is used through its <code>index.ts</code> only.', '<strong>Rule 3.</strong> <code>app</code> → features → <code>shared</code>. Never upwards.'],
+  yes: (f, b) => b.id === 'ok' ? 'Yes: this import is allowed.' : `Yes: it breaks ${b.name.replace('Breaks ', '')}.`, no: (f, b) => b.id === 'ok' ? 'Not allowed.' : `Not ${b.name.replace('Breaks ', '')}.`,
+  bins: [
+    { id: 'ok', group: '', name: 'Allowed', role: 'follows all three rules', tone: 'good' },
+    { id: 'r1', group: '', name: 'Breaks rule 1', role: 'wrong direction inside a feature' },
+    { id: 'r2', group: '', name: 'Breaks rule 2', role: 'reaches past the front door' },
+    { id: 'r3', group: '', name: 'Breaks rule 3', role: 'points up the stack' }
+  ],
+  files: [
+    { name: 'i1', chip: 'MainDisplay → useFlight', title: 'flight/components/MainDisplay.tsx', code: "import { useFlight } from '../hooks/useFlight'", what: 'A flight component uses a flight hook.', to: 'ok', why: 'Components may use hooks of their own feature. This is the normal way a screen gets its state.', hint: 'Both files are in the flight feature. Follow rule 1 from left to right: does components come before hooks?' },
+    { name: 'i2', chip: 'useFlight → power', title: 'flight/hooks/useFlight.ts', code: "import { flightDraw } from '../domain/power'", what: 'A flight hook uses a flight rule.', to: 'ok', why: 'Hooks may use the domain of their own feature. The hook asks the rule and passes the answer to the screen.', hint: 'Same feature. In rule 1, hooks come before domain.' },
+    { name: 'i3', chip: 'power → react', title: 'flight/domain/power.ts', code: "import { useState } from 'react'", what: 'A flight rule uses React.', to: 'r1', why: 'Domain imports types and nothing else. A rule that needs React cannot be tested without a screen. This is the mistake the linter catches in this lesson.', hint: 'What is domain allowed to import? React is not on that list.' },
+    { name: 'i4', chip: 'orders → AlertBar', title: 'flight/domain/orders.ts', code: "import { AlertBar } from '../components/AlertBar'", what: 'A flight rule uses a flight component.', to: 'r1', why: 'The arrow points backwards. The screen depends on the rules, never the rules on the screen.', hint: 'Same feature, so it is about direction. Does domain come before or after components in rule 1?' },
+    { name: 'i5', chip: 'missionApi → useFlight', title: 'flight/services/missionApi.ts', code: "import { useFlight } from '../hooks/useFlight'", what: 'A flight service uses a flight hook.', to: 'r1', why: 'Services import types only. A hook calls the service, not the other way round.', hint: 'Same feature. Hooks use services. Which way does this one point?' },
+    { name: 'i6', chip: 'MissionLog → flight', title: 'missions/components/MissionLog.tsx', code: "import { MainDisplay } from '../../flight'", what: 'The mission log uses something the flight feature offers at its front door.', to: 'ok', why: 'The path stops at the feature folder, so it goes through index.ts. That is exactly how one feature may use another.', hint: 'Look at where the path ends. Does it go inside the flight feature, or stop at its door?' },
+    { name: 'i7', chip: 'MissionLog → flight/domain', title: 'missions/components/MissionLog.tsx', code: "import { flightDraw } from '../../flight/domain/power'", what: 'The mission log reaches into a file inside the flight feature.', to: 'r2', why: 'The path goes past the door, into flight/domain. If flight reorganises its rules, the mission log breaks. It should import from ../../flight.', hint: 'Two different features. Look at how deep the path goes into the other one.' },
+    { name: 'i8', chip: 'useSession → missionsApi', title: 'auth/hooks/useSession.ts', code: "import { listMissions } from '../../missions/services/missionsApi'", what: 'Sign-in reaches into a service file inside the missions feature.', to: 'r2', why: 'Another feature, and the path ends inside it, not at its index.ts. Everything inside a feature is private unless the door lists it.', hint: 'It crosses from auth into missions. Where does the path end?' },
+    { name: 'i9', chip: 'Button → flight', title: 'shared/ui/Button.tsx', code: "import { useFlight } from '../../features/flight'", what: 'The shared button uses the flight feature.', to: 'r3', why: 'shared sits below features. If the button knows about flight, it is no longer shared, and every feature that uses the button drags flight along.', hint: 'It uses the front door, so rule 2 is satisfied. Which is lower in the stack: shared or features?' },
+    { name: 'i10', chip: 'useFlight → app/routes', title: 'flight/hooks/useFlight.ts', code: "import { routes } from '../../../app/routes'", what: 'A flight hook uses the app frame.', to: 'r3', why: 'app assembles features, so app imports features. A feature that imports app makes a circle: each needs the other to exist first.', hint: 'app is the top of the stack. Which way may dependencies point?' }
+  ]
+};
+const DRILLS = { sort: DRILL, rules: IMPORTS };
+
+/* ---------- "Where does it go?" drill ---------- */
+const QUIZ = [
+  { q: '<code>CheckQueue.tsx</code> shows the table of queued subsystem checks with their draw.', a: 'cockpit/src/features/preflight/components/', o: ['cockpit/src/features/preflight/components/', 'cockpit/src/features/preflight/domain/', 'cockpit/src/shared/ui/', 'cockpit/src/app/'], why: 'It draws part of the preflight screens and decides nothing: a component of the preflight feature.' },
+  { q: '<code>starterCell.ts</code> returns 5 kW when the queued load is under 50 kW and 0 kW otherwise.', a: 'cockpit/src/features/preflight/domain/', o: ['cockpit/src/features/preflight/hooks/', 'cockpit/src/features/preflight/domain/', 'cockpit/src/features/flight/domain/', 'cockpit/src/shared/'], why: 'A rule with no screen and no network is domain. The starter cell is a preflight rule, so it is preflight\'s domain, not flight\'s.' },
+  { q: '<code>useSession.ts</code> remembers whether a pilot is signed in and exposes sign-in and sign-out to the screens.', a: 'cockpit/src/features/auth/hooks/', o: ['cockpit/src/features/auth/services/', 'cockpit/src/features/auth/hooks/', 'cockpit/src/app/', 'cockpit/src/features/auth/domain/'], why: 'It starts with "use" and holds changing state: a hook. The request that actually checks the password would be a service beside it.' },
+  { q: '<code>formatKw.ts</code> turns 6.5 into "6.5 kW". Preflight uses it, and so does flight.', a: 'cockpit/src/shared/', o: ['cockpit/src/features/flight/domain/', 'cockpit/src/features/preflight/components/', 'cockpit/src/shared/', 'docs/'], why: 'Two features use it, so it is shared. If only one did, it would stay inside that feature.' },
+  { q: '<code>routes.tsx</code> says that <code>/queue</code> shows the check queue and <code>/missions</code> shows the mission log.', a: 'cockpit/src/app/', o: ['cockpit/src/features/missions/components/', 'cockpit/src/shared/', 'cockpit/src/app/', 'cockpit/src/features/preflight/'], why: 'It assembles several features into the application. That is the job of app/.' },
+  { q: '<code>orders.test.ts</code> checks that <code>dock</code> is refused at sprint burn.', a: 'cockpit/src/features/flight/domain/', o: ['kestrel-tests/', 'cockpit/src/features/flight/domain/', 'docs/', 'cockpit/src/features/flight/components/'], why: 'A unit test sits beside the file it tests, here orders.ts in flight\'s domain. Browser tests are the ones that live in kestrel-tests/.' },
+  { q: 'The table definition for stored missions, written with SQLAlchemy.', a: 'api/app/missions/', o: ['api/app/missions/', 'cockpit/src/features/missions/services/', 'api/app/flight/', 'api/'], why: 'Database tables belong to the API, in the feature that owns them: models.py inside api/app/missions/.' },
+  { q: 'A one-page spec for the preflight feature, with goal and acceptance criteria.', a: 'specs/', o: ['cockpit/src/features/preflight/', 'docs/', 'specs/', 'api/app/'], why: 'A spec describes a feature across both apps, so it lives at the repository root, in specs/.' }
+];
+
+const FULL_TREE = `kestrel-simulator/
+├── README.md  AGENTS.md  DESIGN.md
+├── .gitignore  .env.example
+├── docs/                  documents both apps share
+├── specs/                 one spec per feature
+├── tokens/                design tokens
+├── cockpit/               FRONT END: React, Vite
+│   ├── package.json
+│   ├── index.html
+│   └── src/
+│       ├── main.tsx       entry point
+│       ├── app/           assembles pages
+│       ├── features/
+│       │   ├── auth/
+│       │   ├── preflight/
+│       │   ├── missions/
+│       │   └── flight/
+│       │       ├── components/   draw
+│       │       ├── hooks/        wire
+│       │       ├── domain/       decide (+ tests)
+│       │       ├── services/     call the API
+│       │       ├── types.ts      data shapes
+│       │       └── index.ts      front door
+│       └── shared/        used by 2+ features
+│           └── ui/        shared components
+├── api/                   BACK END: FastAPI
+│   ├── pyproject.toml
+│   └── app/
+│       ├── main.py        assembles routers
+│       ├── auth/
+│       ├── flight/        router, rules, schemas
+│       ├── missions/      router, models, schemas
+│       └── pilots/
+├── kestrel-tests/         browser tests *
+├── deploy/                server files *
+└── .github/workflows/     the pipeline *
+
+* added later, by the Playwright + pytest,
+  Cloud Deploy and CI tutorials`;
+
+const AGENTS_BLOCK = `## Project structure
+
+One repository, two self-contained apps. They talk over HTTP only: nothing in \`cockpit/\` imports from \`api/\` or the reverse.
+
+- \`cockpit/\`: the front end (React, TypeScript, Vite). Run npm commands from inside it.
+- \`api/\`: the back end (Python, FastAPI). Run uv commands from inside it.
+- \`docs/\`, \`specs/\`, \`tokens/\`: shared by both apps. One spec per feature at \`specs/NAME.md\`.
+
+Both apps are organised by feature, not by file type. A feature that exists in both has the same name in both.
+
+- \`cockpit/src/features/NAME/components/\`: presentational UI. No business rules, no fetch calls.
+- \`cockpit/src/features/NAME/hooks/\`: state and orchestration. The only thing components call.
+- \`cockpit/src/features/NAME/domain/\`: pure business rules. No React, no network, no storage. Unit tests sit beside each file as \`*.test.ts\`.
+- \`cockpit/src/features/NAME/services/\`: API calls. All network requests for the feature go here.
+- \`cockpit/src/features/NAME/types.ts\`: the feature's TypeScript types.
+- \`cockpit/src/features/NAME/index.ts\`: the feature's public exports.
+- \`cockpit/src/app/\`: routes and providers. Assembles features, holds no rules.
+- \`cockpit/src/shared/\`: code used by two or more features. \`shared/ui/\` holds shared components.
+- \`api/app/NAME/\`: one folder per API feature, with \`router.py\`, \`rules.py\`, \`models.py\`, \`schemas.py\` as needed.
+- \`api/app/main.py\`: creates the app and includes each feature's router.
+
+Import rules:
+
+- Inside a feature: components -> hooks -> domain and services -> types. Never the reverse.
+- Across features: import from the feature's \`index.ts\` only, never from a path inside it.
+- \`app\` may import features; features may import \`shared\`; \`shared\` imports neither.
+
+Where new things go:
+
+- Used by one feature: inside that feature. Used by a second feature: move it to \`shared/\`.
+- A new feature: a new folder under \`features/\` (and under \`api/app/\` if it has a server part), created with only the places it needs.
+- Do not create empty folders. Do not add top-level folders without asking.`;
+</script>
+<script id="ui">
+/* ---------- the blueprint (same drawing as the other Kestrel guides) ---------- */
+const BAL = { 1: [160, 410, 56, 410], 2: [200, 138, 342, 112], 3: [212, 64, 342, 64], 4: [239, 29, 302, 14], 5: [112, 250, 56, 250], A: [120, 555, 56, 530] };
+function kestrel(v,fx,chg){
+  chg=chg||new Set();fx=fx||[];
+  const P=(pts,cls)=>'<path class="'+cls+'" d="M'+pts.split('|').join(' L')+' z"/>';
+  const L=(d,cls)=>'<path class="'+(cls||'ln')+'" d="'+d+'"/>';
+  const both=h=>h+'<g transform="translate(400,0) scale(-1,1)">'+h+'</g>';
+  const cls=['kb','g-'+v.gantry].concat(v.cls||[]);
+  fx.forEach(k=>cls.push(k==='gmove'||k==='refit'?k:'fx-'+k));
+  let s='<svg class="'+cls.join(' ')+'" viewBox="2 -8 396 586" role="img" aria-label="Blueprint of the KF-07 Kestrel Mk II showing which sections of the project exist"><defs>'+
+    '<pattern id="kbT" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#0e3a6e"/><path d="M0 0V5" stroke="#7fb4ea" stroke-width=".8"/></pattern>'+
+    '<pattern id="kbA" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="#0e3a6e"/><path d="M0 0V4M0 0H4" stroke="#ffd27a" stroke-width=".7"/></pattern>'+
+    '<filter id="kbG" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  /* hangar gantry */
+  let g='<rect class="gan" x="22" y="40" width="14" height="512"/><rect class="gan" x="364" y="40" width="14" height="512"/><path class="gl" d="';
+  for(let y=40;y<540;y+=40)g+='M22 '+y+'l14 40M36 '+y+'l-14 40M364 '+y+'l14 40M378 '+y+'l-14 40';
+  g+='"/><g class="clamp cl-l"><path class="gan" d="M36 120h42l8 7v8l-8 7H36z"/><path class="gan" d="M36 470h60v9H36z"/></g><g class="clamp cl-r"><path class="gan" d="M364 120h-42l-8 7v8l8 7h42z"/><path class="gan" d="M364 470h-60v9h60z"/></g><rect class="gan" x="10" y="552" width="380" height="7"/>';
+  s+='<g class="gantry">'+g+'</g><path class="ctr" d="M200 -6V566"/><g class="suit">';
+  /* wing binders: the standby core */
+  let wg=P('170 110|104 22|90 20|86 34|148 126','fr')+P('166 112|108 30|96 30|150 122','tl')+P('160 120|54 66|40 70|42 86|148 142','fr')+P('156 124|62 76|50 80|146 136','tl')+P('154 138|34 142|24 152|34 166|152 158','fr')+P('150 142|44 148|38 154|44 160|150 154','tl')+L('M150 122L104 44M146 136L70 88M148 151L56 154')+'<circle class="fr" cx="160" cy="128" r="11"/><circle class="ln" cx="160" cy="128" r="5"/>';
+  s+='<g class="asm a6"><g id="kb-wings">'+both(wg)+'</g></g>';
+  /* legs */
+  let up=P('166 264|197 270|194 328|160 328|152 300','wh')+P('160 300|170 296|172 328|160 328','tl')+P('156 322|197 324|195 336|158 336','am')+L('M166 286l28 5M158 314h36M163 300v20M186 300v20');
+  let kn=P('163 334|191 334|193 380|161 380','fr')+L('M168 336v42M186 336v42M172 336v42M182 336v42')+P('148 342|163 338|163 368|148 364','tl')+'<circle class="wh jt" cx="177" cy="354" r="14"/><circle class="ln" cx="177" cy="354" r="9.5"/><circle class="fr" cx="177" cy="354" r="4"/>'+L('M177 340v5M177 363v5M163 354h5M186 354h5')+'<circle class="rv" cx="155" cy="353" r="2.2"/>';
+  let lo=P('158 462|188 462|186 476|160 476','fr')+P('154 364|196 368|195 438|186 464|150 464|140 420','wh')+P('150 392|140 420|150 464|162 464|158 400','tl')+P('178 384|192 386|191 430|180 440','fr')+L('M181 396h9M181 406h9M181 416h9M181 426h8')+P('156 356|196 360|199 376|177 386|153 374','tl')+P('166 362|177 372|188 363|186 370|177 379|168 369','am')+P('150 476|192 476|197 502|128 502|134 486','wh')+P('128 502|134 486|150 484|146 502','am')+L('M150 452h38M160 490h34M148 400l6 58M170 388v70')+'<circle class="ln" cx="166" cy="470" r="3"/><circle class="ln" cx="182" cy="470" r="3"/>';
+  const hip='<circle class="fr" cx="170" cy="250" r="15"/><circle class="ln" cx="170" cy="250" r="9"/>';
+  s+='<g class="asm a0">'+both(hip+'<g transform="translate(-14,0) translate(182,264) scale(1.22,1.1) translate(-182,-264)">'+up+kn+'<g transform="translate(0,22)">'+lo+'</g></g>')+'</g>';
+  /* waist, skirts, abdomen */
+  let sk=P('168 214|148 220|136 266|156 270','wh')+P('148 220|136 266|146 268|156 222','tl')+P('199 226|170 220|158 266|190 276','wh')+L('M166 246l28 7')+P('172 228|186 231|184 241|170 238','am');
+  s+='<g class="asm a1">'+P('172 204|228 204|246 224|200 240|154 224','fr')+both('<g transform="translate(-11,0)">'+sk+'</g>')+P('188 228|212 228|209 274|200 284|191 274','tl')+P('176 170|224 170|218 206|182 206','fr')+L('M178 182h44M180 194h40')+P('188 174|212 174|210 202|190 202','wh')+'</g>';
+  /* arms */
+  let arm=P('101 152|129 150|127 198|105 198','fr')+L('M106 160v34M124 160v34')+'<circle class="tl" cx="116" cy="206" r="11"/><circle class="ln" cx="116" cy="206" r="4.5"/>'+P('96 214|134 214|139 272|127 288|100 288|91 270','wh')+P('96 214|108 214|104 288|100 288|91 270','tl')+P('118 226|132 226|135 262|120 262','fr')+L('M121 236h12M121 246h13M121 256h13')+P('103 290|126 290|124 312|105 312','fr')+L('M105 300h20');
+  s+='<g class="asm a2 armg">'+both(arm)+'</g>';
+  /* torso, reactor, cockpit core */
+  let ch=P('200 108|150 108|136 124|144 160|172 174|200 174','wh')+P('150 108|136 124|144 160|156 166|148 126|158 108','tl')+P('156 114|184 114|181 134|153 130','fr')+L('M158 119h24M157 124h24M156 129h23');
+  s+='<g class="asm a3">'+P('180 96|220 96|230 108|170 108','fr')+both(ch)+L('M186 108l-6 20M214 108l6 20')+
+    '<g class="corep">'+P('186 160|214 160|210 180|190 180','cp')+L('M192 168h16')+'</g>'+
+    '<g class="reactor"><circle class="fr" cx="200" cy="138" r="19"/><circle class="ring" cx="200" cy="138" r="14.5"/><circle class="rcore" cx="200" cy="138" r="9"/><circle class="pip" cx="200" cy="138" r="3.5"/>'+L('M200 121v5M200 150v5M183 138h5M212 138h5','ring2')+'</g></g>';
+  /* shoulders, key slots, shield */
+  let sh=P('150 98|108 92|84 110|80 148|102 160|142 152|152 124','wh')+P('84 110|80 148|102 160|142 152|144 140|104 146|92 138|94 114','tl')+P('100 118|124 114|126 132|102 136','fr')+L('M103 123h21M103 128h22M112 104l30 3')+P('130 108|144 108|146 120|132 120','key')+'<circle class="rv" cx="92" cy="116" r="1.3"/><circle class="rv" cx="88" cy="142" r="1.3"/><circle class="rv" cx="144" cy="146" r="1.3"/>';
+  s+='<g class="asm a4">'+both(sh)+'<g class="shieldg">'+P('292 186|326 202|322 272|292 326|262 272|258 202','wh')+P('292 198|314 208|311 268|292 304|273 268|270 208','tl')+P('292 214|302 232|292 286|282 232','am')+L('M292 186v12M262 272l11-4M322 272l-11-4M270 208l22 10 22-10')+'</g></g>';
+  /* head, visor, comms mast */
+  s+='<g class="asm a5"><g transform="translate(200,98) scale(.8) translate(-200,-98)"><rect class="fr" x="190" y="84" width="20" height="14"/><g class="mastg">'+L('M221 44L247 14','mast')+'<circle class="ball" cx="249" cy="12" r="4.5"/><path class="wave w1" d="M256 2a12 12 0 0 1 4 16"/><path class="wave w2" d="M262 -4a20 20 0 0 1 6 28"/></g>'+
+    both(P('177 60|166 72|171 90|188 94|183 78','tl'))+P('200 32|217 38|227 58|223 78|212 90|188 90|177 78|173 58|183 38','wh')+P('200 6|207 36|204 54|196 54|193 36','am')+L('M200 12v40M186 44l-6 12M214 44l6 12M183 74h34')+
+    P('179 58|221 58|218 70|182 70','fr')+P('182 60.5|218 60.5|216 67.5|184 67.5','visor')+P('192 80|208 80|205 92|195 92','fr')+L('M196 85h8')+'</g></g>';
+  s+='</g>';
+  /* callout balloons */
+  for(const k in BAL){const b=BAL[k],st=v.bal[k]||'off';s+='<path class="lead" d="M'+b[2]+' '+b[3]+'L'+b[0]+' '+b[1]+'"/><circle class="ldot" cx="'+b[0]+'" cy="'+b[1]+'" r="1.8"/>';
+    s+='<g class="bal '+st+'">'+(chg.has(k)?'<circle class="ping" cx="'+b[2]+'" cy="'+b[3]+'" r="9"/><circle class="ping p2" cx="'+b[0]+'" cy="'+b[1]+'" r="7"/>':'')+'<circle cx="'+b[2]+'" cy="'+b[3]+'" r="9"/><text x="'+b[2]+'" y="'+(b[3]+3.8)+'">'+k+'</text></g>';}
+  s+='<text class="lbl" x="200" y="574">'+v.label+'</text><rect class="scan" x="2" y="-8" width="396" height="3"/></svg>';
+  return s;
+}
+(() => {
+  const $ = id => document.getElementById(id);
+  const KEY = 'project-structure-from-zero-v1', N = LESSONS.length;
+  let P, S, busy = false, hist = [], hi = 0, userOpen = new Set(), userShut = new Set(), lastFx = { changed: new Set(), fx: [], chg: new Set() };
+  const fileIcon = '<svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 1.5h6l3 3v10h-9zM9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>';
+  const dirIcon = '<svg class="ico dir" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3h4.6l1.5 1.6h6.9v8.9h-13z" fill="currentColor"/></svg>';
+  const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
+  const inLesson = () => P.view === 'lesson';
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(P)); } catch (e) {} }
+  function load() {
+    try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && Array.isArray(d.prog) && d.prog.length === N) return d; } catch (e) {}
+    return null;
+  }
+
+  /* ----- sandbox state is always rebuilt from progress, so it cannot drift ----- */
+  function replay(li, upTo) {
+    let s = FS.fresh();
+    for (let i = 0; i <= li; i++) {
+      const L = LESSONS[i]; if (L.setup) L.setup(s);
+      const n = i < li ? L.steps.length : upTo;
+      for (let j = 0; j < n; j++) s = stepState(s, L.steps[j]);
+    }
+    return s;
+  }
+  function stepState(s, st) { if (!st.apply) return FS.run(s, st.cmd).S; const c = FS.clone(s); st.apply(c); return c; }
+  const allDone = () => P.prog.every((p, i) => p >= LESSONS[i].steps.length);
+
+  /* ----- terminal flavours: lessons are written in bash; these translate for Windows shells ----- */
+  const shell = () => P.shell || 'bash';
+  const win = p => p.replace(/\//g, '\\');
+  function toLocal(c0) {
+    const sh = shell(); if (sh === 'bash') return c0;
+    const tk = FS.tokenize(c0), w = tk[0], a = tk.slice(1), np = a.filter(x => x !== '-p');
+    if (sh === 'cmd') {
+      if (w === 'pwd') return 'cd';
+      if (w === 'ls') return a[0] === '-a' ? 'dir /a' : a.length ? 'dir ' + win(a[0]) : 'dir';
+      if (w === 'mkdir') return 'mkdir ' + win(np.join(' '));
+      if (w === 'touch') return 'type nul > ' + win(a[0]);
+      if (w === 'mv') return 'move ' + win(a[0]) + ' ' + win(a[1]);
+      if (w === 'cat') return 'type ' + win(a[0]);
+      if (w === 'cd') return 'cd ' + win(a[0]);
+      return c0;
+    }
+    if (w === 'ls' && a[0] === '-a') return 'ls -Force';
+    if (w === 'mkdir') return 'mkdir ' + np.join(' ');
+    if (w === 'touch') return 'New-Item ' + a[0];
+    return c0;
+  }
+  function toCanon(t) {
+    const sh = shell(), tk = FS.tokenize(t), w = (tk[0] || '').toLowerCase(), a = tk.slice(1).map(x => x.replace(/\\/g, '/'));
+    if (sh === 'cmd') {
+      let m;
+      if ((m = t.match(/^type\s+nul\s*>\s*(\S+)\s*$/i)) || (m = t.match(/^copy\s+nul\s+(\S+)\s*$/i))) return 'touch ' + m[1].replace(/\\/g, '/');
+      if (w === 'cd' || w === 'chdir') return a.length ? 'cd ' + a.join(' ') : 'pwd';
+      if (w === 'dir') { const sw = tk.slice(1).filter(x => /^\//.test(x)), ps = a.filter((x, i) => !/^\//.test(tk[i + 1])); return 'ls' + (sw.some(x => /^\/a/i.test(x)) ? ' -a' : '') + (ps[0] ? ' ' + ps[0] : ''); }
+      if (w === 'md' || w === 'mkdir') return 'mkdir -p ' + a.join(' ');
+      if (w === 'move') return 'mv ' + a.join(' ');
+      if (w === 'type') return 'cat ' + a.join(' ');
+      if (w === 'cls') return 'clear';
+      return [tk[0]].concat(a).join(' ');
+    }
+    if (sh === 'ps') {
+      if (['ni', 'new-item'].includes(w)) { const keep = []; for (let i = 0; i < a.length; i++) { if (/^-(itemtype|type)$/i.test(a[i])) { i++; continue; } if (/^-/.test(a[i])) continue; keep.push(a[i]); } return 'touch ' + keep.join(' '); }
+      if (['ls', 'dir', 'gci', 'get-childitem'].includes(w)) return 'ls' + (a.some(x => /^-force$/i.test(x)) ? ' -a' : '') + (a.filter(x => !/^-/.test(x))[0] ? ' ' + a.filter(x => !/^-/.test(x))[0] : '');
+      if (['mkdir', 'md'].includes(w)) return 'mkdir -p ' + a.filter(x => x !== '-p').join(' ');
+      if (['mv', 'move', 'move-item', 'mi'].includes(w)) return 'mv ' + a.join(' ');
+      if (['cat', 'type', 'gc', 'get-content'].includes(w)) return 'cat ' + a.join(' ');
+      if (['pwd', 'gl', 'get-location'].includes(w)) return 'pwd';
+      if (['cls', 'clear', 'clear-host'].includes(w)) return 'clear';
+      if (['cd', 'sl', 'set-location', 'chdir'].includes(w)) return 'cd ' + a.join(' ');
+      return [tk[0]].concat(a).join(' ');
+    }
+    return t;
+  }
+  function shellReject(t) {
+    const tk = FS.tokenize(t), w = (tk[0] || '').toLowerCase(), sh = shell();
+    if (sh === 'cmd') {
+      if (['ls', 'pwd', 'cat', 'touch', 'mv', 'clear'].includes(w)) return `'${tk[0]}' is not recognized as an internal or external command,\noperable program or batch file.\n(Command Prompt uses other names: dir, cd on its own, type <file>, move, type nul > <file>.)`;
+      if (['mkdir', 'md'].includes(w) && tk.includes('-p')) return '(Command Prompt has no -p. It would make a folder literally named "-p". It already creates the folders in between: mkdir src\\shared\\ui)';
+      if (['mkdir', 'md', 'move'].includes(w) && tk.slice(1).some(x => x.includes('/'))) return 'The syntax of the command is incorrect.\n(Command Prompt reads / as the start of an option. Write paths with backslashes: src\\features)';
+      if (w === 'dir' && tk.slice(1).some(x => x.indexOf('/') > 0)) return `Parameter format not correct - "${tk.slice(1).find(x => x.indexOf('/') > 0).split('/')[1]}".\n(Command Prompt reads / as the start of an option. Write paths with backslashes: src\\features)`;
+    }
+    if (sh === 'ps') {
+      if (w === 'touch') return "touch : The term 'touch' is not recognized as the name of a cmdlet, function, script file, or operable program.\n(PowerShell makes an empty file with: New-Item <file>)";
+      if (/^(ls|dir)\s+-a\s*$/.test(t)) return "Get-ChildItem : Parameter cannot be processed because the parameter name 'a' is ambiguous.\n(PowerShell lists hidden names with: ls -Force)";
+    }
+    return '';
+  }
+  const outLocal = t => shell() === 'bash' ? t : t.replace(/\/home\/you((?:\/[\w.@-]+)*)/g, (m, rest) => 'C:\\Users\\you' + rest.replace(/\//g, '\\'));
+  function localize() {
+    document.documentElement.dataset.sh = shell();
+    if (shell() === 'bash') return;
+    document.querySelectorAll('#lesson .cmd').forEach(b => { const l = toLocal(b.dataset.cmd); if (l !== b.dataset.cmd) { b.dataset.cmd = l; b.textContent = l; } });
+  }
+  function shellBox() {
+    const sh = shell(), b = (v, t) => `<button type="button" data-shell="${v}" aria-pressed="${sh === v}">${t}</button>`;
+    const info = {
+      bash: '<p><strong>Mac:</strong> the Terminal app. <strong>Linux:</strong> your usual terminal. <strong>Windows:</strong> Git Bash, which is installed along with Git. Commands in this tutorial work there exactly as written.</p>',
+      cmd: '<p>Command Prompt names the file commands differently and writes paths with backslashes. The steps and the sandbox now show and accept its forms: <code>dir</code> lists, <code>cd</code> on its own shows where you are, <code>mkdir src\\features</code> makes a folder (and any folders in between), <code>type nul &gt; file</code> makes an empty file, <code>move</code> moves, <code>type</code> prints. <code>npm</code> and <code>uv</code> commands are identical.</p>',
+      ps: '<p>PowerShell understands <code>ls</code>, <code>cd</code>, <code>mkdir</code>, <code>mv</code> and <code>cat</code>, and accepts forward slashes in paths. Two differences are shown in the steps: an empty file is made with <code>New-Item</code>, and hidden names are listed with <code>ls -Force</code>. <code>mkdir</code> creates the folders in between without <code>-p</code>.</p>'
+    }[sh];
+    return `<div class="shellbox"><h3>Which terminal are you using?</h3><div class="seg">${b('bash', 'Mac, Linux or Git Bash')}${b('cmd', 'Windows Command Prompt')}${b('ps', 'Windows PowerShell')}</div>${info}</div>`;
+  }
+  function setShell(v) {
+    if (v === shell()) return;
+    P.shell = v; line(''); line(`Terminal set to ${{ bash: 'Mac / Linux / Git Bash', cmd: 'Windows Command Prompt', ps: 'Windows PowerShell' }[v]}. The steps now show its commands.`, 'meta');
+    save(); render(); bottom();
+  }
+  function promptText() {
+    const sh = shell();
+    if (sh !== 'bash') { let p = 'C:\\Users\\you' + win(S.cwd.slice(HOME.length)); const seg = p.split('\\'); if (seg.length > 5) p = '…\\' + seg.slice(-2).join('\\'); return (sh === 'ps' ? 'PS ' : '') + p + '>'; }
+    const rel = S.cwd.startsWith(HOME) ? '~' + S.cwd.slice(HOME.length) : S.cwd, seg = rel.split('/');
+    return (seg.length > 4 ? '…/' + seg.slice(-2).join('/') : rel) + ' $';
+  }
+  function line(t, cls) { const d = document.createElement('div'); d.className = cls || ''; d.textContent = t; $('tout').appendChild(d); return d; }
+  function echoIn(cmd) { const d = document.createElement('div'); d.className = 'in'; const sp = document.createElement('span'); sp.textContent = promptText() + ' '; d.append(sp, cmd); $('tout').appendChild(d); }
+  const bottom = () => { const o = $('tout'); o.scrollTop = o.scrollHeight; };
+  function welcome() {
+    line('Sandbox terminal. Commands here act on a pretend computer, never on yours.', 'meta');
+    line('Click a command in the lesson to place it here, then press Enter. Type help for the list.', 'meta'); line('');
+  }
+
+  /* ----- lesson sequencing: one expected command at a time ----- */
+  const curStep = () => (inLesson() ? LESSONS[P.cur].steps[P.prog[P.cur]] || null : null);
+  const sig = s => JSON.stringify([s.cwd, Object.keys(s.n).sort()]);
+  const isLint = cmd => /^npm\s+run\s+lint\s*$/.test(cmd);
+  const firstPath = tk => tk.slice(1).find(x => !/^-/.test(x)) || '.';
+  function matches(step, canon, r) {
+    if (r.err) return false;
+    const exp = FS.run(S, step.cmd);
+    if (exp.mut && !isLint(step.cmd)) return r.mut && sig(exp.S) === sig(r.S);
+    const ta = FS.tokenize(step.cmd), tb = FS.tokenize(canon);
+    if (ta[0] !== tb[0]) return false;
+    if (ta[0] === 'ls') return FS.abs(S, firstPath(ta)) === FS.abs(S, firstPath(tb)) && (!ta.includes('-a') || tb.some(x => /^-\w*a/.test(x)));
+    if (ta[0] === 'cat') return FS.abs(S, firstPath(ta)) === FS.abs(S, firstPath(tb));
+    return ta.join(' ') === tb.join(' ');
+  }
+  function waiting() {
+    const st = curStep();
+    if (!inLesson()) return 'The sandbox is paused on this page. Go back to a lesson to run commands that change things.';
+    if (!st) return 'This lesson is complete. Start the next one from the lesson panel.';
+    if (st.drill) return `Step ${P.prog[P.cur] + 1} is a drag-and-drop drill, which has no terminal command. Open it with the button in the lesson panel.`;
+    return `Lessons run in order. Step ${P.prog[P.cur] + 1} is waiting for: ${toLocal(st.cmd)}   (Looking around with ${toLocal('ls')} or ${toLocal('pwd')} is always allowed.)`;
+  }
+  async function progress(label, ms) {
+    const d = line('', 'meta'), W = 24, t0 = Date.now();
+    for (;;) {
+      const f = Math.min(1, (Date.now() - t0) / (window.__fast ? 1 : ms)), k = Math.round(f * W);
+      d.textContent = `${label} [${'#'.repeat(k)}${'.'.repeat(W - k)}] ${String(Math.round(f * 100)).padStart(3)}%`; bottom();
+      if (f >= 1) break; await sleep(90);
+    }
+  }
+  async function exec(raw) {
+    const typed = raw.trim(); if (!typed || busy) return;
+    hist.push(typed); hi = hist.length;
+    echoIn(typed);
+    const bad = shellReject(typed); if (bad) { bad.split('\n').forEach(l => line(l, l.startsWith('(') ? 'coach' : '')); bottom(); return; }
+    const canon = toCanon(typed), r = FS.run(S, canon);
+    if (r.clear) { $('tout').textContent = ''; return; }
+    const st = curStep(), hit = !!st && !st.drill && matches(st, canon, r);
+    if (!hit && r.mut && !isLint(canon)) { line(waiting(), 'coach'); bottom(); return; }
+    busy = true; $('tin').disabled = true;
+    if (r.slow) await progress(r.slowLabel, r.slow);
+    for (const [t, cls] of r.out) for (const l of String(t).split('\n')) { line(outLocal(l), cls || (l.startsWith('(') ? 'coach' : '')); bottom(); await sleep(26); }
+    const before = suitView();
+    S = r.S;
+    if (hit) {
+      const L = LESSONS[P.cur]; P.prog[P.cur]++;
+      line(P.prog[P.cur] === L.steps.length ? `✓ Lesson ${P.cur + 1} complete.` : `✓ Step ${P.prog[P.cur]} of ${L.steps.length} done.`, 'ok');
+      if (P.prog[P.cur] === L.steps.length && P.own && L.commit) line(L.commit.none ? 'On your own machine: nothing to commit after this lesson. The lesson panel says why.' : 'On your own machine: commit and push now, before the next lesson. The commands are in the "Lesson complete" box in the lesson panel.', 'coach');
+    }
+    const after = suitView(), chg = new Set(Object.keys(after.bal).filter(k => after.bal[k] !== before.bal[k])), fx = [];
+    if (chg.size || before.frame !== after.frame) fx.push('refit');
+    if (before.gantry !== after.gantry) fx.push('gmove');
+    if (r.lintFail) fx.push('refuse');
+    lastFx = { changed: new Set(r.changed), fx, chg };
+    r.changed.forEach(p => { for (let q = FS.parent(p); q.length > REPO.length; q = FS.parent(q)) userShut.delete(q.slice(REPO.length + 1)); });
+    save(); render(); bottom(); follow();
+    lastFx = { changed: new Set(), fx: [], chg: new Set() };
+    busy = false; $('tin').disabled = false; $('tin').focus({ preventScroll: true });
+  }
+  function follow() {
+    if (!window.matchMedia('(min-width:1040px)').matches) return;
+    const el = document.querySelector('#lesson .step.now') || document.querySelector('#lesson .complete');
+    if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const nw = document.querySelector('#tree .t-row.new'); if (nw) nw.scrollIntoView({ block: 'nearest' });
+  }
+  function go(i, view) {
+    if (busy) return;
+    P.view = view || 'lesson';
+    if (P.view === 'lesson') {
+      const changed = i !== P.cur; P.cur = i; S = replay(P.cur, P.prog[P.cur]); userOpen = new Set(); userShut = new Set();
+      if (changed) { line(''); line(`— Lesson ${i + 1}: ${LESSONS[i].title} —`, 'meta'); const L = LESSONS[i]; if (L.setupNote && P.prog[i] === 0) line(L.setupNote, 'coach'); }
+    }
+    save(); render(); bottom(); $('lesson').scrollTop = 0;
+    if (!window.matchMedia('(min-width:1040px)').matches) window.scrollTo({ top: 0 });
+  }
+  function restart() {
+    if (busy) return;
+    P.prog[P.cur] = 0; S = replay(P.cur, 0); userOpen = new Set(); userShut = new Set();
+    LESSONS[P.cur].steps.forEach(st => { if (st.drill) { P.drills = P.drills || {}; P.drills[st.drill] = {}; } });
+    line(''); line(`Lesson ${P.cur + 1} restarted. The sandbox is back to how this lesson began.`, 'meta');
+    const L = LESSONS[P.cur]; if (L.setupNote) line(L.setupNote, 'coach');
+    save(); render(); bottom();
+  }
+
+  /* ----- every step states where the terminal is and the full path of what the command makes ----- */
+  const whereCache = {};
+  function whereInfo(li) {
+    if (whereCache[li]) return whereCache[li];
+    let s = replay(li, 0); const out = [];
+    for (const st of LESSONS[li].steps) {
+      if (st.apply) { out.push(null); s = stepState(s, st); continue; }
+      const r = FS.run(s, st.cmd), set = new Set(r.changed), verb = FS.tokenize(st.cmd)[0];
+      out.push({ at: s.cwd, to: r.S.cwd, verb, made: r.changed.filter(p => verb === 'mkdir' || !set.has(FS.parent(p))).map(p => [p, r.S.n[p] === 'd']) });
+      s = r.S;
+    }
+    return (whereCache[li] = out);
+  }
+  function showPath(p, dir) {
+    if (p === HOME) return 'your home folder';
+    let rel = p.startsWith(HOME + '/') ? p.slice(HOME.length + 1) : p; if (dir) rel += '/';
+    return `<span class="mono">${esc(shell() === 'cmd' ? win(rel) : rel)}</span>`;
+  }
+  function whereHtml(w) {
+    const rows = [['Terminal is in', showPath(w.at, true) + (w.at === REPO ? ' (the repository root)' : '')]];
+    if (w.verb === 'cd') rows.push(['Terminal moves to', showPath(w.to, true) + (w.to === REPO ? ' (the repository root)' : '')]);
+    else if (w.made.length) rows.push([w.verb === 'mv' ? 'Moves it to' : 'Creates', w.made.map(m => showPath(m[0], m[1])).join(', ')]);
+    return `<dl class="where">${rows.map(r => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join('')}</dl>`;
+  }
+
+  /* ----- rendering: lesson panel ----- */
+  function renderNav() {
+    const done = i => P.prog[i] >= LESSONS[i].steps.length;
+    $('nav').innerHTML = LESSONS.map((L, i) => `<button type="button" class="${done(i) ? 'done' : ''}" data-go="${i}" aria-current="${inLesson() && P.cur === i}"><span class="n">${done(i) ? '✓' : i + 1}</span>${esc(L.short)}</button>`).join('')
+      + `<button type="button" class="sheet" data-view="quiz" aria-current="${P.view === 'quiz'}">Check yourself</button><button type="button" class="sheet" data-view="sheet" aria-current="${P.view === 'sheet'}">Cheat sheet</button>`;
+  }
+  function commitHtml(L) {
+    const k = L.commit; if (!k || !P.own) return '';
+    if (k.none) return `<div class="commitbox"><h3>On your own machine: commit and push</h3><p>${k.none}</p></div>`;
+    return `<div class="commitbox"><h3>On your own machine: commit and push</h3>
+      <p>Save this lesson's work before starting the next one. Run these in your real terminal, not in the sandbox. They work from any folder inside <span class="mono">kestrel-simulator</span>.</p>
+      <p><strong>1. Create the branch.</strong> New code and new files are never committed straight to <span class="mono">main</span>. This command creates a branch named <span class="mono">project-structure</span> and switches to it. Your uncommitted changes come along:</p>
+      <pre class="treepre">git checkout -b project-structure</pre>
+      <p class="hint">If Git answers <span class="mono">a branch named 'project-structure' already exists</span>, you created it earlier. Switch to it with <span class="mono">git checkout project-structure</span>. If <span class="mono">git status</span> already starts with <span class="mono">On branch project-structure</span>, skip this.</p>
+      <p><strong>2. Commit and push.</strong> <span class="mono">git add -A</span> stages the whole repository, not only the folder the terminal is in:</p>
+      <pre class="treepre">git status\ngit add -A\ngit commit -m "${esc(k.msg)}"\ngit push -u origin project-structure</pre>
+      <p><strong>What <span class="mono">git status</span> should list:</strong> ${k.what}</p>
+      <p>Read the <span class="mono">git status</span> list before you add. Its first line must say <span class="mono">On branch project-structure</span>. If the list shows <span class="mono">.env</span> or <span class="mono">node_modules</span>, stop: those must never be committed, and a line in <span class="mono">.gitignore</span> is missing.</p>
+      <p><strong>Check the paths.</strong> Every path in the list should start with <span class="mono">cockpit/</span>, <span class="mono">api/</span> or <span class="mono">docs/</span>. A path that starts with <span class="mono">src/</span> means a command was run from the repository root when the terminal should have been in <span class="mono">cockpit</span>: fix that before committing. If the list shows a file you do not recognise, do not commit it until you know what it is.</p>
+      <p class="hint">${P.cur === N - 1 ? 'This was the last lesson: now open a pull request for the branch on GitHub, read the list of changed files, and merge it, as in Git Basics. Then run <span class="mono">git checkout main</span> and <span class="mono">git pull</span>.' : 'You open one pull request for the branch when the tutorial is finished.'}</p></div>`;
+  }
+  function startHtml(li) {
+    const w = whereInfo(li).find(Boolean); if (!w) return '';
+    const at = w.at, rel = at === REPO ? '' : at.slice(REPO.length + 1), sh = shell(), relL = sh === 'cmd' ? win(rel) : rel;
+    const here = showPath(at, true) + (at === REPO ? ' (the repository root)' : '');
+    if (at === HOME) return `<p class="startat"><strong>This lesson starts with the terminal in</strong> your home folder. The first step moves it into the repository.</p>`;
+    let own = '';
+    if (P.own) own = `<span class="own-start"><strong>On your own machine:</strong> a new terminal window does not remember where the last one was, so check your prompt before the first command. It must end in <span class="mono">${esc(sh === 'bash' ? at.slice(HOME.length + 1) : win(at.slice(HOME.length + 1)))}</span>. ${rel ? `If it shows the repository root (<span class="mono">kestrel-simulator</span>) instead, run <span class="mono">cd ${esc(relL)}</span> first.` : `If it shows a folder inside the repository, run <span class="mono">cd ..</span> until it shows <span class="mono">kestrel-simulator</span>.`} A command run from the wrong folder either fails with "cannot find the file" or creates things at the wrong level.</span>`;
+    return `<p class="startat"><strong>This lesson starts with the terminal in</strong> ${here}${li > 0 ? ', where the last lesson left it' : ''}. Every path in the steps is counted from there.${own}</p>`;
+  }
+  function lessonHtml() {
+    const L = LESSONS[P.cur], n = L.steps.length, p = P.prog[P.cur], complete = p >= n, wi = whereInfo(P.cur);
+    const steps = L.steps.map((st, i) => {
+      const state = i < p ? 'done' : i === p ? 'now' : 'next';
+      return `<li class="step ${state}"${state === 'now' ? ' aria-current="step"' : ''}><span class="dot">${state === 'done' ? '✓' : i + 1}</span><div class="body"><p>${st.do}</p>${wi[i] ? whereHtml(wi[i]) : ''}${st.own && P.own ? `<p class="own"><strong>On your own project:</strong> ${st.own}</p>` : ''}${state === 'done' && st.after ? `<p class="after">${st.after}</p>` : ''}</div></li>`;
+    }).join('');
+    const next = P.cur + 1 < N
+      ? `<button type="button" class="btn primary" data-go="${P.cur + 1}">Start lesson ${P.cur + 2}: ${esc(LESSONS[P.cur + 1].short)}</button>`
+      : `<button type="button" class="btn primary" data-view="quiz">Check yourself: where does it go?</button><button type="button" class="btn" data-view="sheet">Open the cheat sheet</button>`;
+    return `<div class="lesson-in">
+      <p class="eyebrow">Lesson ${P.cur + 1} of ${N}</p>
+      <h1>${L.title}</h1>
+      <div class="prose">${L.intro}</div>
+      ${P.cur === 0 ? shellBox() : ''}
+      <h2>Do it: ${Math.min(p, n)} of ${n} steps</h2>
+      <p class="hint">Steps run in order. The sandbox accepts only what the highlighted step asks for. Looking around is always allowed. Under each step, <strong>Terminal is in</strong> says which folder the command runs from, and <strong>Creates</strong> gives the full path of what it makes, counted from the repository folder. Check both against your prompt before pressing Enter.</p>
+      ${startHtml(P.cur)}
+      <div class="owntoggle"><label for="own-toggle"><input type="checkbox" id="own-toggle"${P.own ? ' checked' : ''}><span><strong>I am also doing this on my own project.</strong> Show what to do on my own computer under each step, and remind me to commit and push at the end of each lesson.</span></label></div>
+      ${P.own && P.cur > 0 && LESSONS[P.cur - 1].commit && !LESSONS[P.cur - 1].commit.none ? `<div class="commitbox pre"><h3>Before you start: is lesson ${P.cur} committed?</h3><p>On your own machine, run <span class="mono">git status</span>. If it lists changes from lesson ${P.cur}, save them first, on the branch (the first line creates it; if Git says it already exists, use <span class="mono">git checkout project-structure</span>):</p><pre class="treepre">git checkout -b project-structure\ngit add -A\ngit commit -m "${esc(LESSONS[P.cur - 1].commit.msg)}"\ngit push -u origin project-structure</pre><p class="hint">In VS Code, files marked U (untracked) or M (modified) in the Explorer are the ones not committed yet. Commit on your <span class="mono">project-structure</span> branch, never on <span class="mono">main</span>: if <span class="mono">git status</span> starts with <span class="mono">On branch main</span>, run <span class="mono">git checkout -b project-structure</span> first.</p></div>` : ''}
+      ${P.own && P.cur === 0 ? `<div class="commitbox pre"><h3>On your own machine: start a branch first</h3><p>Work never goes straight to <span class="mono">main</span>. Before step 1, in your real terminal, from inside your repository folder, create a branch for this tutorial:</p><pre class="treepre">git checkout main\ngit pull\ngit checkout -b project-structure</pre><p>Every commit you make during the tutorial lands on this branch. At the end you open one pull request and merge it, as in Git Basics. Check which branch you are on at any time with <span class="mono">git status</span>: its first line says <span class="mono">On branch project-structure</span>.</p></div>` : ''}
+      ${P.own && L.ownLesson ? `<div class="commitbox pre"><h3>On your own machine</h3><p>${L.ownLesson}</p></div>` : ''}
+      <ol class="steps">${steps}</ol>
+      ${complete ? `<div class="complete"><h3>Lesson complete</h3>${commitHtml(L)}<ul>${L.recap.map(r => `<li>${r}</li>`).join('')}</ul><div class="row">${next}</div></div>` : ''}
+      ${L.extra || ''}
+      <div class="row"><button type="button" class="btn" id="restart">Restart this lesson</button><span class="hint">Resets the sandbox to how this lesson began.</span></div>
+      <div class="reading"><h2>Further reading</h2><ul>${L.reading.map(([t, u]) => `<li><a href="${u}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join('')}</ul></div>
+    </div>`;
+  }
+  function quizHtml() {
+    const ans = P.quiz || {}, right = QUIZ.filter((q, i) => ans[i] != null && q.o[ans[i]] === q.a).length, tried = Object.keys(ans).length;
+    return `<div class="lesson-in">
+      <p class="eyebrow">Practice</p><h1>Check yourself: where does it go?</h1>
+      <div class="prose"><p>Eight files, described by what they do. Pick the folder each belongs in. Ask the three questions from lesson 5: which feature, what kind of work, does it have a companion?</p></div>
+      <h2>${right} of ${QUIZ.length} placed correctly${tried && tried < QUIZ.length ? `, ${QUIZ.length - tried} to go` : ''}</h2>
+      <ol class="steps">${QUIZ.map((q, i) => {
+        const pick = ans[i], ok = pick != null && q.o[pick] === q.a;
+        return `<li class="step ${pick == null ? '' : ok ? 'done' : 'now'}"><span class="dot">${ok ? '✓' : i + 1}</span><div class="body"><p>${q.q}</p><div class="opts">${q.o.map((o, j) => `<button type="button" class="opt${pick === j ? (ok ? ' ok' : ' no') : ''}" data-q="${i}" data-o="${j}" aria-pressed="${pick === j}">${esc(o)}</button>`).join('')}</div>${pick == null ? '' : `<p class="after"><strong>${ok ? 'Yes.' : 'Not there.'}</strong> ${ok ? q.why : 'Think about which feature uses it and what kind of work it does, then try again.'}</p>`}</div></li>`;
+      }).join('')}</ol>
+      <div class="row"><button type="button" class="btn" data-act="quiz-reset">Clear my answers</button><button type="button" class="btn primary" data-go="${P.cur}">Back to lesson ${P.cur + 1}</button><button type="button" class="btn" data-view="sheet">Open the cheat sheet</button></div>
+    </div>`;
+  }
+  function sheetHtml() {
+    const fx = t => `<span class="fix">${esc(t)}</span>`;
+    const errs = [
+      ["'npm' is not recognized...   /   npm: command not found", 'Node.js is not installed, or the terminal was opened before it was.', 'Install the LTS version from nodejs.org, then close the terminal and open a new one. npm comes with it.'],
+      ['The system cannot find the file specified.   /   No such file or directory', 'The path is counted from the folder the terminal is in, and the terminal is in a different folder from the one the step expects.', `Compare your prompt with the "Terminal is in" line under the step. For lessons 2 to 6 that is cockpit: from the repository root, run ${fx('cd cockpit')}`],
+      ['A file I did not create appeared, with a name like 5.2.1 or 6.0.0-beta.0', 'Text containing > was pasted into the terminal, for example a line of an npm report such as "vite >=6.3.0". The terminal reads > as "write the output to a file with this name" and creates an empty file.', 'Delete the stray files. If they were already committed, remove them with git rm and commit again. Paste into the terminal only what a step tells you to run.'],
+      ['My new files are in src at the repository root, not in cockpit/src', 'The commands were run with the terminal at the repository root. Command Prompt and mkdir -p create missing folders without complaint, so nothing failed.', `Move the files to the same path under cockpit, for example ${fx('git mv src/features/flight/types.ts cockpit/src/features/flight/types.ts')}, then delete the leftover src folder at the root.`],
+      ['I committed straight to main', 'No branch was created before the work started, so every commit landed on main.', `Leave those commits where they are. For everything from now on, create a branch before the next commit: ${fx('git checkout -b project-structure')}. Uncommitted changes come along. Push the branch and open a pull request, as in Git Basics.`],
+      ['npm error enoent Could not read package.json', 'npm acts on the folder the terminal is in, and this one has no package.json.', `Move into the app first: ${fx('cd cockpit')}`],
+      ["'uv' is not recognized...   /   uv: command not found", 'uv is not installed yet. That is expected at this point: FastAPI from Zero is the tutorial that installs it.', `From the repository root, make the folder by hand: ${fx('mkdir api')}. Lesson 7 works without uv. Later, with uv installed, run ${fx('uv init --bare')} from inside api to add pyproject.toml.`],
+      ['11 high severity vulnerabilities   (after npm install)', 'The install worked. npm then compared the downloaded packages with a public list of known security problems and is reporting how many matched.', `Carry on. Optionally run ${fx('npm audit fix')} from inside cockpit to apply the safe updates, then commit package-lock.json. Do not add --force: it can break the scaffold.`],
+      ['npm notice New major version of npm available!', 'npm is offering to upgrade itself. It is not an error.', 'Ignore it. The version you have is fine for this tutorial.'],
+      ['The syntax of the command is incorrect.', 'Windows Command Prompt was given a path with forward slashes.', `Use backslashes there: ${fx('mkdir src\\features')}. PowerShell and Git Bash accept forward slashes.`],
+      ['A folder named -p appeared', 'mkdir -p was run in Command Prompt, which has no -p option.', 'Delete the -p folder. Command Prompt already creates the folders in between.'],
+      ['mkdir: cannot create directory: No such file or directory', 'The folder above the one you asked for does not exist yet.', `Create it first, or add -p in Git Bash, Mac or Linux: ${fx('mkdir -p src/shared/ui')}`],
+      ['mkdir: cannot create directory: File exists', 'Not a problem: the folder is already there.', 'Carry on with the next step.'],
+      ['Which linter to use?  Oxlint / ESLint', 'Newer versions of the Vite scaffolding tool ask this while creating the project.', 'Choose ESLint. This tutorial and the CI tutorial use it. If you already chose Oxlint, the simplest fix is to delete the new cockpit folder and run the command again.'],
+      ['Target directory "cockpit" is not empty', 'The scaffolding tool will not write into a folder that already has files.', 'If the folder is already a Vite project, skip the step. If it holds something else, pick another name or empty it first.'],
+      ['My new folder is not on GitHub', 'Git does not record empty folders.', 'Nothing is wrong. The folder will appear with its first file.'],
+      ["Cannot find module './App.tsx'   /   Failed to resolve import", 'A file was moved and something still imports it by its old path.', 'Open the file named in the error and update the path on the import line. Moving files inside VS Code avoids this.']
+    ];
+    const where = [
+      ['A piece of screen used by one feature', 'features/NAME/components/'],
+      ['State, events, the link between screen and rules (name starts with use)', 'features/NAME/hooks/'],
+      ['A business rule: a calculation or a decision', 'features/NAME/domain/'],
+      ['A unit test', 'beside the file it tests'],
+      ['A request to the API', 'features/NAME/services/'],
+      ['The shape of a feature\'s data', 'features/NAME/types.ts'],
+      ['What a feature offers the rest of the app', 'features/NAME/index.ts'],
+      ['Anything two or more features use', 'shared/ (components in shared/ui/)'],
+      ['Routes, page layout, app-wide setup', 'app/'],
+      ['An endpoint, a table, a server-side rule', 'api/app/NAME/'],
+      ['A spec, test cases, design tokens', 'the repository root: specs/, docs/, tokens/']
+    ];
+    const names = [['Show where you are', 'pwd', 'cd', 'pwd'], ['List a folder', 'ls', 'dir', 'ls'], ['List, hidden names too', 'ls -a', 'dir /a', 'ls -Force'], ['Move into a folder', 'cd src/app', 'cd src\\app', 'cd src/app'], ['Up one level', 'cd ..', 'cd ..', 'cd ..'], ['Make a folder', 'mkdir docs', 'mkdir docs', 'mkdir docs'], ['Make nested folders', 'mkdir -p src/shared/ui', 'mkdir src\\shared\\ui', 'mkdir src/shared/ui'], ['Make an empty file', 'touch notes.md', 'type nul > notes.md', 'New-Item notes.md'], ['Move or rename', 'mv a.ts b/a.ts', 'move a.ts b\\a.ts', 'mv a.ts b/a.ts'], ['Print a file', 'cat index.ts', 'type index.ts', 'cat index.ts']];
+    return `<div class="lesson-in">
+      <p class="eyebrow">Reference</p><h1>Cheat sheet</h1>
+      <h2>The whole structure</h2>
+      <pre class="treepre">${esc(FULL_TREE)}</pre>
+      <h2>Where does it go?</h2>
+      <div class="sheet-table"><table><thead><tr><th>If the file is…</th><th>It goes in</th></tr></thead><tbody>${where.map(r => `<tr><td style="white-space:normal">${esc(r[0])}</td><td><span class="mono">${esc(r[1])}</span></td></tr>`).join('')}</tbody></table></div>
+      <h2>Who may import whom</h2>
+      <div class="prose"><ul><li><strong>Inside a feature:</strong> components → hooks → domain and services → types. Never the reverse.</li><li><strong>Between features:</strong> through the feature's <code>index.ts</code> only.</li><li><strong>Down the stack:</strong> <code>app</code> → features → <code>shared</code>.</li><li><strong>Between apps:</strong> never. <code>cockpit</code> and <code>api</code> talk over HTTP.</li></ul></div>
+      <h2>For your AGENTS.md</h2>
+      <div class="prose"><p>A coding agent reads <code>AGENTS.md</code> before it writes anything. Paste this in as its Project structure section, and change the names to match your project.</p></div>
+      <pre class="treepre" id="agents-block">${esc(AGENTS_BLOCK)}</pre>
+      <div class="row"><button type="button" class="btn primary" data-act="copy-agents">Copy the block</button><span class="hint" id="copy-msg" aria-live="polite"></span></div>
+      <h2>The same commands in each terminal</h2>
+      <div class="sheet-table"><table><thead><tr><th>To</th><th>Mac, Linux, Git Bash</th><th>Command Prompt</th><th>PowerShell</th></tr></thead><tbody>${names.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(x => `<td><span class="mono">${esc(x)}</span></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <h2>When your own machine says something else</h2>
+      <div class="errs">${errs.map(e => `<div class="err"><p class="m">${esc(e[0])}</p><p><strong>Why:</strong> ${esc(e[1])}</p><p><strong>Fix:</strong> ${e[2]}</p></div>`).join('')}</div>
+      <h2>Words you will hear</h2>
+      <div class="prose"><dl>
+        <dt>Monorepo</dt><dd>One repository holding more than one app.</dd>
+        <dt>Scaffold</dt><dd>The starter project a tool generates.</dd>
+        <dt>Feature</dt><dd>A part of the product a user could name, with its own folder.</dd>
+        <dt>Domain</dt><dd>The business rules, kept free of screens and network code.</dd>
+        <dt>Import</dt><dd>One file using code from another. Every import is a dependency.</dd>
+        <dt>Barrel, or index file</dt><dd>A feature's <code>index.ts</code>: the list of what it offers to others.</dd>
+        <dt>Linter</dt><dd>A tool that reads code and flags broken rules. Here, ESLint.</dd>
+        <dt>Colocation</dt><dd>Keeping things that change together in the same folder.</dd>
+      </dl></div>
+      <div class="reading"><h2>Further reading</h2><ul>
+        <li><a href="https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md" target="_blank" rel="noopener">Bulletproof React: Project structure</a>, the best-known write-up of this layout</li>
+        <li><a href="https://feature-sliced.design/" target="_blank" rel="noopener">Feature-Sliced Design</a>, a stricter and more detailed version of the same idea</li>
+        <li><a href="https://fastapi.tiangolo.com/tutorial/bigger-applications/" target="_blank" rel="noopener">FastAPI: Bigger applications</a></li>
+        <li><a href="https://monorepo.tools/" target="_blank" rel="noopener">monorepo.tools</a></li>
+      </ul></div>
+      <div class="row"><button type="button" class="btn primary" data-go="${P.cur}">Back to lesson ${P.cur + 1}</button></div>
+    </div>`;
+  }
+  function renderLesson() { $('lesson').innerHTML = P.view === 'quiz' ? quizHtml() : P.view === 'sheet' ? sheetHtml() : lessonHtml(); }
+
+  /* ----- rendering: the map (repository tree + blueprint) ----- */
+  const SHUT = new Set(['.git', 'tokens', 'cockpit/node_modules', 'cockpit/public', 'cockpit/src/assets']);
+  const ROLE = [
+    [/^cockpit$/, 'front-end app'], [/^api$/, 'back-end app'], [/^docs$/, 'shared documents'], [/^specs$/, 'one spec per feature'], [/^tokens$/, 'design tokens'], [/^\.git$/, "Git's data"],
+    [/^cockpit\/node_modules$/, 'generated · never committed'], [/^cockpit\/src$/, 'your code'], [/^cockpit\/package\.json$/, 'parts list'], [/^cockpit\/src\/main\.tsx$/, 'entry point'],
+    [/^cockpit\/src\/app$/, 'assembles pages'], [/^cockpit\/src\/features$/, 'one folder per feature'], [/^cockpit\/src\/shared$/, 'used by 2+ features'],
+    [/\/features\/[^/]+\/components$/, 'draws'], [/\/features\/[^/]+\/hooks$/, 'wires'], [/\/features\/[^/]+\/domain$/, 'decides'], [/\/features\/[^/]+\/services$/, 'calls the API'],
+    [/\/features\/[^/]+\/types\.ts$/, 'data shapes'], [/\/features\/[^/]+\/index\.ts$/, 'front door'],
+    [/^api\/pyproject\.toml$/, 'parts list'], [/^api\/app$/, 'the code'], [/^api\/app\/main\.py$/, 'assembles routers']
+  ];
+  const BADGE = { 'cockpit/src/features/preflight': '1', 'cockpit/src/features/flight': '2', 'cockpit/src/features/auth': '3', 'cockpit/src/features/missions': '4', 'cockpit/src/shared': '5', api: 'A' };
+  function isShut(rel) {
+    if (userShut.has(rel)) return true; if (userOpen.has(rel)) return false;
+    if (rel === 'cockpit' && (S.cwd === API || S.cwd.startsWith(API + '/'))) return true;
+    return SHUT.has(rel);
+  }
+  function treeHtml() {
+    const rows = [], bad = S.lint === 'bad' ? new Set(FS.violations(S)) : new Set();
+    const row = (k, depth) => {
+      const dir = S.n[k] === 'd', rel = k === REPO ? '' : k.slice(REPO.length + 1), name = FS.base(k), shut = dir && rel && isShut(rel);
+      let chips = '';
+      if (BADGE[rel]) chips += `<span class="t-badge">${BADGE[rel]}</span>`;
+      const role = ROLE.find(r => r[0].test(rel)); if (role) chips += `<span class="chip">${role[1]}</span>`;
+      else if (/^cockpit\/src\/features\/[^/]+$/.test(rel) || /^api\/app\/[^/.]+$/.test(rel)) chips += '<span class="chip">feature</span>';
+      if (!dir && FS.parent(k) === CK + '/src' && (PILE.includes(name) || (name === 'App.tsx' && P.cur >= 4))) chips += '<span class="chip changed">unsorted</span>';
+      if (bad.has(k)) chips += '<span class="chip conflict">lint error</span>';
+      if (k === S.cwd) chips += '<span class="chip head">you are here</span>';
+      const kidsN = dir ? FS.kids(S, k).length : 0;
+      rows.push(`<div class="t-row${dir ? ' dir' : ''}${lastFx.changed.has(k) ? ' new' : ''}${name.startsWith('.') ? ' dot' : ''}${k === S.cwd ? ' here' : ''}" style="--d:${depth}">${dir && rel ? `<button type="button" class="t-tog" data-tog="${esc(rel)}" aria-expanded="${!shut}" aria-label="${shut ? 'Open' : 'Close'} ${esc(name)}">${shut ? '▸' : '▾'}</button>` : '<span class="t-tog"></span>'}${dir ? dirIcon : fileIcon}<span class="mono">${esc(name)}${dir ? '/' : ''}</span>${shut && kidsN ? `<span class="t-more">${kidsN} inside</span>` : ''}${dir && !kidsN && rel !== '.git' && rel !== 'cockpit/node_modules' ? '<span class="t-more">empty</span>' : ''}${chips}</div>`);
+      if (dir && !shut) { const ks = FS.kids(S, k); ks.filter(x => S.n[x] === 'd').concat(ks.filter(x => S.n[x] !== 'd')).forEach(x => row(x, depth + 1)); }
+    };
+    row(REPO, 0);
+    return rows.join('');
+  }
+  function suitView() {
+    const has = p => !!S.n[p], F = CK + '/src/features/';
+    const pre = has(F + 'preflight'), fl = has(F + 'flight'), au = has(F + 'auth'), mi = has(F + 'missions');
+    const sh = Object.keys(S.n).some(k => k.startsWith(CK + '/src/shared/') && S.n[k] === 'f');
+    const bad = S.lint === 'bad' && FS.violations(S).length > 0, cls = [];
+    if (!has(CK)) cls.push('nosuit');
+    if (pre) cls.push('on-a0', 'on-a1'); if (fl) cls.push('on-a3', 'on-a6'); if (au) cls.push('on-a5', 'sy-sensors'); if (mi) cls.push('on-a4', 'sy-comms'); if (sh) cls.push('on-a2');
+    if (has(F + 'flight/domain')) { cls.push('pw-on'); if (bad) cls.push('over'); }
+    if (has(API)) cls.push('api-on');
+    const fitted = [pre, fl, au, mi].filter(Boolean).length, fin = allDone() && P.cur === N - 1;
+    if (fin) cls.push('flying');
+    const label = !has(CK) ? 'EMPTY GANTRY · NO APPS YET' : bad ? 'STRUCTURE FAULT · A FILE IS IN THE WRONG PLACE' : fin ? 'STRUCTURE COMPLETE · CLAMPS RELEASED' : fitted === 0 ? 'BARE FRAME · 0 OF 4 SECTIONS FITTED' : `${fitted} OF 4 SECTIONS FITTED`;
+    return { gantry: fin ? 'open' : 'locked', cls, frame: has(CK), label, bal: { 1: pre ? 'on' : 'off', 2: fl ? (bad ? 'bad' : 'on') : 'off', 3: au ? 'on' : 'off', 4: mi ? 'on' : 'off', 5: sh ? 'on' : 'off', A: has(API) ? 'on' : 'off' } };
+  }
+  function renderMap() {
+    const v = suitView(), key = [['1', 'preflight'], ['2', 'flight'], ['3', 'auth'], ['4', 'missions'], ['5', 'shared'], ['A', 'api']];
+    $('map').innerHTML = `<div class="map-head"><b>Where every file goes</b><span>${inLesson() ? `Lesson ${P.cur + 1} sandbox` : 'Sandbox'}</span></div><div class="zones">
+      <div class="zone" id="z-tree"><div><h3>Repository</h3><div class="sub">the folders and files, live. Click a folder to fold it.</div></div><div class="tree" id="tree">${treeHtml()}</div></div>
+      <div class="zone" id="z-suit"><div><h3>KF-07 Kestrel Mk II</h3><div class="sub">one section of the suit per feature</div></div><div class="kfig">${kestrel(v, lastFx.fx, lastFx.chg)}</div>
+        <p class="k-status ${v.bal[2] === 'bad' ? 'bad' : ''}" role="status">${esc(v.label)}</p><div class="legend">${key.map(([k, n]) => `<span class="lg ${v.bal[k]}"><b>${k}</b>${n}</span>`).join('')}</div></div>
+    </div>`;
+  }
+  function render() { renderNav(); renderLesson(); renderMap(); localize(); $('tprompt').textContent = promptText(); $('shell-sel').value = shell(); }
+
+  /* ----- drag-and-drop drills (lessons 5 and 6): drag a card onto a bin, or click a card then a bin ----- */
+  let dId = 'sort', dSel = null, dMsg = null, dShake = null;
+  const narrow = () => window.matchMedia('(max-width:759px)').matches;
+  const D = () => DRILLS[dId];
+  const dPlaced = () => { P.drills = P.drills || {}; return (P.drills[dId] = P.drills[dId] || {}); };
+  const dLeft = () => { const o = D().order, l = D().files.filter(f => !dPlaced()[f.name]); return o ? l.sort((x, y) => o.indexOf(x.name) - o.indexOf(y.name)) : l; };
+  const binLabel = b => (b.group || '') + b.name;
+  function drillHtml() {
+    const d = D(), left = dLeft(), done = !left.length, groups = [];
+    d.bins.forEach(b => { let g = groups.find(x => x.g === b.group); if (!g) groups.push(g = { g: b.group, bins: [] }); g.bins.push(b); });
+    const ico = d.folders ? dirIcon : '', fico = d.folders ? fileIcon : '';
+    const bin = b => `<button type="button" class="bin${dShake === b.id ? ' shake' : ''}${b.tone ? ' ' + b.tone : ''}" data-bin="${b.id}" aria-label="${esc(binLabel(b) + ', ' + b.role)}"><span class="bin-h">${ico}<span class="${d.folders ? 'mono' : 'bin-t'}">${esc(b.name)}</span><span class="chip">${esc(b.role)}</span></span><span class="bin-files">${d.files.filter(f => f.to === b.id && dPlaced()[f.name]).map(f => `<span class="dchip">${fico}${esc(f.chip || f.name)}</span>`).join('')}</span></button>`;
+    const stepWaiting = (curStep() || {}).drill === dId;
+    return `<div class="drill" role="dialog" aria-modal="true" aria-labelledby="drill-h">
+      <header><div><h2 id="drill-h">${esc(d.title)}</h2><p>${d.how}</p></div><button type="button" class="drill-x" data-act="drill-close" aria-label="Close the drill">×</button></header>
+      <div class="drill-grid">
+        <section class="pile" aria-label="Cards to sort"><h3>${esc(d.pileTitle)} <span>${done ? 'empty' : left.length + ' to place'}</span></h3>
+          ${done ? `<p class="pile-done">${esc(d.doneMsg)}</p>` : left.map(f => `<button type="button" class="dfile${dSel === f.name ? ' sel' : ''}" draggable="true" data-file="${esc(f.name)}" aria-pressed="${dSel === f.name}">${fico}<span><b class="mono">${esc(f.title || f.name)}</b>${f.code ? `<code>${esc(f.code)}</code>` : ''}<span>${esc(f.what)}</span></span></button>`).join('')}
+        </section>
+        <section class="bins" aria-label="Where it goes"><h3>${esc(d.binsTitle)}</h3>
+          ${d.rules ? `<ol class="drill-rules">${d.rules.map(r => `<li>${r}</li>`).join('')}</ol>` : ''}
+          ${groups.map(g => g.g ? `<div class="bin-group"><p class="mono">${dirIcon}${esc(g.g)}</p><div class="bin-kids">${g.bins.map(bin).join('')}</div></div>` : g.bins.map(bin).join('')).join('')}
+        </section>
+      </div>
+      <footer><p class="drill-fb ${dMsg ? dMsg[0] : ''}" role="status" aria-live="polite">${dMsg ? dMsg[1] : dSel ? `<strong>Selected.</strong> Now click where it belongs.` : 'Nothing placed yet. Pick a card to start.'}</p>
+        <div class="row"><span class="hint">${d.files.length - left.length} of ${d.files.length} placed</span><button type="button" class="btn" data-act="drill-reset">Start over</button>${done ? `<button type="button" class="btn primary" data-act="drill-done">${stepWaiting ? esc(d.doneBtn) : 'Close'}</button>` : ''}</div></footer>
+    </div>`;
+  }
+  function drillRender() { const y = (document.querySelector('.drill-grid') || {}).scrollTop || 0; $('drill').innerHTML = drillHtml(); const g = document.querySelector('.drill-grid'); if (g) g.scrollTop = y; dShake = null; }
+  function drillOpen(id) { dId = DRILLS[id] ? id : 'sort'; dSel = null; dMsg = null; $('drill').hidden = false; document.body.classList.add('drill-open'); drillRender(); const f = $('drill').querySelector('.dfile, [data-act="drill-done"], .drill-x'); if (f) f.focus(); }
+  function drillClose() { $('drill').hidden = true; $('drill').innerHTML = ''; document.body.classList.remove('drill-open'); }
+  function drillPlace(name, binId) {
+    const f = D().files.find(x => x.name === name); if (!f || dPlaced()[name]) return;
+    const b = D().bins.find(x => x.id === binId), right = D().bins.find(x => x.id === f.to);
+    if (f.to === binId) { dPlaced()[name] = 1; dSel = null; dMsg = ['ok', `<strong>${esc(D().yes(f, right))}</strong> ${esc(f.why)}`]; save(); }
+    else { dShake = binId; dMsg = ['no', `<strong>${esc(D().no(f, b))}</strong> ${esc(f.hint)}`]; dSel = name; }
+    const ok = !!dPlaced()[name];
+    drillRender();
+    const nxt = $('drill').querySelector(ok ? '.dfile, [data-act="drill-done"]' : '.dfile.sel'); if (nxt) nxt.focus({ preventScroll: true });
+    if (ok && narrow()) $('drill').querySelector('.pile').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+  function drillDone() {
+    const id = dId; drillClose();
+    const st = curStep(); if (!st || st.drill !== id || busy) return;
+    const before = suitView(), old = S; S = stepState(S, st);
+    const L = LESSONS[P.cur]; P.prog[P.cur]++;
+    line(DRILLS[id].termLine, 'meta');
+    line(P.prog[P.cur] === L.steps.length ? `✓ Lesson ${P.cur + 1} complete.` : `✓ Step ${P.prog[P.cur]} of ${L.steps.length} done.`, 'ok');
+    const after = suitView(), chg = new Set(Object.keys(after.bal).filter(k => after.bal[k] !== before.bal[k]));
+    lastFx = { changed: new Set(Object.keys(S.n).filter(k => !old.n[k])), fx: chg.size ? ['refit'] : [], chg };
+    save(); render(); bottom(); follow();
+    lastFx = { changed: new Set(), fx: [], chg: new Set() };
+  }
+  $('drill').addEventListener('dragstart', e => { const f = e.target.closest('.dfile'); if (!f) return; e.dataTransfer.setData('text/plain', f.dataset.file); e.dataTransfer.effectAllowed = 'move'; dSel = f.dataset.file; f.classList.add('dragging'); });
+  $('drill').addEventListener('dragend', e => { const f = e.target.closest('.dfile'); if (f) f.classList.remove('dragging'); document.querySelectorAll('.bin.over').forEach(b => b.classList.remove('over')); });
+  $('drill').addEventListener('dragover', e => { const b = e.target.closest('.bin'); if (!b) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; b.classList.add('over'); });
+  $('drill').addEventListener('dragleave', e => { const b = e.target.closest('.bin'); if (b && !b.contains(e.relatedTarget)) b.classList.remove('over'); });
+  $('drill').addEventListener('drop', e => { const b = e.target.closest('.bin'); if (!b) return; e.preventDefault(); drillPlace(e.dataTransfer.getData('text/plain') || dSel, b.dataset.bin); });
+  $('drill').addEventListener('click', e => {
+    if (e.target === $('drill')) { drillClose(); return; }
+    const f = e.target.closest('.dfile'); if (f) { dSel = dSel === f.dataset.file ? null : f.dataset.file; dMsg = null; drillRender(); const s2 = $('drill').querySelector('.dfile.sel'); if (s2) s2.focus({ preventScroll: true }); if (dSel && narrow()) $('drill').querySelector('.bins').scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+    const b = e.target.closest('.bin'); if (b) { if (dSel) drillPlace(dSel, b.dataset.bin); else { dMsg = ['no', 'Pick a card from the left first, then click where it belongs.']; drillRender(); } }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('drill').hidden) drillClose(); });
+
+  /* ----- events ----- */
+  document.addEventListener('click', e => {
+    const shb = e.target.closest('[data-shell]'); if (shb) { setShell(shb.dataset.shell); return; }
+    const tog = e.target.closest('[data-tog]');
+    if (tog) { const rel = tog.dataset.tog; if (isShut(rel)) { userShut.delete(rel); userOpen.add(rel); } else { userOpen.delete(rel); userShut.add(rel); } renderMap(); return; }
+    const cmdBtn = e.target.closest('.cmd');
+    if (cmdBtn) {
+      const inp = $('tin'); inp.value = cmdBtn.dataset.cmd; inp.focus({ preventScroll: true });
+      if (window.matchMedia('(max-width:1039px)').matches) inp.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    const opt = e.target.closest('.opt'); if (opt) { P.quiz = P.quiz || {}; P.quiz[+opt.dataset.q] = +opt.dataset.o; save(); const y = $('lesson').scrollTop; renderLesson(); $('lesson').scrollTop = y; return; }
+    const vw = e.target.closest('[data-view]'); if (vw) { go(P.cur, vw.dataset.view); return; }
+    const goBtn = e.target.closest('[data-go]'); if (goBtn) { go(+goBtn.dataset.go); return; }
+    if (e.target.closest('#restart')) { restart(); return; }
+    const act = e.target.closest('[data-act]');
+    if (act) {
+      if (act.dataset.act === 'quiz-reset') { P.quiz = {}; save(); renderLesson(); }
+      if (act.dataset.act === 'drill') drillOpen(act.dataset.drill);
+      if (act.dataset.act === 'drill-close') drillClose();
+      if (act.dataset.act === 'drill-reset') { P.drills[dId] = {}; dSel = null; dMsg = null; save(); drillRender(); }
+      if (act.dataset.act === 'drill-done') drillDone();
+      if (act.dataset.act === 'copy-agents') {
+        const done = ok => { $('copy-msg').textContent = ok ? 'Copied. Paste it into AGENTS.md.' : 'Copying is blocked here. Select the block and copy it by hand.'; };
+        try { navigator.clipboard.writeText(AGENTS_BLOCK).then(() => done(true), () => done(false)); } catch (err) { done(false); }
+      }
+    }
+  });
+  $('shell-sel').addEventListener('change', e => setShell(e.target.value));
+  $('lesson').addEventListener('change', e => { if (e.target.id === 'own-toggle') { P.own = e.target.checked; save(); const y = $('lesson').scrollTop; renderLesson(); localize(); $('lesson').scrollTop = y; } });
+  $('tform').addEventListener('submit', e => { e.preventDefault(); if (busy) return; const v = $('tin').value; $('tin').value = ''; exec(v); });
+  $('tin').addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp' && hist.length) { e.preventDefault(); hi = Math.max(0, hi - 1); $('tin').value = hist[hi]; }
+    else if (e.key === 'ArrowDown' && hist.length) { e.preventDefault(); hi = Math.min(hist.length, hi + 1); $('tin').value = hist[hi] || ''; }
+  });
+  $('btn-help').addEventListener('click', () => exec('help'));
+  $('btn-clear').addEventListener('click', () => { $('tout').textContent = ''; });
+  $('tout').addEventListener('click', () => { if (!String(window.getSelection())) $('tin').focus({ preventScroll: true }); });
+
+  /* ----- boot ----- */
+  P = load() || { cur: 0, view: 'lesson', prog: LESSONS.map(() => 0), shell: 'bash', own: false, quiz: {} };
+  if (!(P.cur >= 0 && P.cur < N)) P.cur = 0;
+  S = replay(P.cur, Math.min(P.prog[P.cur], LESSONS[P.cur].steps.length));
+  welcome(); render();
+  window.__ps = { exec, drillOpen, get S() { return S; }, get P() { return P; }, toLocal, toCanon, go };
+})();
+</script>
+</body>
+</html>

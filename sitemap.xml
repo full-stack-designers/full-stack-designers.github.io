@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://full-stack-designers.github.io/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/learning-log/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/agent-files/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/business-logic/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/ci/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/cloud-deploy/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/design-tokens/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/docker/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/fastapi/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/git-basics/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/http/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/kubernetes/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/mcp-interfaces/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/nginx/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/oauth/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/observability/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/openapi/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/playwright/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/postgres/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/project-structure/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/react/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/sqlalchemy/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/tailwind/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/test-cases/</loc></url>
+  <url><loc>https://full-stack-designers.github.io/tutorials/wiring-rules/</loc></url>
+</urlset>

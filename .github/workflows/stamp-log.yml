@@ -1,0 +1,29 @@
+name: Stamp progress log
+on:
+  push:
+    branches: [main]
+    paths: ['learning-log/entries/**']
+  schedule:
+    - cron: '17 */3 * * *'   # keep checking until each proof is confirmed in a Bitcoin block
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: stamp-log
+  cancel-in-progress: false
+jobs:
+  stamp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install opentimestamps-client
+      - run: python .github/stamp_log.py
+      - name: Commit new proofs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add learning-log/proofs
+          if ! git diff --cached --quiet; then git commit -m "Stamp progress log entries" && git pull --rebase -q && git push; fi
