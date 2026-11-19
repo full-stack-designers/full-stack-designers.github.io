@@ -1,5 +1,6 @@
 {
   "agent-files": "2026-11-19T19:36:26Z",
+  "agent-harness": "2026-11-18T17:17:55Z",
   "business-logic": "2026-11-19T19:36:26Z",
   "ci": "2026-11-19T19:36:26Z",
   "cloud-deploy": "2026-11-19T19:36:26Z",
@@ -19,6 +20,7 @@
   "project-structure": "2026-11-19T19:36:26Z",
   "react": "2026-11-19T19:36:26Z",
   "sqlalchemy": "2026-11-19T19:36:26Z",
+  "storybook": "2026-11-19T16:56:08Z",
   "tailwind": "2026-11-19T19:36:26Z",
   "test-cases": "2026-11-19T19:36:26Z",
   "wiring-rules": "2026-11-19T19:36:26Z"

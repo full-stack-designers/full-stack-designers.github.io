@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Harness from Zero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+
+
+/* Same guide family as Cloud Deploy from Zero: lesson on the left; on the right a blueprint of the Kestrel cockpit and the live control screens above a terminal. On phones the bench sits inside the lesson, under the steps. */
+:root{
+  --bg:#0a0e13; --surface:#10161c; --sunk:#172029; --ink:#d6dfe6; --muted:#8696a3; --line:#222e38;
+  --accent:#61dafb; --accent-ink:#04222b; --accent-soft:#0e2f3a;
+  --good:#3ddc97; --good-soft:#0f2e22; --warn:#f2b84b; --warn-soft:#33270d; --bad:#ff7b72; --bad-soft:#3b1716;
+  --term:#05080b; --term-ink:#cfdae2; --term-dim:#7d8d99; --term-line:#1a242d;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--body)}
+a{color:var(--accent)}
+code,pre{font-family:var(--mono);font-size:.9em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:flex;flex-direction:column;min-height:100%}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);padding:10px 16px 0}
+.top-in{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.dots{display:inline-flex;gap:6px}
+.dots i{width:11px;height:11px;border-radius:50%;background:var(--bad)}
+.dots i:nth-child(2){background:var(--warn)}
+.dots i:nth-child(3){background:var(--good)}
+.brand{font:500 .95rem/1.2 var(--mono);margin:0}
+.brand span{color:var(--good)}
+.cur{display:inline-block;width:.55em;height:1.05em;background:var(--good);vertical-align:-.15em;margin-left:3px;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#progress-text{font:400 .78rem var(--mono);color:var(--muted);margin-left:auto}
+.bar{flex-basis:100%;height:2px;background:var(--line);order:4}
+#progress-bar{height:100%;width:0;background:var(--good);transition:width .3s}
+#nav{display:flex;gap:8px;overflow-x:auto;padding:10px 0;scrollbar-width:thin;flex:1 1 100%;order:3}
+.nav-item{display:flex;align-items:center;gap:8px;flex:none;padding:5px 10px 5px 5px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink);text-decoration:none;font:400 .82rem var(--mono);white-space:nowrap}
+.nav-item .num{display:grid;place-items:center;width:28px;height:24px;border-radius:3px;background:var(--sunk);font:500 .75rem var(--mono)}
+.nav-item.done .num{background:var(--good-soft);color:var(--good)}
+.nav-item.active{border-color:var(--accent);background:var(--accent-soft)}
+.nav-item.active .num{background:var(--accent);color:var(--accent-ink)}
+.work0{display:grid;grid-template-columns:minmax(0,1fr);flex:1}
+main.lesson{padding:8px 16px 56px;min-width:0}
+article{max-width:70ch;margin:0 auto}
+.eyebrow{font:500 .8rem var(--mono);color:var(--good);margin:12px 0 4px}
+.eyebrow::before{content:"$ ";color:var(--muted)}
+h1{font:700 clamp(1.5rem,5.4vw,2.1rem)/1.2 var(--mono);letter-spacing:-.01em;margin:0 0 16px;text-wrap:balance}
+h1::before{content:"> ";color:var(--accent)}
+h2{font:700 1.08rem/1.3 var(--mono);margin:36px 0 8px;padding-top:20px;border-top:1px solid var(--line);text-wrap:balance}
+h2::before{content:"## ";color:var(--muted);font-weight:400}
+h3{font:600 1rem/1.3 var(--mono);margin:20px 0 6px}
+p{margin:0 0 12px}
+.prose ul,.prose ol{padding-left:22px;margin:0 0 12px}
+.prose li{margin-bottom:6px}
+.prose code,.task code,.saw code,.say code{background:var(--sunk);padding:1px 5px;border-radius:4px;color:#b6ecfb}
+dl.terms{margin:16px 0;display:grid;gap:10px}
+dl.terms dt{font:600 .92rem var(--mono)}
+dl.terms dt::before{content:"\25B8  ";color:var(--good)}
+dl.terms dd{margin:0;padding-left:14px;border-left:3px solid var(--line)}
+pre.file{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:12px 14px;overflow-x:auto;margin:0 0 12px;font-size:.82rem}
+.btn{display:inline-block;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:4px;padding:9px 14px;font:500 .92rem var(--mono);text-decoration:none}
+.btn::before{content:"[ "}.btn::after{content:" ]"}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.mini{background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:4px 10px;font:400 .85rem var(--mono)}
+.pill{display:inline-block;font:500 .7rem var(--mono);padding:2px 8px;border-radius:3px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.ok::before,.pill.bad::before,.pill.off::before{content:"\25CF  "}
+table.types{border-collapse:collapse;width:100%;font-size:.92rem;margin:0 0 12px}
+table.types th{text-align:left;font:500 .72rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line);padding:4px 10px 4px 0}
+table.types td{border-bottom:1px solid var(--line);padding:6px 10px 6px 0;vertical-align:top}
+.tscroll{overflow-x:auto}
+/* crew */
+.crew{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:0 0 16px}
+.member{display:flex;gap:12px;border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:12px}
+.member b{font:700 .95rem var(--mono);display:block}
+.member .role{font:500 .72rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);display:block;margin-bottom:4px}
+.member p{margin:0;font-size:.9rem;color:var(--muted)}
+.av{flex:none;width:56px;height:56px;border-radius:4px;border:1px solid #2a5a96;background:linear-gradient(#134177 1px,transparent 1px) 0 0/100% 8px,linear-gradient(90deg,#134177 1px,transparent 1px) 0 0/8px 100%,#0b2f5c}
+.av svg{display:block;width:100%;height:100%}
+.avl{fill:#0e3a6e;stroke:#e6f2ff;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.avf{fill:#08264a;stroke:#e6f2ff;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.avn{fill:none;stroke:#e6f2ff;stroke-width:1.4;stroke-linecap:round}
+.ava{fill:none;stroke:#8ff6ff;stroke-width:1.6;stroke-linecap:round}
+.avt{fill:#ffd27a;stroke:#e6f2ff;stroke-width:1.2}
+.say{display:flex;gap:12px;align-items:flex-start;margin:16px 0;border-left:3px solid var(--accent);background:var(--surface);border-radius:0 4px 4px 0;padding:10px 12px}
+.say.tomo{border-left-color:var(--warn)}
+.say .av{width:44px;height:44px}
+.say p{margin:0;font-size:.95rem}
+.say b{font:700 .78rem var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--accent);display:block}
+.say.tomo b{color:var(--warn)}
+/* tasks */
+.tasks{list-style:none;margin:16px 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.task{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--surface);min-width:0}
+.task.todo{opacity:.78}
+.task.now{border-color:var(--accent);background:var(--accent-soft)}
+.task-h{display:flex;gap:10px;align-items:flex-start}
+.mark{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:3px;background:var(--sunk);font:500 .78rem var(--mono);margin-top:1px}
+.task.done .mark{background:var(--good-soft);color:var(--good)}
+.task.now .mark{background:var(--accent);color:var(--accent-ink)}
+.what{font:600 .92rem var(--mono)}
+.kind{font:500 .66rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block}
+.why{margin:8px 0 0;font-size:.92rem}
+.saw{margin:8px 0 0;font-size:.92rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.saw::before{content:"\2713  ";color:var(--good)}
+.cmd{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;margin:10px 0 0;background:var(--term);color:var(--term-ink);border:1px solid var(--term-line);border-radius:4px;padding:10px 12px}
+.cmd code{background:none!important;padding:0!important;overflow-wrap:anywhere;font-size:.88rem;color:var(--good)!important}
+.cmd code::before{content:"$ ";color:var(--term-dim)}
+.cmd:hover{border-color:var(--accent)}
+.tap{font:500 .68rem var(--mono);color:var(--term-dim);text-transform:uppercase;letter-spacing:.06em}
+.next{outline:2px solid var(--good);outline-offset:3px;animation:nudge 1.4s ease-in-out infinite}
+@keyframes nudge{50%{outline-color:transparent}}
+.edit{margin:10px 0 0;border:1px solid var(--term-line);border-radius:4px;background:var(--term);overflow:hidden}
+.edit summary{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:7px 10px;font:500 .78rem var(--mono);cursor:pointer;background:var(--surface);list-style:none}
+.edit summary::-webkit-details-marker{display:none}
+.edit summary::before{content:"\25B8";color:var(--muted)}
+.edit[open] summary::before{content:"\25BE"}
+.edit summary .pill{font-size:.64rem}
+.code{overflow:auto;padding:6px 0;font:400 .74rem/1.55 var(--mono);color:var(--term-ink);max-height:420px}
+.pl{display:block;white-space:pre;padding-right:12px;border-left:3px solid transparent;min-width:max-content}
+.pl.new{background:var(--good-soft);border-left-color:var(--good)}
+.pl i{font-style:normal;display:inline-block;width:2.6em;text-align:right;padding-right:.8em;color:var(--term-dim);user-select:none}
+.pl .k{color:#ffb86b}.pl .s{color:#e6c07b}.pl .c{color:var(--term-dim)}.pl .t{color:var(--accent)}
+.task .btn{margin-top:10px}
+.banner{background:var(--good-soft);color:var(--good);border-radius:4px;padding:10px 12px;margin:12px 0;font-size:.95rem}
+/* bench */
+.bench{display:none}
+.bench-in{display:flex;flex-direction:column;gap:12px;min-width:0}
+.slot{margin-top:16px}
+.stepbar{display:flex;flex-direction:column;gap:4px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px}
+.sb-h{font:700 .72rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.sb-w{font:500 .9rem var(--mono)}
+.stepbar .btn{align-self:flex-start;margin-top:6px}
+.map{border:1px solid var(--line);border-radius:4px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.map-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+.map-head b{font:700 .78rem var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.map-head span{display:flex;flex-wrap:wrap;gap:4px}
+.ptabs{display:flex;border-bottom:1px solid var(--line);background:var(--sunk)}
+.ptab{background:none;border:0;border-bottom:2px solid transparent;padding:7px 12px;font:700 .72rem var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.ptab[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--accent);background:var(--surface)}
+.ptab.chg::after{content:" \25CF";color:var(--good)}
+.pane{padding:10px;min-width:0;overflow:auto}
+.pane[hidden]{display:none}
+.duo{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
+.zh{font:700 .7rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.kfig{border:1px solid #2a5a96;border-radius:4px;min-width:0;background:linear-gradient(#134177 1px,transparent 1px) 0 0/100% 20px,linear-gradient(90deg,#134177 1px,transparent 1px) 0 0/20px 100%,#0b2f5c}
+.kfig svg{display:block;width:100%;height:auto}
+.legend{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.legend li{display:flex;flex-wrap:wrap;gap:2px 6px;align-items:center;border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;background:var(--sunk);padding:4px 7px;min-width:0}
+.legend li.on{border-left-color:var(--good)}
+.legend li.danger{border-left-color:var(--bad)}
+.legend li.hit{animation:glow .8s ease-out}
+@keyframes glow{35%{box-shadow:0 0 0 3px var(--accent);background:var(--accent-soft)}}
+.legend b{font:500 .74rem var(--mono);overflow-wrap:anywhere}
+.legend .sub{flex-basis:100%;font:400 .66rem var(--mono);color:var(--muted)}
+.bdg{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:50%;border:1.5px solid var(--muted);font:700 .64rem var(--mono);background:var(--term)}
+.legend li.on .bdg{border-color:var(--good)}
+.bw{border:1px solid var(--line);border-radius:5px;overflow:hidden;min-width:0}
+.bw-bar{display:flex;gap:8px;align-items:center;background:var(--sunk);padding:5px 8px}
+.bw-bar::before{content:"\25CF \25CF \25CF";color:var(--line);font-size:.6rem;letter-spacing:1px}
+.bw-url{flex:1;background:var(--term);border-radius:10px;padding:2px 10px;font:400 .7rem var(--mono);color:var(--term-ink)}
+.bw-page{background:#020b10;padding:10px;min-height:120px}
+.bw-off{font:400 .76rem var(--mono);color:var(--term-dim);text-align:center;padding:34px 8px;margin:0}
+.ftabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.ftab{font:500 .68rem var(--mono);padding:3px 8px;border-radius:3px;border:1px solid var(--line);background:var(--sunk);color:var(--muted)}
+.ftab[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.ftab.chg::after{content:" \25CF";color:var(--good)}
+.src{background:var(--term);border:1px solid var(--line);border-radius:4px}
+.src .code{max-height:none}
+/* terminal */
+.term{background:var(--term);border-radius:4px;overflow:hidden;border:1px solid var(--line);display:flex;flex-direction:column}
+.term-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--term-line);font:500 .75rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surface)}
+.term-bar>span:first-child::before{content:"\25CF \25CF \25CF  ";color:var(--line);letter-spacing:1px}
+.term-out{height:220px;overflow:auto;padding:10px 12px;font:400 .8rem/1.5 var(--mono);color:var(--term-ink)}
+.tl{white-space:pre-wrap;overflow-wrap:anywhere;min-height:1.2em}
+.tl.in{color:#fff;font-weight:500;margin-top:6px}
+.tl.err{color:#ffb4a8}
+.tl.note{color:var(--term-dim)}
+.tl.ok{color:var(--good);margin:4px 0}
+.tl.prog{display:flex;gap:10px;align-items:center;color:var(--term-dim)}
+.prog .track{flex:0 0 130px;height:8px;background:var(--term-line);border-radius:2px;overflow:hidden}
+.prog .fill{height:100%;width:0;background:var(--good);transition:width linear}
+.term-in{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--term-line)}
+.prompt{font:500 .9rem var(--mono);color:var(--good);white-space:nowrap}
+.term-in input{flex:1;min-width:0;background:transparent;border:0;color:#fff;font:400 16px var(--mono);padding:6px 0}
+.term-in input::placeholder{color:var(--term-dim)}
+.term-in input:focus{outline:none}
+.term-in:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
+.run{background:var(--good);color:#04121f;border:0;border-radius:4px;padding:8px 16px;font:600 .9rem var(--mono)}
+.term-in.busy .run{opacity:.45}
+/* quiz, reading, pager, cheats */
+.q{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:12px}
+.qt{font:600 .92rem var(--mono)}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+.opt::before{content:"( )  ";font-family:var(--mono);color:var(--muted)}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.right::before{content:"(\2713)  ";color:var(--good)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong::before{content:"(\00D7)  ";color:var(--bad)}
+.fb{margin:10px 0 0;border-radius:4px;font-size:.93rem;padding:9px 12px}
+.fb.good{background:var(--good-soft);color:var(--good)}
+.fb.bad{background:var(--bad-soft);color:var(--bad)}
+.reading{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+.reading li{display:flex;flex-direction:column}
+.reading a{font:500 .9rem var(--mono)}
+.reading span{font-size:.92rem;color:var(--muted)}
+.pager{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:40px;padding-top:20px;border-top:1px solid var(--line)}
+dl.cheat{margin:0;display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
+dl.cheat dt code{font-weight:500;overflow-wrap:anywhere;color:#b6ecfb}
+dl.cheat dd{margin:0 0 8px;font-size:.9rem;color:var(--muted)}
+.cheats h3{font:500 .75rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
+@media (min-width:640px){dl.cheat{grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:6px 16px}dl.cheat dd{margin:0}}
+@media (min-width:720px){.duo{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr)}}
+@media (min-width:1040px){
+  .app{height:100%}
+  .work0{grid-template-columns:minmax(0,5fr) minmax(0,7fr);min-height:0}
+  main.lesson{overflow:auto;border-right:1px solid var(--line);padding:8px 28px 72px}
+  .bench{display:flex;flex-direction:column;min-height:0;overflow:hidden;padding:16px}
+  .bench-in{flex:1;min-height:0}
+  .map{flex:0 1 auto;max-height:68%}
+  .pane{flex:1 1 auto;min-height:0}
+  .term{flex:1 1 0;min-height:200px}
+  .term-out{height:auto;flex:1 1 0;min-height:0}
+  .stepbar,.slot-sec{display:none}
+  #nav{flex:1 1 420px;order:0;padding:0 0 10px}
+  #progress-text{order:2}
+}
+@media (max-width:1039px){.bench-in .stepbar{order:-1}}
+
+/* ---- Business Logic guide additions: Mk II blueprint, flight state, Rulebook + Terminal tabs ---- */
+:root{--accent:#c8e06a;--accent-ink:#1a2200;--accent-soft:#272f10}
+.prose code,.task code,.saw code,.say code,dl.cheat dt code{color:#e3f0a8}
+.pl .t{color:var(--accent)}
+.hint{font:400 .78rem var(--mono);color:var(--muted)}
+.map .pane{padding:8px}
+.duo2{display:grid;grid-template-columns:minmax(118px,.72fr) minmax(0,1.28fr);gap:8px;align-items:start}
+.kfig.bp{padding:0;border:1px solid #2a5a96;border-radius:4px;min-width:0;background:linear-gradient(#134177 1px,transparent 1px) 0 0/100% 20px,linear-gradient(90deg,#134177 1px,transparent 1px) 0 0/20px 100%,#0b2f5c}
+.kfig.bp svg{display:block;width:100%;height:auto;max-height:min(58vh,470px);margin:0 auto}
+/* flight state panel */
+.fstate{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fs-h{font:700 .68rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0}
+.phases{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+.ph{font:500 .66rem var(--mono);padding:1px 6px;border-radius:3px;border:1px solid var(--line);color:var(--muted);background:var(--sunk)}
+.ph.past{color:var(--ink)}
+.ph.now{border-color:var(--good);color:var(--good);background:var(--good-soft)}
+.fs-row{display:grid;grid-template-columns:20px minmax(0,5.4em) minmax(30px,1fr) 2.4em;gap:6px;align-items:center;border:1px solid var(--line);border-left:3px solid var(--muted);border-radius:4px;background:var(--sunk);padding:3px 7px;min-width:0}
+.fs-row b{font:500 .74rem var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-row .num{font:500 .74rem var(--mono);text-align:right}
+.fs-row.on{border-left-color:var(--good)}
+.fs-row.warn{border-left-color:var(--warn)}
+.fs-row.danger{border-left-color:var(--bad)}
+.fs-row.hit{animation:glow .8s ease-out}
+.fs-row .bdg{min-width:18px;height:18px}
+.fs-row.on .bdg{border-color:var(--good)}.fs-row.danger .bdg{border-color:var(--bad)}.fs-row.warn .bdg{border-color:var(--warn)}
+.gz{position:relative;display:block;height:8px;border-radius:2px;background:var(--term);overflow:hidden}
+.gz i{display:block;height:100%;background:var(--good);transition:width .4s}
+.gz.warn i{background:var(--warn)}.gz.danger i{background:var(--bad)}
+.gz em{position:absolute;top:0;bottom:0;width:2px;background:var(--warn)}
+.fs-wide{grid-template-columns:20px minmax(0,1fr)}
+.prom{font:500 .74rem/1.35 var(--mono);border-radius:4px;padding:5px 8px;margin:0;overflow-wrap:anywhere}
+.prom.ok{background:var(--good-soft);color:var(--good)}
+.prom.bad{background:var(--bad-soft);color:var(--bad);animation:shake .4s}
+.prom.off{background:var(--sunk);color:var(--muted)}
+@keyframes shake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+.alertl{font:400 .72rem/1.35 var(--mono);color:var(--warn);margin:0;overflow-wrap:anywhere}
+.alertl::before{content:"alert: ";color:var(--muted)}
+/* work area: Rulebook | Terminal */
+.work{border:1px solid var(--line);border-radius:4px;background:var(--surface);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.ptab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--good);margin-left:6px;vertical-align:1px}
+.wpane{min-width:0}
+.wpane[hidden]{display:none}
+.rb{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:10px}
+.rb-src,.rb-side{min-width:0}
+.rb-side{display:flex;flex-direction:column;gap:8px}
+.src .code{max-height:340px}
+.work .term{border:0;border-radius:0}
+/* fill-in rule */
+.blank{display:inline-block;border:1px dashed var(--accent);border-radius:3px;padding:0 6px;color:var(--accent);background:var(--accent-soft);font-weight:700}
+.blank.cur{border-style:solid;animation:nudge 1.4s ease-in-out infinite;outline:2px solid transparent}
+.blank.ok{border:0;padding:0;background:var(--good-soft);color:var(--good);font-weight:400}
+.fq{border:1px solid var(--accent);background:var(--accent-soft);border-radius:4px;padding:10px 12px;margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.fq .sb-h{margin:0}
+.fq p{margin:0;font-size:.92rem}
+.fopt{text-align:left;background:var(--term);border:1px solid var(--term-line);border-radius:4px;padding:7px 10px;font:400 .76rem/1.45 var(--mono);color:var(--term-ink);overflow-wrap:anywhere;white-space:pre-wrap}
+.fopt:hover{border-color:var(--accent)}
+.fopt.wrong{border-color:var(--bad);background:var(--bad-soft);color:#ffb4a8}
+.fq .fb{margin:0}
+.fq .btn{align-self:flex-start}
+.task .btn.ghost{margin-top:10px}
+/* console */
+.con{background:var(--term);border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.con-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid var(--term-line);font:500 .72rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surface)}
+.con-out{height:190px;overflow:auto;padding:8px 10px;font:400 .76rem/1.5 var(--mono);color:var(--term-ink)}
+.cn{white-space:pre-wrap;overflow-wrap:anywhere;min-height:1.2em}
+.cn.in{color:#fff;font-weight:500;margin-top:6px}
+.cn.yes{color:var(--good)}.cn.no{color:#ffb4a8}.cn.dim{color:var(--term-dim)}.cn.chg{color:var(--accent)}
+.con .term-in{border-top:1px solid var(--term-line)}
+.con .prompt{color:var(--accent)}
+.con .run{background:var(--accent);color:var(--accent-ink)}
+.cmd.act code{color:var(--accent)!important}
+.cmd.act code::before{content:"kestrel> "}
+.bw[hidden],.con[hidden]{display:none}
+.bw-page{min-height:150px}
+@media (min-width:720px){
+  .rb{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+}
+@media (min-width:1040px){
+  .map{flex:0 1 auto;max-height:47%;overflow:auto}
+  .map .pane{flex:none;overflow:visible}
+  .kfig.bp svg{max-height:max(210px,calc(47vh - 150px))}
+  .work{flex:1 1 0;min-height:250px}
+  .wpane{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+  .rb{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr)}
+  .rb-src,.rb-side{min-height:0;overflow:auto}
+  .rb-side .con{flex:1 1 0;min-height:160px}
+  .con-out{height:auto;flex:1 1 0;min-height:0}
+  .src .code{max-height:none}
+  .work .term{flex:1 1 0;min-height:0}
+}
+@media (max-width:719px){
+  .fs-row{grid-template-columns:18px minmax(0,4.6em) minmax(20px,1fr) 2.1em;gap:4px;padding:2px 5px}
+  .fs-row b,.fs-row .num{font-size:.68rem}
+  .ph{font-size:.6rem;padding:1px 4px}
+  .kfig.bp svg{max-height:none}
+}
+/* ---- the KF-07 Kestrel Mk II blueprint ---- */
+.kb .wh{fill:#0e3a6e}.kb .fr{fill:#08264a}.kb .tl{fill:url(#kbT)}.kb .am{fill:url(#kbA)}
+.kb .wh,.kb .fr,.kb .tl,.kb .am,.kb .cp{stroke:#e6f2ff;stroke-width:1.15;stroke-linejoin:round;transition:stroke .5s,fill .5s}
+.kb .ln,.kb .rv{fill:none;stroke:#9cc8f5;stroke-width:.7}
+.kb .gan{fill:#0a2d57;stroke:#6fa3d8;stroke-width:.9}.kb .gl{fill:none;stroke:#6fa3d8;stroke-width:.7}
+.kb .ctr{fill:none;stroke:#6fa3d8;stroke-width:.7;stroke-dasharray:14 3 2 3}
+.kb .cp{fill:#08264a;stroke-dasharray:3 2}
+.kb.sample .cp{fill:#ffd27a;stroke-dasharray:none;stroke-width:1.8;filter:url(#kbG)}
+.kb .ring{fill:#08264a;stroke:#52729b;stroke-width:2}.kb .ring2{fill:none;stroke:#52729b;stroke-width:1.2}.kb .rcore{fill:#12305a}.kb .pip{fill:#52729b}
+.kb.pw-on .ring{stroke:#ffd27a;filter:url(#kbG)}.kb.pw-on .ring2{stroke:#ffd27a}.kb.pw-on .rcore{fill:#ffd27a}.kb.pw-on .pip{fill:#fff3d6}
+.kb.pw-hot .ring,.kb.pw-hot .ring2{stroke:#ff9d4d}.kb.pw-hot .rcore{fill:#ff9d4d;animation:kbpulse .7s ease-in-out infinite alternate}
+.kb.over .ring,.kb.over .ring2{stroke:var(--bad)}.kb.over .rcore{fill:var(--bad);animation:kbblink .45s steps(1) infinite}
+@keyframes kbblink{50%{fill-opacity:.15}}
+@keyframes kbpulse{to{fill-opacity:.3}}
+.kb .visor{fill:#12305a;stroke:#e6f2ff;stroke-width:.8;transition:fill .5s}
+.kb.sy-sensors .visor{fill:#8ff6ff;filter:url(#kbG)}
+.kb .mast{fill:none;stroke:#e6f2ff;stroke-width:1.3}.kb .ball{fill:#08264a;stroke:#e6f2ff;stroke-width:1.15;transition:fill .5s}
+.kb.sy-comms .ball{fill:#8ff6ff;filter:url(#kbG)}
+.kb .wave{fill:none;stroke:#8ff6ff;stroke-width:1.8;stroke-linecap:round;opacity:0}
+.kb.sy-comms .wave{animation:kbwave 1.8s ease-out infinite}.kb.sy-comms .w2{animation-delay:.35s}
+@keyframes kbwave{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.kb.sy-propulsion #kb-wings .tl{stroke:#8ff6ff;stroke-width:1.9}
+.kb.sy-propulsion #kb-wings .fr{stroke:#8ff6ff}
+.kb.sy-shield .shieldg .wh,.kb.sy-shield .shieldg .tl{stroke:#8ff6ff;stroke-width:1.9}
+.kb.sy-shield .shieldg .am{filter:url(#kbG)}
+.kb.sy-limbs .armg .tl,.kb.sy-limbs .armg .wh,.kb.sy-limbs .jt{stroke:#8ff6ff;stroke-width:1.9}
+.kb.over.sy-propulsion #kb-wings .tl,.kb.over.sy-shield .shieldg .wh,.kb.over.sy-limbs .armg .wh,.kb.over.sy-limbs .jt{stroke:var(--bad);animation:kbflick .3s steps(1) infinite}
+.kb.over.sy-sensors .visor,.kb.over.sy-comms .ball{fill:var(--bad)}
+@keyframes kbflick{50%{stroke-opacity:.25}}
+.kb #kb-wings{transform-box:fill-box;transform-origin:50% 85%}
+.kb.fx-launch #kb-wings{animation:kbwing 1.5s ease-in-out}
+@keyframes kbwing{30%{transform:scale(1.1,1.14)}60%{transform:scale(.97)}}
+.kb .suit{transition:transform 1.2s ease-in-out}
+.kb.flying .suit{transform:translateY(-9px)}
+.kb .clamp{transition:transform 1.2s ease-in-out}
+.kb.g-open .cl-l{transform:translateX(-22px)}.kb.g-open .cl-r{transform:translateX(22px)}
+.kb.g-open.gmove .cl-l{animation:kbopenl 1.2s ease-in-out}.kb.g-open.gmove .cl-r{animation:kbopenr 1.2s ease-in-out}
+.kb.g-locked.gmove .cl-l{animation:kbopenl 1s ease-in-out reverse}.kb.g-locked.gmove .cl-r{animation:kbopenr 1s ease-in-out reverse}
+@keyframes kbopenl{from{transform:translateX(0)}to{transform:translateX(-22px)}}
+@keyframes kbopenr{from{transform:translateX(0)}to{transform:translateX(22px)}}
+.kb.g-locked .clamp .gan{stroke:var(--warn)}
+.kb.fx-scram .asm{animation:kbscram .5s steps(1) 3}
+@keyframes kbscram{50%{filter:brightness(2.2) saturate(.2)}}
+.kb.fx-refuse .reactor{animation:kbrefuse .5s}
+@keyframes kbrefuse{20%,60%{transform:translateX(-4px)}40%,80%{transform:translateX(4px)}}
+.kb.offline .suit{opacity:.4}
+.kb .scan{fill:#8ff6ff;opacity:0}
+.kb.refit .scan{animation:kbsweep 1.1s ease-out}
+@keyframes kbsweep{from{transform:translateY(0);opacity:.9}to{transform:translateY(586px);opacity:0}}
+.kb .lead{fill:none;stroke:#e6f2ff;stroke-width:.8}.kb .ldot{fill:#e6f2ff}
+.kb .bal circle{fill:#0b2f5c;stroke:#9cc8f5;stroke-width:1.3}
+.kb .bal text{font:700 10.5px var(--mono);fill:#fff;text-anchor:middle}
+.kb .bal.on circle{stroke:var(--good);stroke-width:2.2}.kb .bal.warn circle{stroke:var(--warn);stroke-width:2.2}
+.kb .bal.bad circle{stroke:var(--bad);stroke-width:2.2;fill:#3b1716}
+.kb .ping{fill:none;stroke:#8ff6ff;stroke-width:2.5;opacity:0;transform-box:fill-box;transform-origin:center;animation:kbping 1.1s ease-out 2}
+.kb .ping.p2{animation-delay:.25s}
+@keyframes kbping{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(3)}}
+.kb .lbl{font:700 9px var(--mono);fill:#a9cdf3;text-anchor:middle;letter-spacing:.06em}
+@media (prefers-reduced-motion:reduce){.kb *,.prom.bad,.blank.cur,.fs-row.hit{animation:none!important}}
+/* keep the guide's own heading styles out of the learner's app */
+:where(#root) h1,:where(#root) h2{font:inherit;font-weight:700;letter-spacing:0;padding:0;border:0;margin:0}
+:where(#root) h1::before,:where(#root) h2::before{content:none}
+.kb.sprint #kb-wings .tl,.kb.sprint #kb-wings .fr{stroke:#ffd27a}
+.tl.ok2{color:var(--good)}
+/* requirements: chips in the text, and the modal */
+.rqc{font:500 .78em var(--mono);padding:0 6px;border-radius:3px;border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.rqc:hover{background:var(--accent);color:var(--accent-ink)}
+.rq-open{margin-left:auto;background:var(--accent);color:var(--accent-ink);border:1px solid var(--accent);border-radius:4px;padding:5px 12px;font:500 .82rem var(--mono)}
+.rq-open::before{content:"[ "}.rq-open::after{content:" ]"}
+#progress-text{margin-left:0}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(3,6,9,.78);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal[hidden]{display:none}
+.modal-box{background:var(--surface);border:1px solid var(--accent);border-radius:6px;width:min(920px,100%);max-height:min(88vh,100%);display:flex;flex-direction:column;overflow:hidden}
+.modal-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.modal-head h2{font:700 1rem var(--mono);margin:0;padding:0;border:0;flex:1 1 220px}
+.modal-head h2::before{content:"## ";color:var(--muted);font-weight:400}
+.modal-head input{flex:1 1 180px;min-width:0;font:400 16px var(--mono);padding:6px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink)}
+.modal-sub{margin:0;padding:8px 16px;font-size:.85rem;color:var(--muted);border-bottom:1px solid var(--line)}
+#rq-body{overflow:auto;padding:4px 16px 20px}
+#rq-body h3{font:700 .9rem var(--mono);margin:18px 0 6px;color:var(--accent)}
+#rq-body p{font-size:.9rem;color:var(--muted);margin:0 0 8px}
+#rq-body table.types{font-size:.86rem}
+#rq-body code{background:var(--sunk);padding:1px 5px;border-radius:4px;color:#e3f0a8}
+#rq-body .rid{font:700 .8rem var(--mono);color:var(--accent);white-space:nowrap}
+#rq-body tr.hit td{background:var(--accent-soft);box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+@media (min-width:1040px){#progress-text{order:2}.rq-open{order:1}}
+
+/* ---- Agent Harness guide additions ---- */
+:root{--accent:#b9a2ff;--accent-ink:#170f33;--accent-soft:#241c44}
+.prose code,.task code,.saw code,.say code,.own code,dl.cheat dt code{color:#ddd0ff}
+.own{border:1px dashed var(--warn);border-radius:4px;background:var(--surface);padding:10px 12px;margin:16px 0;font-size:.93rem}
+.own>b{display:block;font:700 .74rem var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--warn);margin-bottom:6px}
+.own ul{margin:0;padding-left:20px}.own li{margin-bottom:5px}
+.own code{background:var(--sunk);padding:1px 5px;border-radius:4px}
+.tl.say{color:#fff;border-left:3px solid var(--accent);padding-left:8px;margin:2px 0}
+.tl.warnl{color:var(--warn);border-left:3px solid var(--warn);padding-left:8px}
+.tl.gate{color:#1a1200;background:var(--warn);padding:2px 8px;border-radius:3px;margin:4px 0;font-weight:500}
+.tl.ok2{color:var(--good)}
+.rt{display:flex;flex-direction:column;min-width:0}
+.rt b{font:500 .72rem var(--mono)!important;white-space:normal!important}
+.rt em{font:400 .68rem/1.3 var(--mono);font-style:normal;color:var(--muted);overflow-wrap:anywhere}
+.arr{font:400 .7rem var(--mono);color:var(--muted)}
+.parts{display:flex;flex-wrap:wrap;gap:3px;margin-top:2px}
+.ph.fit{border-color:var(--good);color:var(--good)}
+.ph.fit::before{content:"\2713  "}
+.prom.warnp{background:var(--warn-soft);color:var(--warn)}
+.kb.fx-refuse .suit{animation:kbrefuse .5s}
+.picks{display:grid;gap:8px;margin:10px 0 0}
+.pk{display:flex;flex-direction:column;gap:3px;text-align:left;background:var(--sunk);border:1px solid var(--line);border-radius:4px;padding:9px 12px}
+.pk b{font:600 .88rem var(--mono)}
+.pk span{font-size:.9rem;color:var(--muted)}
+.pk b .pill{margin-left:6px;font-weight:500}
+.pk:hover{border-color:var(--accent)}
+.pk.on{border-color:var(--accent);background:var(--accent-soft)}
+.pk.on b::before{content:"(\2713)  ";color:var(--accent)}
+.pk:not(.on) b::before{content:"( )  ";color:var(--muted);font-weight:400}
+.prose .picks{margin:6px 0 14px}
+.sortbox{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;min-height:36px}
+.chip{font:500 .8rem var(--mono);text-align:left;background:var(--term);border:1px solid var(--accent);border-radius:4px;padding:6px 10px;color:var(--ink);cursor:grab}
+.chip.sel{background:var(--accent);color:var(--accent-ink)}
+.chip.bad{border-color:var(--bad);animation:shake .4s}
+span.chip.ok{display:block;border-color:var(--good);background:var(--good-soft);color:var(--good);cursor:default;font-size:.74rem;padding:4px 8px}
+.bins{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.bin{border:1px dashed var(--muted);border-radius:4px;background:var(--sunk);padding:8px;min-height:84px;display:flex;flex-direction:column;gap:4px;cursor:pointer}
+.bin>b{font:700 .72rem var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.bin.over{border-color:var(--accent);background:var(--accent-soft)}
+.form{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fld span{font:500 .72rem var(--mono);color:var(--muted)}
+.fld input,.fld textarea{font:400 16px/1.4 var(--mono);background:var(--term);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:7px 9px;min-width:0;width:100%;resize:vertical}
+.fld textarea{font-size:.85rem}
+@media (min-width:1040px){.fld input{font-size:.88rem}}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.frow{display:flex;flex-wrap:wrap;gap:8px}
+.files{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--term-line);background:var(--surface)}
+.fl-h{font:500 .68rem var(--mono);color:var(--muted);margin-right:4px}
+.ftab.dim{opacity:.6;cursor:default}
+.specbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:6px 10px;border-bottom:1px solid var(--line);background:var(--surface)}
+.specbar b{font:700 .72rem var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+#spec{margin:0;padding:12px 14px;font:400 .78rem/1.55 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--term-ink);background:var(--term);overflow:auto;height:300px}
+#pane-build{display:flex;flex-direction:column}
+#pane-build[hidden],#pane-design[hidden]{display:none}
+.fs-row.fs-wide{align-items:start}
+@media (min-width:1040px){
+  .map{max-height:57%}
+  .kfig.bp svg{max-height:max(210px,calc(50vh - 150px))}
+  #pane-design{display:flex;flex-direction:column}
+  #spec{height:auto;flex:1 1 0;min-height:0}
+}
+@media (prefers-reduced-motion:reduce){.chip.bad,.next{animation:none!important}}
+</style>
+</head>
+<body>
+<a href="/" aria-label="Back to the Designer Learning Path" style="position:fixed;left:12px;bottom:12px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px;font:600 13px/1 system-ui,-apple-system,Segoe UI,sans-serif;padding:10px 14px;border-radius:999px;background:#D9481C;color:#fff;text-decoration:none;box-shadow:0 4px 14px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25)">← Learning Path</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="av-ilse" viewBox="0 0 56 56">
+  <path class="avl" d="M10 56c0-10 8-15 18-15s18 5 18 15"/>
+  <path class="avf" d="M22 36v6l6 4 6-4v-6"/>
+  <path class="avl" d="M15 25c0-10 6-15 13-15s13 5 13 15c0 8-5 14-13 14S15 33 15 25z"/>
+  <path class="avf" d="M13 30c-2-14 4-22 15-22 10 0 16 6 15 18-3-6-9-10-19-10-4 0-7 5-7 12 0 3-1 5-4 2z"/>
+  <circle class="ava" cx="23" cy="27" r="4"/><circle class="ava" cx="34" cy="27" r="4"/><path class="ava" d="M27 27h3"/>
+  <path class="avn" d="M25 34q3 2 7 0"/>
+  <path class="avt" d="M42 12l5 14-2 1-5-14z"/>
+</symbol>
+<symbol id="av-tomo" viewBox="0 0 56 56">
+  <path class="avl" d="M8 56c0-10 9-15 20-15s20 5 20 15"/>
+  <path class="avf" d="M22 36v6l6 4 6-4v-6"/>
+  <path class="avl" d="M16 26c0-8 5-12 12-12s12 4 12 12c0 8-5 13-12 13S16 34 16 26z"/>
+  <path class="avf" d="M14 22c0-9 6-14 14-14s14 5 14 14H14z"/>
+  <path class="avf" d="M12 22h34l4 3H12z"/>
+  <rect class="avt" x="19" y="11" width="8" height="6" rx="2"/><rect class="avt" x="29" y="11" width="8" height="6" rx="2"/>
+  <path class="avn" d="M22 28h3M31 28h3M24 34h8"/>
+  <path class="ava" d="M41 27c3 0 4 3 4 6 0 4-5 6-11 6"/><circle class="ava" cx="33" cy="39" r="1.3"/>
+</symbol>
+
+</defs></svg>
+<div class="app">
+<header class="top"><div class="top-in">
+  <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+  <p class="brand"><span>~/</span>agent-harness-from-zero<b class="cur" aria-hidden="true"></b></p>
+  <nav id="nav" aria-label="Lessons"></nav>
+  <span id="progress-text"></span>
+  <div class="bar" aria-hidden="true"><div id="progress-bar"></div></div>
+</div></header>
+<div class="work-area work0">
+  <main id="main" class="lesson" tabindex="-1"></main>
+  <aside id="bench" class="bench" aria-label="Sandbox"></aside>
+</div>
+</div>
+
+<div id="bench-in" class="bench-in">
+  <div class="stepbar" id="stepbar"></div>
+  <section class="map" aria-label="Kestrel Mk II and the co-pilot harness">
+    <div class="map-head"><b>KF-07 Kestrel Mk II · co-pilot harness</b><span id="pills"></span></div>
+    <div class="pane"><div class="duo2"><div class="kfig bp" id="kfig"></div><div class="fstate" id="fstate" aria-live="polite"></div></div></div>
+  </section>
+  <section class="work" aria-label="Build and design">
+    <div class="ptabs"><button class="ptab" data-pane="build" aria-pressed="true">Build</button><button class="ptab" data-pane="design" aria-pressed="false">Design</button></div>
+    <div class="wpane" id="pane-build">
+      <div class="files" id="files"></div>
+      <section class="term" aria-label="Terminal">
+        <div class="term-bar"><span>terminal</span><button class="mini" id="term-clear" type="button">clear</button></div>
+        <div class="term-out" id="term-out" aria-live="polite"></div>
+        <form class="term-in" id="term-form"><span class="prompt" id="prompt">~ $</span><input id="term-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="type a command, or tap one in a step" aria-label="Command"><button class="run" type="submit">run</button></form>
+      </section>
+    </div>
+    <div class="wpane" id="pane-design" hidden>
+      <div class="specbar"><b id="spec-h">HARNESS.md</b><button class="mini" data-copy="1" type="button">copy</button></div>
+      <pre id="spec" tabindex="0" aria-label="Your harness spec"></pre>
+    </div>
+  </section>
+</div>
+
+<script>
+const DATA={"h1": {".env": "# Your own key from the Claude Console. This file never goes to GitHub.\nANTHROPIC_API_KEY=sk-ant-paste-your-key-here\n", ".gitignore": "# Secrets and machine-only files: never commit these.\n.env\n.venv/\nflight.json\ntrace.jsonl\n", "hello.py": "from anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nload_dotenv()  # reads ANTHROPIC_API_KEY from the .env file\nclient = Anthropic()\n\n# One call to the model: text in, text out. No tools, no loop.\nreply = client.messages.create(\n    model=\"claude-sonnet-5-5\",\n    max_tokens=500,\n    messages=[{\"role\": \"user\", \"content\": \"Co-pilot, what is the Kestrel's reactor draw right now?\"}],\n)\n\nprint(reply.content[0].text)\n"}, "h2": {"harness.py": "import json\nimport sys\n\nfrom anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nimport suit\n\nload_dotenv()\nclient = Anthropic()\nMODEL = \"claude-sonnet-5-5\"\n\n# The tools the co-pilot may ask for. Each has a name, a description\n# and the shape of its input. The model reads all three.\nTOOLS = [\n    {\n        \"name\": \"get_flight_state\",\n        \"description\": \"Read the Kestrel's current flight state: phase, burn, power draw and what is aboard.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {}},\n    },\n]\n\n\ndef run_tool(name, args):\n    \"\"\"The harness, not the model, is what actually runs a tool.\"\"\"\n    if name == \"get_flight_state\":\n        return suit.get_flight_state()\n    raise ValueError(f\"unknown tool: {name}\")\n\n\ndef run(request):\n    # The whole conversation so far. The model remembers nothing between calls,\n    # so the harness sends all of it every time.\n    messages = [{\"role\": \"user\", \"content\": request}]\n    turn = 0\n\n    while True:\n        turn += 1\n        reply = client.messages.create(model=MODEL, max_tokens=1000, tools=TOOLS, messages=messages)\n        messages.append({\"role\": \"assistant\", \"content\": reply.content})\n\n        # No tool asked for: the co-pilot has finished. Leave the loop.\n        if reply.stop_reason != \"tool_use\":\n            return \"\".join(block.text for block in reply.content if block.type == \"text\")\n\n        # Run every tool the co-pilot asked for and hand the results back.\n        results = []\n        for block in reply.content:\n            if block.type != \"tool_use\":\n                continue\n            print(f\"[turn {turn}] co-pilot asks: {block.name}({json.dumps(block.input)})\")\n            output = run_tool(block.name, block.input)\n            print(f\"[turn {turn}] result: {json.dumps(output)}\")\n            results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n        messages.append({\"role\": \"user\", \"content\": results})\n\n\nif __name__ == \"__main__\":\n    print()\n    print(run(sys.argv[1]))\n", "suit.py": "\"\"\"A stand-in for the Kestrel's flight rules, so this folder runs on its own.\n\nIn the finished simulator these functions would call kestrel-control (the FastAPI\nserver) instead. The flight state is kept in flight.json between runs.\n\"\"\"\nimport json\nimport sys\nfrom pathlib import Path\n\nFILE = Path(\"flight.json\")\nBUDGET_KW = 25\nLOADS = {\"flight_computer\": 1, \"navigation\": 1, \"sensors\": 2, \"containment\": 6, \"cruise\": 9, \"sprint\": 21}\n\n# For each order: the phases it is allowed in, and the phase it leads to.\nORDERS = {\n    \"launch\": {\"hangar\": \"transit\"},\n    \"jump\": {\"transit\": \"aster\", \"captured\": \"return\"},\n    \"approach\": {\"aster\": \"trap\"},\n    \"scan\": {\"trap\": \"trap\"},\n    \"capture\": {\"trap\": \"captured\"},\n    \"dock\": {\"return\": \"docked\"},\n}\n\nPHASE_TEXT = {\n    \"hangar\": \"parked in Hangar 7\",\n    \"transit\": \"in transit to gate-alpha\",\n    \"aster\": \"in the Aster system\",\n    \"trap\": \"holding off the trap station\",\n    \"captured\": \"holding off the trap station, sample aboard\",\n    \"return\": \"homebound from gate-alpha\",\n    \"docked\": \"docked in Hangar 7\",\n}\n\nSTART = {\"phase\": \"hangar\", \"burn\": \"cruise\", \"scanned\": False, \"antimatter_ng\": 0, \"delivered_ng\": 0}\n\n\ndef load():\n    return json.loads(FILE.read_text()) if FILE.exists() else dict(START)\n\n\ndef save(state):\n    FILE.write_text(json.dumps(state))\n\n\ndef reset(**changes):\n    save({**START, **changes})\n\n\ndef draw_kw(state):\n    parked = state[\"phase\"] in (\"hangar\", \"docked\")\n    thrusters = 0 if parked else LOADS[state[\"burn\"]]\n    containment = LOADS[\"containment\"] if state[\"antimatter_ng\"] > 0 else 0\n    return LOADS[\"flight_computer\"] + LOADS[\"navigation\"] + LOADS[\"sensors\"] + containment + thrusters\n\n\ndef check_budget(state):\n    draw = draw_kw(state)\n    if draw > BUDGET_KW:\n        raise ValueError(f\"power request denied: over budget (budget {BUDGET_KW} kW, asked {draw} kW)\")\n\n\ndef get_flight_state():\n    state = load()\n    return {**state, \"draw_kw\": draw_kw(state), \"budget_kw\": BUDGET_KW}\n\n\ndef give_order(name):\n    state = load()\n    if name not in ORDERS:\n        raise ValueError(f\"unknown order: {name}\")\n    to = ORDERS[name].get(state[\"phase\"])\n    if to is None:\n        raise ValueError(f\"cannot {name}: the Kestrel is {PHASE_TEXT[state['phase']]}\")\n    if name == \"capture\" and not state[\"scanned\"]:\n        raise ValueError(\"cannot capture: scan the trap station first\")\n    if name == \"dock\" and state[\"burn\"] == \"sprint\":\n        raise ValueError(\"cannot dock at sprint burn: set the thrusters to cruise first\")\n\n    state[\"phase\"] = to\n    if name == \"scan\":\n        state[\"scanned\"] = True\n    if name == \"capture\":\n        state[\"antimatter_ng\"] = 40\n    if name == \"dock\":\n        state[\"delivered_ng\"], state[\"antimatter_ng\"] = state[\"antimatter_ng\"], 0\n    check_budget(state)\n    save(state)\n    return {\"ok\": True, \"phase\": to, \"now\": PHASE_TEXT[to]}\n\n\ndef set_burn(burn):\n    state = load()\n    if burn not in (\"cruise\", \"sprint\"):\n        raise ValueError(f\"unknown burn profile: {burn}\")\n    state[\"burn\"] = burn\n    check_budget(state)\n    save(state)\n    return {\"ok\": True, \"burn\": burn, \"draw_kw\": draw_kw(state)}\n\n\nif __name__ == \"__main__\":\n    if sys.argv[1:] == [\"reset\"]:\n        reset()\n        print(\"Flight state reset: the Kestrel is parked in Hangar 7.\")\n    else:\n        print(json.dumps(get_flight_state(), indent=2))\n"}, "h3a": {"harness.py": "import json\nimport sys\n\nfrom anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nimport suit\n\nload_dotenv()\nclient = Anthropic()\nMODEL = \"claude-sonnet-5-5\"\n\n# The tools the co-pilot may ask for. Each has a name, a description\n# and the shape of its input. The model reads all three.\nTOOLS = [\n    {\n        \"name\": \"get_flight_state\",\n        \"description\": \"Read the Kestrel's current flight state: phase, burn, power draw and what is aboard.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {}},\n    },\n    {\n        \"name\": \"give_order\",\n        \"description\": \"Order.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {\"name\": {\"type\": \"string\"}}, \"required\": [\"name\"]},\n    },\n    {\n        \"name\": \"set_burn\",\n        \"description\": \"Burn.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {\"burn\": {\"type\": \"string\"}}, \"required\": [\"burn\"]},\n    },\n]\n\n\ndef run_tool(name, args):\n    \"\"\"The harness, not the model, is what actually runs a tool.\"\"\"\n    if name == \"get_flight_state\":\n        return suit.get_flight_state()\n    if name == \"give_order\":\n        return suit.give_order(args[\"name\"])\n    if name == \"set_burn\":\n        return suit.set_burn(args[\"burn\"])\n    raise ValueError(f\"unknown tool: {name}\")\n\n\ndef run(request):\n    # The whole conversation so far. The model remembers nothing between calls,\n    # so the harness sends all of it every time.\n    messages = [{\"role\": \"user\", \"content\": request}]\n    turn = 0\n\n    while True:\n        turn += 1\n        reply = client.messages.create(model=MODEL, max_tokens=1000, tools=TOOLS, messages=messages)\n        messages.append({\"role\": \"assistant\", \"content\": reply.content})\n\n        # No tool asked for: the co-pilot has finished. Leave the loop.\n        if reply.stop_reason != \"tool_use\":\n            return \"\".join(block.text for block in reply.content if block.type == \"text\")\n\n        # Run every tool the co-pilot asked for and hand the results back.\n        results = []\n        for block in reply.content:\n            if block.type != \"tool_use\":\n                continue\n            print(f\"[turn {turn}] co-pilot asks: {block.name}({json.dumps(block.input)})\")\n            output = run_tool(block.name, block.input)\n            print(f\"[turn {turn}] result: {json.dumps(output)}\")\n            results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n        messages.append({\"role\": \"user\", \"content\": results})\n\n\nif __name__ == \"__main__\":\n    print()\n    print(run(sys.argv[1]))\n"}, "h3b": {"harness.py": "import json\nimport sys\n\nfrom anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nimport suit\n\nload_dotenv()\nclient = Anthropic()\nMODEL = \"claude-sonnet-5-5\"\n\n# The tools the co-pilot may ask for. Each has a name, a description\n# and the shape of its input. The model reads all three.\nTOOLS = [\n    {\n        \"name\": \"get_flight_state\",\n        \"description\": \"Read the Kestrel's current flight state: phase, burn, power draw and what is aboard.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {}},\n    },\n    {\n        \"name\": \"give_order\",\n        \"description\": (\n            \"Give the Kestrel one flight order. Orders only work in the right phase, in this sequence: \"\n            \"launch (from the hangar), jump (to the Aster system), approach (the trap station), scan (the trap), \"\n            \"capture (take the sample aboard), jump (back home), dock. \"\n            \"Read the flight state first if you are not sure of the phase. \"\n            \"A refused order comes back as an error that says why.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"name\": {\"type\": \"string\", \"enum\": [\"launch\", \"jump\", \"approach\", \"scan\", \"capture\", \"dock\"]},\n            },\n            \"required\": [\"name\"],\n        },\n    },\n    {\n        \"name\": \"set_burn\",\n        \"description\": (\n            \"Switch the thrusters between cruise (9 kW) and sprint (21 kW). \"\n            \"The reactor budget is 25 kW in total, and it refuses anything over.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\"burn\": {\"type\": \"string\", \"enum\": [\"cruise\", \"sprint\"]}},\n            \"required\": [\"burn\"],\n        },\n    },\n]\n\n\ndef run_tool(name, args):\n    \"\"\"The harness, not the model, is what actually runs a tool.\"\"\"\n    if name == \"get_flight_state\":\n        return suit.get_flight_state()\n    if name == \"give_order\":\n        return suit.give_order(args[\"name\"])\n    if name == \"set_burn\":\n        return suit.set_burn(args[\"burn\"])\n    raise ValueError(f\"unknown tool: {name}\")\n\n\ndef run(request):\n    # The whole conversation so far. The model remembers nothing between calls,\n    # so the harness sends all of it every time.\n    messages = [{\"role\": \"user\", \"content\": request}]\n    turn = 0\n\n    while True:\n        turn += 1\n        reply = client.messages.create(model=MODEL, max_tokens=1000, tools=TOOLS, messages=messages)\n        messages.append({\"role\": \"assistant\", \"content\": reply.content})\n\n        # No tool asked for: the co-pilot has finished. Leave the loop.\n        if reply.stop_reason != \"tool_use\":\n            return \"\".join(block.text for block in reply.content if block.type == \"text\")\n\n        # Run every tool the co-pilot asked for and hand the results back.\n        results = []\n        for block in reply.content:\n            if block.type != \"tool_use\":\n                continue\n            print(f\"[turn {turn}] co-pilot asks: {block.name}({json.dumps(block.input)})\")\n            try:\n                output = run_tool(block.name, block.input)\n                print(f\"[turn {turn}] result: {json.dumps(output)}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n            except ValueError as problem:\n                # A refused order is information, not a crash. Hand it back so the co-pilot can adapt.\n                print(f\"[turn {turn}] error: {problem}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": str(problem), \"is_error\": True})\n        messages.append({\"role\": \"user\", \"content\": results})\n\n\nif __name__ == \"__main__\":\n    print()\n    print(run(sys.argv[1]))\n"}, "h4": {"harness.py": "import json\nimport sys\n\nfrom anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nimport suit\n\nload_dotenv()\nclient = Anthropic()\nMODEL = \"claude-sonnet-5-5\"\n\n# The tools the co-pilot may ask for. Each has a name, a description\n# and the shape of its input. The model reads all three.\nTOOLS = [\n    {\n        \"name\": \"get_flight_state\",\n        \"description\": \"Read the Kestrel's current flight state: phase, burn, power draw and what is aboard.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {}},\n    },\n    {\n        \"name\": \"give_order\",\n        \"description\": (\n            \"Give the Kestrel one flight order. Orders only work in the right phase, in this sequence: \"\n            \"launch (from the hangar), jump (to the Aster system), approach (the trap station), scan (the trap), \"\n            \"capture (take the sample aboard), jump (back home), dock. \"\n            \"Read the flight state first if you are not sure of the phase. \"\n            \"A refused order comes back as an error that says why.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"name\": {\"type\": \"string\", \"enum\": [\"launch\", \"jump\", \"approach\", \"scan\", \"capture\", \"dock\"]},\n            },\n            \"required\": [\"name\"],\n        },\n    },\n    {\n        \"name\": \"set_burn\",\n        \"description\": (\n            \"Switch the thrusters between cruise (9 kW) and sprint (21 kW). \"\n            \"The reactor budget is 25 kW in total, and it refuses anything over.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\"burn\": {\"type\": \"string\", \"enum\": [\"cruise\", \"sprint\"]}},\n            \"required\": [\"burn\"],\n        },\n    },\n]\n\n\n# Interlocks: orders that are hard to undo need the pilot's go-ahead.\n# Everything else the co-pilot may do on its own.\nASK_FIRST = {\"capture\", \"dock\"}\n\n\ndef needs_pilot(name, args):\n    return name == \"give_order\" and args.get(\"name\") in ASK_FIRST\n\n\ndef ask_pilot(name, args):\n    answer = input(f\"INTERLOCK  co-pilot wants {name}({json.dumps(args)}). Allow? [y/n] \")\n    return answer.strip().lower() == \"y\"\n\n\ndef run_tool(name, args):\n    \"\"\"The harness, not the model, is what actually runs a tool.\"\"\"\n    if name == \"get_flight_state\":\n        return suit.get_flight_state()\n    if name == \"give_order\":\n        return suit.give_order(args[\"name\"])\n    if name == \"set_burn\":\n        return suit.set_burn(args[\"burn\"])\n    raise ValueError(f\"unknown tool: {name}\")\n\n\ndef run(request):\n    # The whole conversation so far. The model remembers nothing between calls,\n    # so the harness sends all of it every time.\n    messages = [{\"role\": \"user\", \"content\": request}]\n    turn = 0\n\n    while True:\n        turn += 1\n        reply = client.messages.create(model=MODEL, max_tokens=1000, tools=TOOLS, messages=messages)\n        messages.append({\"role\": \"assistant\", \"content\": reply.content})\n\n        # No tool asked for: the co-pilot has finished. Leave the loop.\n        if reply.stop_reason != \"tool_use\":\n            return \"\".join(block.text for block in reply.content if block.type == \"text\")\n\n        # Run every tool the co-pilot asked for and hand the results back.\n        results = []\n        for block in reply.content:\n            if block.type != \"tool_use\":\n                continue\n            print(f\"[turn {turn}] co-pilot asks: {block.name}({json.dumps(block.input)})\")\n            try:\n                if needs_pilot(block.name, block.input) and not ask_pilot(block.name, block.input):\n                    raise ValueError(\"refused by the pilot. Do not retry this order; report where things stand.\")\n                output = run_tool(block.name, block.input)\n                print(f\"[turn {turn}] result: {json.dumps(output)}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n            except ValueError as problem:\n                # A refused order is information, not a crash. Hand it back so the co-pilot can adapt.\n                print(f\"[turn {turn}] error: {problem}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": str(problem), \"is_error\": True})\n        messages.append({\"role\": \"user\", \"content\": results})\n\n\nif __name__ == \"__main__\":\n    print()\n    print(run(sys.argv[1]))\n"}, "h5": {"harness.py": "import argparse\nimport json\nfrom pathlib import Path\n\nfrom anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nimport suit\n\nload_dotenv()\nclient = Anthropic()\nMODEL = \"claude-sonnet-5-5\"\n\n# Standing orders (the system prompt): sent with every call, ahead of the conversation.\nSYSTEM = Path(\"standing-orders.md\").read_text()\n\n# Stop rules: the loop ends here even if the co-pilot would carry on.\nMAX_TURNS = 12\nTOKEN_BUDGET = 20_000\n\n# The tools the co-pilot may ask for. Each has a name, a description\n# and the shape of its input. The model reads all three.\nTOOLS = [\n    {\n        \"name\": \"get_flight_state\",\n        \"description\": \"Read the Kestrel's current flight state: phase, burn, power draw and what is aboard.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {}},\n    },\n    {\n        \"name\": \"give_order\",\n        \"description\": (\n            \"Give the Kestrel one flight order. Orders only work in the right phase, in this sequence: \"\n            \"launch (from the hangar), jump (to the Aster system), approach (the trap station), scan (the trap), \"\n            \"capture (take the sample aboard), jump (back home), dock. \"\n            \"Read the flight state first if you are not sure of the phase. \"\n            \"A refused order comes back as an error that says why.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"name\": {\"type\": \"string\", \"enum\": [\"launch\", \"jump\", \"approach\", \"scan\", \"capture\", \"dock\"]},\n            },\n            \"required\": [\"name\"],\n        },\n    },\n    {\n        \"name\": \"set_burn\",\n        \"description\": (\n            \"Switch the thrusters between cruise (9 kW) and sprint (21 kW). \"\n            \"The reactor budget is 25 kW in total, and it refuses anything over.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\"burn\": {\"type\": \"string\", \"enum\": [\"cruise\", \"sprint\"]}},\n            \"required\": [\"burn\"],\n        },\n    },\n]\n\n\n# Interlocks: orders that are hard to undo need the pilot's go-ahead.\n# Everything else the co-pilot may do on its own.\nASK_FIRST = {\"capture\", \"dock\"}\n\n\ndef needs_pilot(name, args):\n    return name == \"give_order\" and args.get(\"name\") in ASK_FIRST\n\n\ndef ask_pilot(name, args):\n    answer = input(f\"INTERLOCK  co-pilot wants {name}({json.dumps(args)}). Allow? [y/n] \")\n    return answer.strip().lower() == \"y\"\n\n\ndef run_tool(name, args):\n    \"\"\"The harness, not the model, is what actually runs a tool.\"\"\"\n    if name == \"get_flight_state\":\n        return suit.get_flight_state()\n    if name == \"give_order\":\n        return suit.give_order(args[\"name\"])\n    if name == \"set_burn\":\n        return suit.set_burn(args[\"burn\"])\n    raise ValueError(f\"unknown tool: {name}\")\n\n\ndef run(request, max_turns=MAX_TURNS):\n    # The whole conversation so far. The model remembers nothing between calls,\n    # so the harness sends all of it every time.\n    messages = [{\"role\": \"user\", \"content\": request}]\n    turn = 0\n    spent = 0\n\n    while turn < max_turns and spent < TOKEN_BUDGET:\n        turn += 1\n        reply = client.messages.create(\n            model=MODEL, max_tokens=1000, system=SYSTEM, tools=TOOLS, messages=messages\n        )\n        messages.append({\"role\": \"assistant\", \"content\": reply.content})\n        # input_tokens is the size of everything just sent: the context.\n        spent += reply.usage.input_tokens + reply.usage.output_tokens\n        print(f\"[turn {turn}] context {reply.usage.input_tokens:,} tokens, {spent:,} spent\")\n\n        # No tool asked for: the co-pilot has finished. Leave the loop.\n        if reply.stop_reason != \"tool_use\":\n            return \"\".join(block.text for block in reply.content if block.type == \"text\")\n\n        # Run every tool the co-pilot asked for and hand the results back.\n        results = []\n        for block in reply.content:\n            if block.type != \"tool_use\":\n                continue\n            print(f\"[turn {turn}] co-pilot asks: {block.name}({json.dumps(block.input)})\")\n            try:\n                if needs_pilot(block.name, block.input) and not ask_pilot(block.name, block.input):\n                    raise ValueError(\"refused by the pilot. Do not retry this order; report where things stand.\")\n                output = run_tool(block.name, block.input)\n                print(f\"[turn {turn}] result: {json.dumps(output)}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n            except ValueError as problem:\n                # A refused order is information, not a crash. Hand it back so the co-pilot can adapt.\n                print(f\"[turn {turn}] error: {problem}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": str(problem), \"is_error\": True})\n        messages.append({\"role\": \"user\", \"content\": results})\n\n    # A stop rule fired. Say so plainly, with where things stand.\n    limit = f\"{max_turns} turns\" if turn >= max_turns else f\"{TOKEN_BUDGET:,} tokens\"\n    now = suit.PHASE_TEXT[suit.get_flight_state()[\"phase\"]]\n    return f\"Stopped: reached the limit of {limit}. The Kestrel is {now}.\"\n\n\nif __name__ == \"__main__\":\n    parser = argparse.ArgumentParser()\n    parser.add_argument(\"request\")\n    parser.add_argument(\"--max-turns\", type=int, default=MAX_TURNS)\n    options = parser.parse_args()\n    print()\n    print(run(options.request, options.max_turns))\n", "standing-orders.md": "You are the co-pilot of the KF-07 Kestrel Mk II on the Aster retrieval run.\nThe pilot gives you a request. You carry it out with your tools, one order at a time.\n\nStanding orders:\n1. Read the flight state before your first order, so you know the phase.\n2. The reactor budget is 25 kW. Containment needs 6 kW once the sample is aboard,\n   so set the burn to cruise before a capture and before docking.\n3. If an order is refused, read the reason and fix the cause. Never repeat a refused order unchanged.\n4. If the pilot refuses an order at the interlock, stop and report. Do not ask again.\n5. Do only what was asked. If the request stops at the trap station, stop there.\n6. Finish with one or two plain sentences: where the Kestrel is, and anything the pilot should know.\n"}, "h6": {"harness.py": "import argparse\nimport json\nimport time\nfrom pathlib import Path\n\nfrom anthropic import Anthropic\nfrom dotenv import load_dotenv\n\nimport suit\n\nload_dotenv()\nclient = Anthropic()\nMODEL = \"claude-sonnet-5-5\"\n\n# Standing orders (the system prompt): sent with every call, ahead of the conversation.\nSYSTEM = Path(\"standing-orders.md\").read_text()\n\n# Stop rules: the loop ends here even if the co-pilot would carry on.\nMAX_TURNS = 12\nTOKEN_BUDGET = 20_000\n\n# The tools the co-pilot may ask for. Each has a name, a description\n# and the shape of its input. The model reads all three.\nTOOLS = [\n    {\n        \"name\": \"get_flight_state\",\n        \"description\": \"Read the Kestrel's current flight state: phase, burn, power draw and what is aboard.\",\n        \"input_schema\": {\"type\": \"object\", \"properties\": {}},\n    },\n    {\n        \"name\": \"give_order\",\n        \"description\": (\n            \"Give the Kestrel one flight order. Orders only work in the right phase, in this sequence: \"\n            \"launch (from the hangar), jump (to the Aster system), approach (the trap station), scan (the trap), \"\n            \"capture (take the sample aboard), jump (back home), dock. \"\n            \"Read the flight state first if you are not sure of the phase. \"\n            \"A refused order comes back as an error that says why.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\n                \"name\": {\"type\": \"string\", \"enum\": [\"launch\", \"jump\", \"approach\", \"scan\", \"capture\", \"dock\"]},\n            },\n            \"required\": [\"name\"],\n        },\n    },\n    {\n        \"name\": \"set_burn\",\n        \"description\": (\n            \"Switch the thrusters between cruise (9 kW) and sprint (21 kW). \"\n            \"The reactor budget is 25 kW in total, and it refuses anything over.\"\n        ),\n        \"input_schema\": {\n            \"type\": \"object\",\n            \"properties\": {\"burn\": {\"type\": \"string\", \"enum\": [\"cruise\", \"sprint\"]}},\n            \"required\": [\"burn\"],\n        },\n    },\n]\n\n\n# Interlocks: orders that are hard to undo need the pilot's go-ahead.\n# Everything else the co-pilot may do on its own.\nASK_FIRST = {\"capture\", \"dock\"}\n\n\ndef needs_pilot(name, args):\n    return name == \"give_order\" and args.get(\"name\") in ASK_FIRST\n\n\ndef ask_pilot(name, args):\n    answer = input(f\"INTERLOCK  co-pilot wants {name}({json.dumps(args)}). Allow? [y/n] \")\n    return answer.strip().lower() == \"y\"\n\n\ndef run_tool(name, args):\n    \"\"\"The harness, not the model, is what actually runs a tool.\"\"\"\n    if name == \"get_flight_state\":\n        return suit.get_flight_state()\n    if name == \"give_order\":\n        return suit.give_order(args[\"name\"])\n    if name == \"set_burn\":\n        return suit.set_burn(args[\"burn\"])\n    raise ValueError(f\"unknown tool: {name}\")\n\n\ndef record(event, **details):\n    \"\"\"The flight recorder (trace): one line per thing that happened.\"\"\"\n    with open(\"trace.jsonl\", \"a\") as tape:\n        tape.write(json.dumps({\"at\": time.strftime(\"%H:%M:%S\"), \"event\": event, **details}) + \"\\n\")\n\n\ndef run(request, max_turns=MAX_TURNS, model=client, ask=ask_pilot):\n    # The whole conversation so far. The model remembers nothing between calls,\n    # so the harness sends all of it every time.\n    messages = [{\"role\": \"user\", \"content\": request}]\n    turn = 0\n    spent = 0\n    record(\"request\", text=request)\n\n    while turn < max_turns and spent < TOKEN_BUDGET:\n        turn += 1\n        reply = model.messages.create(\n            model=MODEL, max_tokens=1000, system=SYSTEM, tools=TOOLS, messages=messages\n        )\n        messages.append({\"role\": \"assistant\", \"content\": reply.content})\n        # input_tokens is the size of everything just sent: the context.\n        spent += reply.usage.input_tokens + reply.usage.output_tokens\n        print(f\"[turn {turn}] context {reply.usage.input_tokens:,} tokens, {spent:,} spent\")\n\n        # No tool asked for: the co-pilot has finished. Leave the loop.\n        if reply.stop_reason != \"tool_use\":\n            answer = \"\".join(block.text for block in reply.content if block.type == \"text\")\n            record(\"answer\", turn=turn, text=answer)\n            return answer\n\n        # Run every tool the co-pilot asked for and hand the results back.\n        results = []\n        for block in reply.content:\n            if block.type != \"tool_use\":\n                continue\n            print(f\"[turn {turn}] co-pilot asks: {block.name}({json.dumps(block.input)})\")\n            record(\"tool_call\", turn=turn, tool=block.name, input=block.input)\n            try:\n                if needs_pilot(block.name, block.input):\n                    allowed = ask(block.name, block.input)\n                    record(\"interlock\", turn=turn, tool=block.name, allowed=allowed)\n                    if not allowed:\n                        raise ValueError(\"refused by the pilot. Do not retry this order; report where things stand.\")\n                output = run_tool(block.name, block.input)\n                record(\"tool_result\", turn=turn, output=output)\n                print(f\"[turn {turn}] result: {json.dumps(output)}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n            except ValueError as problem:\n                # A refused order is information, not a crash. Hand it back so the co-pilot can adapt.\n                record(\"tool_error\", turn=turn, error=str(problem))\n                print(f\"[turn {turn}] error: {problem}\")\n                results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": str(problem), \"is_error\": True})\n        messages.append({\"role\": \"user\", \"content\": results})\n\n    # A stop rule fired. Say so plainly, with where things stand.\n    limit = f\"{max_turns} turns\" if turn >= max_turns else f\"{TOKEN_BUDGET:,} tokens\"\n    now = suit.PHASE_TEXT[suit.get_flight_state()[\"phase\"]]\n    record(\"stopped\", turn=turn, limit=limit)\n    return f\"Stopped: reached the limit of {limit}. The Kestrel is {now}.\"\n\n\nif __name__ == \"__main__\":\n    parser = argparse.ArgumentParser()\n    parser.add_argument(\"request\")\n    parser.add_argument(\"--max-turns\", type=int, default=MAX_TURNS)\n    options = parser.parse_args()\n    print()\n    print(run(options.request, options.max_turns))\n", "replay.py": "\"\"\"Print the flight recorder for the last run, one event per line.\"\"\"\nimport json\n\nevents = [json.loads(line) for line in open(\"trace.jsonl\")]\nstart = max(i for i, event in enumerate(events) if event[\"event\"] == \"request\")\n\nfor event in events[start:]:\n    details = {key: value for key, value in event.items() if key not in (\"at\", \"event\")}\n    print(event[\"at\"], event[\"event\"].ljust(12), json.dumps(details))\n", "test_harness.py": "\"\"\"Tests for the harness's own rules. No real model is called: a scripted one stands in.\"\"\"\nfrom types import SimpleNamespace as Reply\n\nimport harness\nimport suit\n\n\ndef asks(tool, **args):\n    \"\"\"A model reply that asks for one tool.\"\"\"\n    block = Reply(type=\"tool_use\", id=\"call-1\", name=tool, input=args)\n    return Reply(stop_reason=\"tool_use\", content=[block], usage=Reply(input_tokens=0, output_tokens=0))\n\n\ndef says(text):\n    \"\"\"A model reply that is a final answer.\"\"\"\n    block = Reply(type=\"text\", text=text)\n    return Reply(stop_reason=\"end_turn\", content=[block], usage=Reply(input_tokens=0, output_tokens=0))\n\n\nclass ScriptedModel:\n    \"\"\"Plays back the replies it is given, in order, and keeps what it was sent.\"\"\"\n\n    def __init__(self, *replies):\n        self.replies = list(replies)\n        self.sent = []\n        self.messages = self  # so model.messages.create(...) works like the real client\n\n    def create(self, **request):\n        self.sent.append(request)\n        return self.replies.pop(0)\n\n\ndef test_capture_always_goes_through_the_interlock():\n    suit.reset(phase=\"trap\", scanned=True)\n    asked = []\n    model = ScriptedModel(asks(\"give_order\", name=\"capture\"), says(\"Sample aboard.\"))\n\n    harness.run(\"capture the sample\", model=model, ask=lambda tool, args: asked.append(args) or True)\n\n    assert asked == [{\"name\": \"capture\"}]\n    assert suit.get_flight_state()[\"antimatter_ng\"] == 40\n\n\ndef test_a_refusal_changes_nothing_and_reaches_the_copilot_as_an_error():\n    suit.reset(phase=\"trap\", scanned=True)\n    model = ScriptedModel(asks(\"give_order\", name=\"capture\"), says(\"Holding.\"))\n\n    harness.run(\"capture the sample\", model=model, ask=lambda tool, args: False)\n\n    assert suit.get_flight_state()[\"antimatter_ng\"] == 0\n    # The conversation is: request, the co-pilot's ask, then the tool results.\n    result = model.sent[1][\"messages\"][2][\"content\"][0]\n    assert result[\"is_error\"] is True\n    assert \"refused by the pilot\" in result[\"content\"]\n\n\ndef test_the_loop_stops_at_the_turn_limit():\n    suit.reset()\n    model = ScriptedModel(*[asks(\"get_flight_state\") for _ in range(10)])\n\n    answer = harness.run(\"keep checking\", max_turns=3, model=model)\n\n    assert answer == \"Stopped: reached the limit of 3 turns. The Kestrel is parked in Hangar 7.\"\n    assert len(model.sent) == 3\n"}, "s0": {"pyproject.toml": "[project]\nname = \"copilot\"\nversion = \"0.1.0\"\nrequires-python = \">=3.12\"\ndependencies = [\n    \"anthropic>=0.80.0\",\n    \"python-dotenv>=1.1.0\",\n]\n"}};
+const BAL={R:[216,140,338,180],P:[104,94,58,100],S:[214,71,324,56],C:[239,29,302,14],L:[306,250,344,250],K:[190,170,58,236],G:[364,420,340,420]};
+function kestrel(v,fx,chg){
+  chg=chg||new Set();fx=fx||[];
+  const P=(pts,cls)=>'<path class="'+cls+'" d="M'+pts.split('|').join(' L')+' z"/>';
+  const L=(d,cls)=>'<path class="'+(cls||'ln')+'" d="'+d+'"/>';
+  const both=h=>h+'<g transform="translate(400,0) scale(-1,1)">'+h+'</g>';
+  const cls=['kb','g-'+v.gantry];
+  if(!v.ready)cls.push('offline');else{cls.push('pw-on');if(v.over)cls.push('over');else if(v.atLimit)cls.push('pw-hot');}
+  if(v.flying)cls.push('flying');if(v.thrust)cls.push('sy-propulsion');if(v.sprint)cls.push('sprint');
+  if(v.scanned)cls.push('sy-sensors');if(v.comms)cls.push('sy-comms');if(v.sample)cls.push('sample','sy-limbs','sy-shield');
+  fx.forEach(k=>cls.push(k==='gmove'||k==='refit'?k:'fx-'+k));
+  let s='<svg class="'+cls.join(' ')+'" viewBox="2 -8 396 586" role="img" aria-label="Blueprint of the KF-07 Kestrel Mk II showing the flight state"><defs>'+
+    '<pattern id="kbT" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill="#0e3a6e"/><path d="M0 0V5" stroke="#7fb4ea" stroke-width=".8"/></pattern>'+
+    '<pattern id="kbA" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" fill="#0e3a6e"/><path d="M0 0V4M0 0H4" stroke="#ffd27a" stroke-width=".7"/></pattern>'+
+    '<filter id="kbG" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  /* hangar gantry */
+  let g='<rect class="gan" x="22" y="40" width="14" height="512"/><rect class="gan" x="364" y="40" width="14" height="512"/><path class="gl" d="';
+  for(let y=40;y<540;y+=40)g+='M22 '+y+'l14 40M36 '+y+'l-14 40M364 '+y+'l14 40M378 '+y+'l-14 40';
+  g+='"/><g class="clamp cl-l"><path class="gan" d="M36 120h42l8 7v8l-8 7H36z"/><path class="gan" d="M36 470h60v9H36z"/></g><g class="clamp cl-r"><path class="gan" d="M364 120h-42l-8 7v8l8 7h42z"/><path class="gan" d="M364 470h-60v9h60z"/></g><rect class="gan" x="10" y="552" width="380" height="7"/>';
+  s+='<g class="gantry">'+g+'</g><path class="ctr" d="M200 -6V566"/><g class="suit">';
+  /* wing binders: the standby core */
+  let wg=P('170 110|104 22|90 20|86 34|148 126','fr')+P('166 112|108 30|96 30|150 122','tl')+P('160 120|54 66|40 70|42 86|148 142','fr')+P('156 124|62 76|50 80|146 136','tl')+P('154 138|34 142|24 152|34 166|152 158','fr')+P('150 142|44 148|38 154|44 160|150 154','tl')+L('M150 122L104 44M146 136L70 88M148 151L56 154')+'<circle class="fr" cx="160" cy="128" r="11"/><circle class="ln" cx="160" cy="128" r="5"/>';
+  s+='<g class="asm a5"><g id="kb-wings">'+both(wg)+'</g></g>';
+  /* legs */
+  let up=P('166 264|197 270|194 328|160 328|152 300','wh')+P('160 300|170 296|172 328|160 328','tl')+P('156 322|197 324|195 336|158 336','am')+L('M166 286l28 5M158 314h36M163 300v20M186 300v20');
+  let kn=P('163 334|191 334|193 380|161 380','fr')+L('M168 336v42M186 336v42M172 336v42M182 336v42')+P('148 342|163 338|163 368|148 364','tl')+'<circle class="wh jt" cx="177" cy="354" r="14"/><circle class="ln" cx="177" cy="354" r="9.5"/><circle class="fr" cx="177" cy="354" r="4"/>'+L('M177 340v5M177 363v5M163 354h5M186 354h5')+'<circle class="rv" cx="155" cy="353" r="2.2"/>';
+  let lo=P('158 462|188 462|186 476|160 476','fr')+P('154 364|196 368|195 438|186 464|150 464|140 420','wh')+P('150 392|140 420|150 464|162 464|158 400','tl')+P('178 384|192 386|191 430|180 440','fr')+L('M181 396h9M181 406h9M181 416h9M181 426h8')+P('156 356|196 360|199 376|177 386|153 374','tl')+P('166 362|177 372|188 363|186 370|177 379|168 369','am')+P('150 476|192 476|197 502|128 502|134 486','wh')+P('128 502|134 486|150 484|146 502','am')+L('M150 452h38M160 490h34M148 400l6 58M170 388v70')+'<circle class="ln" cx="166" cy="470" r="3"/><circle class="ln" cx="182" cy="470" r="3"/>';
+  const hip='<circle class="fr" cx="170" cy="250" r="15"/><circle class="ln" cx="170" cy="250" r="9"/>';
+  s+='<g class="asm a0">'+both(hip+'<g transform="translate(-14,0) translate(182,264) scale(1.22,1.1) translate(-182,-264)">'+up+kn+'<g transform="translate(0,22)">'+lo+'</g></g>')+'</g>';
+  /* waist, skirts, abdomen */
+  let sk=P('168 214|148 220|136 266|156 270','wh')+P('148 220|136 266|146 268|156 222','tl')+P('199 226|170 220|158 266|190 276','wh')+L('M166 246l28 7')+P('172 228|186 231|184 241|170 238','am');
+  s+='<g class="asm a1">'+P('172 204|228 204|246 224|200 240|154 224','fr')+both('<g transform="translate(-11,0)">'+sk+'</g>')+P('188 228|212 228|209 274|200 284|191 274','tl')+P('176 170|224 170|218 206|182 206','fr')+L('M178 182h44M180 194h40')+P('188 174|212 174|210 202|190 202','wh')+'</g>';
+  /* arms */
+  let arm=P('101 152|129 150|127 198|105 198','fr')+L('M106 160v34M124 160v34')+'<circle class="tl" cx="116" cy="206" r="11"/><circle class="ln" cx="116" cy="206" r="4.5"/>'+P('96 214|134 214|139 272|127 288|100 288|91 270','wh')+P('96 214|108 214|104 288|100 288|91 270','tl')+P('118 226|132 226|135 262|120 262','fr')+L('M121 236h12M121 246h13M121 256h13')+P('103 290|126 290|124 312|105 312','fr')+L('M105 300h20');
+  s+='<g class="asm a2 armg">'+both(arm)+'</g>';
+  /* torso, reactor, cockpit core */
+  let ch=P('200 108|150 108|136 124|144 160|172 174|200 174','wh')+P('150 108|136 124|144 160|156 166|148 126|158 108','tl')+P('156 114|184 114|181 134|153 130','fr')+L('M158 119h24M157 124h24M156 129h23');
+  s+='<g class="asm a3">'+P('180 96|220 96|230 108|170 108','fr')+both(ch)+L('M186 108l-6 20M214 108l6 20')+
+    '<g class="corep">'+P('186 160|214 160|210 180|190 180','cp')+L('M192 168h16')+'</g>'+
+    '<g class="reactor"><circle class="fr" cx="200" cy="138" r="19"/><circle class="ring" cx="200" cy="138" r="14.5"/><circle class="rcore" cx="200" cy="138" r="9"/><circle class="pip" cx="200" cy="138" r="3.5"/>'+L('M200 121v5M200 150v5M183 138h5M212 138h5','ring2')+'</g></g>';
+  /* shoulders, key slots, shield */
+  let sh=P('150 98|108 92|84 110|80 148|102 160|142 152|152 124','wh')+P('84 110|80 148|102 160|142 152|144 140|104 146|92 138|94 114','tl')+P('100 118|124 114|126 132|102 136','fr')+L('M103 123h21M103 128h22M112 104l30 3')+P('130 108|144 108|146 120|132 120','key')+'<circle class="rv" cx="92" cy="116" r="1.3"/><circle class="rv" cx="88" cy="142" r="1.3"/><circle class="rv" cx="144" cy="146" r="1.3"/>';
+  s+='<g class="asm a4">'+both(sh)+'<g class="shieldg">'+P('292 186|326 202|322 272|292 326|262 272|258 202','wh')+P('292 198|314 208|311 268|292 304|273 268|270 208','tl')+P('292 214|302 232|292 286|282 232','am')+L('M292 186v12M262 272l11-4M322 272l-11-4M270 208l22 10 22-10')+'</g></g>';
+  /* head, visor, comms mast */
+  s+='<g class="asm a5"><g transform="translate(200,98) scale(.8) translate(-200,-98)"><rect class="fr" x="190" y="84" width="20" height="14"/><g class="mastg">'+L('M221 44L247 14','mast')+'<circle class="ball" cx="249" cy="12" r="4.5"/><path class="wave w1" d="M256 2a12 12 0 0 1 4 16"/><path class="wave w2" d="M262 -4a20 20 0 0 1 6 28"/></g>'+
+    both(P('177 60|166 72|171 90|188 94|183 78','tl'))+P('200 32|217 38|227 58|223 78|212 90|188 90|177 78|173 58|183 38','wh')+P('200 6|207 36|204 54|196 54|193 36','am')+L('M200 12v40M186 44l-6 12M214 44l6 12M183 74h34')+
+    P('179 58|221 58|218 70|182 70','fr')+P('182 60.5|218 60.5|216 67.5|184 67.5','visor')+P('192 80|208 80|205 92|195 92','fr')+L('M196 85h8')+'</g></g>';
+  s+='</g>';
+  /* callout balloons */
+  for(const k in BAL){const b=BAL[k],st=v.bal[k]||'off';s+='<path class="lead" d="M'+b[2]+' '+b[3]+'L'+b[0]+' '+b[1]+'"/><circle class="ldot" cx="'+b[0]+'" cy="'+b[1]+'" r="1.8"/>';
+    s+='<g class="bal '+st+'">'+(chg.has(k)?'<circle class="ping" cx="'+b[2]+'" cy="'+b[3]+'" r="9"/><circle class="ping p2" cx="'+b[0]+'" cy="'+b[1]+'" r="7"/>':'')+'<circle cx="'+b[2]+'" cy="'+b[3]+'" r="9"/><text x="'+b[2]+'" y="'+(b[3]+3.8)+'">'+k+'</text></g>';}
+  s+='<text class="lbl" x="200" y="574">'+v.label+'</text><rect class="scan" x="2" y="-8" width="396" height="3"/></svg>';
+  return s;
+}
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sleep=ms=>window.__fast?Promise.resolve():new Promise(r=>setTimeout(r,ms));
+const coarse=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
+const av=who=>'<span class="av"><svg aria-hidden="true"><use href="#av-'+who+'"/></svg></span>';
+const say=(who,text)=>'<div class="say '+who+'">'+av(who)+'<p><b>'+(who==='ilse'?'Ilse · designer':'Tomo · cockpit tech')+'</b>'+text+'</p></div>';
+const own=html=>'<div class="own"><b>On your own machine</b>'+html+'</div>';
+const KW=new Set('import from def return if else elif while for in not and or try except as raise class with continue pass lambda is None True False'.split(' '));
+function hlPy(line){
+  let out='',i=0;const n=line.length;
+  while(i<n){
+    const c=line[i];
+    if(c==='#'){out+='<span class="c">'+esc(line.slice(i))+'</span>';break;}
+    if(c==='"'||c==="'"){
+      const tri=line.substr(i,3)===c+c+c;let j=i+(tri?3:1);
+      if(tri){const k=line.indexOf(c+c+c,j);j=k<0?n:k+3;}
+      else{while(j<n&&line[j]!==c){if(line[j]==='\\')j++;j++;}j=Math.min(n,j+1);}
+      out+='<span class="s">'+esc(line.slice(i,j))+'</span>';i=j;continue;}
+    if(/[A-Za-z_]/.test(c)){let j=i;while(j<n&&/\w/.test(line[j]))j++;const w=line.slice(i,j);
+      if((w==='f'||w==='r')&&(line[j]==='"'||line[j]==="'")){out+=esc(w);i=j;continue;}
+      out+=KW.has(w)?'<span class="k">'+w+'</span>':/^[A-Z][A-Z_]+$/.test(w)?'<span class="t">'+w+'</span>':esc(w);i=j;continue;}
+    out+=esc(c);i++;
+  }
+  return out;
+}
+function codeHtml(path,text,added){
+  const py=/\.py$/.test(path),lines=text.replace(/\n$/,'').split('\n'),set=new Set(added||[]);let doc=false;
+  return lines.map((l,n)=>{
+    let h;
+    if(py){const q=(l.match(/"""/g)||[]).length;
+      if(doc||(q===1&&/^\s*"""/.test(l))){h='<span class="s">'+esc(l)+'</span>';if(q===1)doc=!doc;}
+      else h=hlPy(l);}
+    else h=/^\s*#/.test(l)&&!/\.md$/.test(path)?'<span class="c">'+esc(l)+'</span>':esc(l);
+    return '<span class="pl'+(set.has(n)?' new':'')+'"><i>'+(n+1)+'</i>'+(h||' ')+'</span>';}).join('');
+}
+function addedLines(prev,next){
+  if(prev===undefined)return 'new';
+  const a=prev.split('\n'),b=next.split('\n'),m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>new Uint16Array(n+1));
+  for(let i=m-1;i>=0;i--)for(let j=n-1;j>=0;j--)dp[i][j]=a[i]===b[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  const out=[];let i=0,j=0;
+  while(i<m&&j<n){if(a[i]===b[j]){i++;j++;}else if(dp[i+1][j]>=dp[i][j+1])i++;else{out.push(j);j++;}}
+  while(j<n){out.push(j);j++;}
+  return out;
+}
+/* ---------- content ---------- */
+const C_=(cmd,what,why,saw,test,extra)=>Object.assign({kind:'cmd',cmd,what,why,saw,test:test||(r=>r.ok&&r.line===cmd)},extra||{});
+const E_=(stage,what,why,saw,open)=>({kind:'edit',stage,what,why,saw,open:open||[]});
+const P_=(id,what,why)=>({kind:'pick',id,what,why,saw:()=>'In your spec: <strong>'+DECISIONS[id].opts[G.dec[id]][0]+'</strong>. You can change it at any time, here or in lesson 7.'});
+const S_=(what,why,bins,items,saw)=>({kind:'sort',what,why,bins,items,saw});
+const RUNQ=q=>'uv run harness.py "'+q+'"';
+const ran=r=>r.meta.cmd==='run';
+const DECISIONS={
+job:{lesson:1,ours:1,opts:[
+ ['Advisor','It reads and explains, and never acts. Use when a wrong action would be costly and a person is always at the controls.','The agent has read-only tools. It answers questions and recommends; a person carries out every action.'],
+ ['Co-pilot','It carries out routine steps itself and stops for a person before anything hard to undo. Use for most products.','The agent acts on routine, reversible steps by itself. Anything hard to undo waits for a person at an interlock.'],
+ ['Autopilot','It works unattended inside fixed limits and reports afterwards. Use only when every action can be undone or sandboxed.','The agent runs unattended. Every action it can take is reversible or sandboxed, and it reports what it did at the end.']]},
+shape:{lesson:2,ours:1,opts:[
+ ['Fixed checklist (workflow)','Your code decides the steps; the model only fills in each one. Use when the steps are the same every time. It is cheaper and easier to test.','The steps are fixed in code and run in order. The model is called inside a step to write or classify, and never chooses the next step.'],
+ ['Agent loop','The model chooses the next step from what it just saw. Use when the path depends on what turns up along the way.','One loop: send the conversation, run the tools the model asks for, hand the results back, repeat until the model answers without asking for a tool.'],
+ ['Checklist with one agent step','A fixed outline, with a loop only where the path is unpredictable. Use when most of the job is routine and one part is not.','A fixed sequence of steps in code. One named step runs an agent loop with its own tools and stop rules; the rest are plain code.']]},
+tools:{lesson:3,ours:0,opts:[
+ ['A few task-sized tools','Each tool does one whole thing a person would name: give an order, set the burn. Use by default. Fewer choices, fewer mistakes.','A small set of tools, each matching one action a user would name. Tools wrap the product’s own rules, so a tool cannot do what the product forbids.'],
+ ['Many fine-grained tools','One tool per low-level operation. Use only when the agent truly needs to combine small operations in ways you cannot predict.','Fine-grained tools, one per operation, grouped and named by area so the model can tell them apart. Expect to spend effort on descriptions.'],
+ ['One general tool','A single powerful tool such as running code or a shell. Use only inside a sandbox, for agents whose job is open-ended.','One general-purpose tool (code execution) inside a sandbox with no access to anything it must not touch. The sandbox, not the tool list, is the safety boundary.']]},
+locks:{lesson:4,ours:0,opts:[
+ ['Ask before anything hard to undo','Reads and reversible actions run freely; irreversible ones wait for a yes. Use by default.','Tools are sorted into three tiers: auto (reads and reversible actions), ask (hard to undo: a person confirms each one), never (not offered to the agent at all).'],
+ ['Ask before every action','Every action waits for a yes. Use while trust is being built, or where every action has a cost. People stop reading prompts they see too often.','Every tool that changes anything asks a person first. Reads run freely. Revisit this once the trace shows which actions are routine.'],
+ ['No prompts: sandbox and undo','Nothing asks; instead everything the agent does can be rolled back. Use for unattended agents.','No interactive prompts. The agent works on a copy or in a sandbox, every change can be rolled back, and a person reviews the result before it is applied for real.']]},
+limits:{lesson:5,ours:0,opts:[
+ ['Stop and report','Say plainly which limit was hit and where things stand. Use by default: a person decides what happens next.','stop, change nothing further, and report which limit was reached and the current state.'],
+ ['Ask for more budget','Pause and ask a person whether to continue. Use for long tasks with someone watching.','pause and ask the person whether to grant more turns or tokens, showing what has been done so far.'],
+ ['Hand over and start fresh','Write notes on progress, then continue in a new conversation that starts from the notes. Use for tasks longer than one context window.','write a short hand-over note (done, in progress, next), then start a fresh conversation that begins by reading the note.']]},
+proof:{lesson:6,ours:0,opts:[
+ ['Trace plus scripted tests','Record every run, and test the harness’s own rules with a scripted model. Use by default: it is fast, free and repeatable.','Every run is recorded. The harness’s rules (interlocks, error hand-back, stop rules) are covered by tests that use a scripted model, and the tests run in CI.'],
+ ['Add graded runs (evals)','Also run a fixed set of real requests against the real model and score the outcomes. Use before changing the model, the tools or the standing orders.','As above, plus an eval set: a fixed list of requests with the outcome each must reach, run against the real model and scored whenever the model, tools or standing orders change.'],
+ ['Review by hand','A person reads the traces. Use only for a prototype; it does not scale and it misses regressions.','Prototype only: a person reads the trace of each run. Replace with scripted tests before anyone else uses the agent.']]}
+};
+const LESSONS=[
+/* 1 */{title:'Briefing',long:'Briefing: a model can only talk',mins:12,
+idea:`<p>The Kestrel is getting a co-pilot: an AI that can take a request such as "take us to the trap station" and fly it. The AI itself is a <strong>language model</strong>. On its own a model does exactly one thing: you send it text, it sends text back. It cannot read an instrument, press a control or remember what you said a minute ago.</p>
+<p>Everything else is the <strong>agent harness</strong>: the code wrapped around the model that lets it act. Model plus harness is what people call an <strong>agent</strong>.</p>
+${say('ilse','So the co-pilot is a brain in a jar until we strap it into the cockpit.')}
+${say('tomo','Right. The harness is the seat, the linkages to the controls, the interlocks and the flight recorder. I build those. You decide what they should be.')}
+<h2>Why this is a design job</h2>
+<p>Most of what makes an agent good or dangerous is decided in the harness, and those decisions are design decisions: what it is allowed to touch, when it must ask a person, what it is told, when it stops, and what it shows of its work. You do not need to be the one who writes the code, but you do need to know what the parts are. This guide has you build a small harness so that each part is concrete, and has you make one design decision per lesson for an agent of your own.</p>
+<h2>The parts of a harness</h2>
+<dl class="terms">
+<dt>The loop</dt><dd>Ask the model, do what it asks for, show it the result, ask again. Repeats until the model answers without asking for anything.</dd>
+<dt>Control linkages (tools)</dt><dd>The named actions the model may ask for. The harness runs them; the model only asks.</dd>
+<dt>Interlocks (permissions, human in the loop)</dt><dd>Which actions run freely and which wait for a person.</dd>
+<dt>Standing orders (the system prompt)</dt><dd>What the model is told before every request.</dd>
+<dt>Working memory (context)</dt><dd>The conversation so far. The harness keeps it and resends it, because the model keeps nothing.</dd>
+<dt>Stop rules (limits)</dt><dd>When the loop ends even if the model would carry on.</dd>
+<dt>Flight recorder (trace) and tests</dt><dd>The record of what happened, and the proof that the rules hold.</dd></dl>
+<h2>How this guide works</h2>
+<p>On the right, the Mk II blueprint and a panel show the harness as you fit it. Under them are two tabs. <strong>Build</strong> is a terminal where you build the Kestrel's co-pilot harness in Python, one command at a time. <strong>Design</strong> is your own harness spec, which fills in as you make a decision in each lesson. Lesson 7 finishes the spec so you can hand it to a coding agent or a developer.</p>
+<p>The blueprint's callouts: <strong>K</strong> cockpit, where the co-pilot (model) sits; <strong>S</strong> sensors (read tools); <strong>P</strong> propulsion (action tools); <strong>L</strong> the magnetic bottle on the right arm (the flight itself); <strong>G</strong> the gantry clamps (interlocks); <strong>R</strong> reactor (stop rules); <strong>C</strong> communication array (flight recorder).</p>
+<h2>Where the code goes</h2>
+<p>The harness lives in a new folder named <code>copilot</code> at the <strong>root</strong> of the <code>kestrel-simulator</code> repo, beside <code>api</code> and <code>cockpit</code>, not inside either. It is Python, like <code>api</code>, and it is managed with <code>uv</code>, a tool that creates the project, fetches packages and runs your files with the same commands on Windows, macOS and Linux.</p>
+${own(`<ul><li>Start on a branch, from the repo root: <code>git switch -c copilot-harness</code>. Do not commit this work straight to main.</li>
+<li>You need <a href="https://docs.astral.sh/uv/getting-started/installation/" target="_blank" rel="noopener">uv installed</a>. If <code>uv</code> is "not recognized", install it from that page, then close and reopen the terminal.</li>
+<li>You need an API key from the <a href="https://platform.claude.com/" target="_blank" rel="noopener">Claude Console</a>. Real calls cost money: the whole guide comes to a few cents.</li>
+<li>The sandbox on this page calls no real model. Its replies are recorded, so they are the same every time. A real model words things differently on each run and may take a slightly different route.</li></ul>`)}`,
+labIntro:'Make the folder, add the one package that talks to the model, and make a single call with no harness at all, to see what a bare model can and cannot do.',
+tasks:[
+C_('mkdir copilot','Make the folder at the repo root','You are in <code>~/kestrel-simulator</code>, the repo root. Run this here, so <code>copilot</code> sits beside <code>api</code> and <code>cockpit</code>.','<code>ls</code> (or <code>dir</code>) now lists <code>copilot/</code> next to <code>api/</code> and <code>cockpit/</code>.',r=>r.meta.cmd==='mkdir'),
+C_('cd copilot','Step into it','Every command from here to the end of the guide is run from inside <code>copilot</code>. If a later command says it cannot find a file, check the prompt first.','The prompt now reads <code>~/kestrel-simulator/copilot $</code>.'),
+C_('uv init --bare','Make it a Python project','<code>uv init</code> writes <code>pyproject.toml</code>, the file that names a Python project and lists the packages it needs. <code>--bare</code> means: write only that file, no sample code.','uv wrote <code>pyproject.toml</code>.',r=>r.meta.cmd==='init'),
+C_('uv add anthropic python-dotenv','Add the two packages','<code>anthropic</code> is the library that sends text to the model and brings the reply back. <code>python-dotenv</code> reads settings from a file named <code>.env</code>. uv also creates <code>.venv</code>, a private folder for this project’s packages.','uv downloaded the packages into <code>.venv</code> and listed them in <code>pyproject.toml</code>.',r=>r.meta.cmd==='deps'),
+E_('h1','Add the key file and a first script','Three new files, all directly inside <code>copilot</code>. <code>.env</code> holds your API key. <code>.gitignore</code> tells git never to commit it. <code>hello.py</code> makes one call to the model: a question in, text out.','Three files saved. Nothing on the blueprint changed: the co-pilot is still not wired into anything.',['hello.py','.gitignore']),
+C_('uv run hello.py','Ask the bare model about the reactor','<code>uv run</code> runs a Python file using this project’s packages. The script asks: what is the Kestrel’s reactor draw right now?','The model said it cannot know. It has no way to read the reactor. That gap is what a harness fills.',r=>r.meta.cmd==='hello'),
+S_('Sort the work: co-pilot or harness?','Before building, be clear who does what. Put each card in the box of whoever does it.',['The co-pilot (model)','The harness'],[
+ ['Decides which control to ask for next',0,'Choosing the next step from what it has seen is the model’s whole contribution.'],
+ ['Actually operates the control',1,'The model only asks. The harness is the code that runs the action.'],
+ ['Understands “take us home”',0,'Turning a loose request into intent is what a language model is good at.'],
+ ['Remembers what was said earlier in the request',1,'The model keeps nothing between calls. The harness stores the conversation and resends all of it.'],
+ ['Asks the pilot before a risky order',1,'An interlock is harness code. A model cannot be relied on to stop itself.'],
+ ['Stops after too many turns',1,'Stop rules are counted and enforced by the harness.'],
+ ['Writes the final report to the pilot',0,'The wording of the answer is the model’s.'],
+ ['Keeps the flight recorder',1,'Logging every step is harness work.']],
+ 'Five of the eight belong to the harness. The model decides and words things; the harness does, remembers, guards and records.'),
+P_('job','Decide: how much may your agent do alone?','Think of an agent you would like to design, for any product. This first decision shapes all the others. The Kestrel build uses the middle option.')
+],
+notes:`<h2>What you just saw</h2>
+<p>A model call is one request and one reply. <code>hello.py</code> sent a list with a single message and printed the text that came back. Nothing in that exchange could reach the suit, which is why the honest answer was "I can't read that from here". A less careful model, or a badly worded request, would have made a number up. A harness is how you give the model real information and real controls, so it has no reason to guess.</p>
+<h2>The key file</h2>
+<p><code>.env</code> holds a secret. Anyone with your key can spend your money. That is why <code>.gitignore</code> went in at the same step, before the first commit. If <code>git status</code> ever lists <code>.env</code> as a new file, stop and fix <code>.gitignore</code> before you commit.</p>
+${own(`<ul><li>Open <code>copilot/.env</code> and replace the placeholder with your real key.</li>
+<li>From inside <code>copilot</code>, run <code>git status</code> and check that <code>.env</code> and <code>.venv</code> are <strong>not</strong> listed.</li>
+<li>Then commit and push the branch: <code>git add .</code>, <code>git commit -m "Add copilot project and first model call"</code>, <code>git push -u origin copilot-harness</code>.</li></ul>`)}`,
+quiz:[
+{q:'The pilot asks the bare model for the reactor draw. Why can it not answer?',opts:['The model is not clever enough','Nothing connects the model to the reactor: it only receives and returns text','The API key was wrong'],a:1,why:'A model is text in, text out. Reading an instrument takes a tool, and tools are provided by a harness.'},
+{q:'Which of these is the harness’s job, not the model’s?',opts:['Choosing which order to give next','Wording the final report','Keeping the conversation and resending it on every call'],a:2,why:'The model has no memory between calls. The harness holds the conversation.'}],
+reading:[
+['Building effective agents','https://www.anthropic.com/engineering/building-effective-agents','Anthropic’s overview of agent patterns, and when a simpler design is the better one.'],
+['Tool use with Claude: overview','https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview','The official documentation for connecting a model to tools.'],
+['uv documentation','https://docs.astral.sh/uv/','Installing uv and the commands used in this guide: init, add and run.']]},
+/* 2 */{title:'The loop',long:'The loop: ask, act, show, repeat',mins:12,
+idea:`<p>The heart of every agent harness is a short loop. It is the same loop whether the agent flies a mobile suit or files expense reports.</p>
+<ol><li>Send the model the conversation so far, with a list of the tools it may ask for.</li>
+<li>The model replies. Either it <strong>asks for a tool</strong> ("read the flight state"), or it gives a <strong>final answer</strong>.</li>
+<li>If it asked for a tool, the harness runs it and adds the result to the conversation. Back to step 1.</li>
+<li>If it gave a final answer, the loop ends.</li></ol>
+<p>One pass through the loop is a <strong>turn</strong>. The reply carries a field named <code>stop_reason</code> that tells the harness which of the two happened: <code>"tool_use"</code> means "I am waiting for a tool result", and anything else means the model has stopped.</p>
+${say('tomo','The model never touches the suit. It hands me a slip that says "read the flight state". I do it and hand the reading back.')}
+<h2>The conversation is the memory</h2>
+<p>The model keeps nothing between calls. So the harness holds a list named <code>messages</code> and sends <strong>all of it</strong> every turn: the pilot's request, each thing the model asked for, and each result. That growing list is the model's working memory (its <strong>context</strong>). Lesson 5 comes back to what happens when it gets long.</p>
+<h2>A stand-in for the suit</h2>
+<p>The edit below adds <code>suit.py</code>, a small copy of the Kestrel's flight rules so that this folder runs on its own. It knows the phases, the orders and the 25 kW reactor budget, and keeps the flight state in a file named <code>flight.json</code>. In the finished simulator these calls would go to <code>kestrel-control</code> (the FastAPI server) instead.</p>`,
+labIntro:'Write the loop with one tool, a read-only one, and watch a request go round it. You are inside <code>copilot</code>; stay there.',
+tasks:[
+E_('h2','Write the loop','Two new files in <code>copilot</code>. Open <code>harness.py</code> and read <code>run()</code>, the last function: it is the four steps above, in about twenty lines. <code>TOOLS</code> lists the one tool on offer, and <code>run_tool()</code> is the code that really runs it.','The blueprint lit up: the co-pilot is wired in, with one sensor linkage. Parts fitted: the loop and tools.',['harness.py']),
+C_('uv run suit.py','Check the stand-in suit','Run with no request, <code>suit.py</code> prints the flight state. This is what the tool will hand to the model.','The Kestrel is parked in Hangar 7, drawing 4 of 25 kW.',r=>r.meta.cmd==='state'),
+C_(RUNQ('What is the reactor draw right now?'),'Ask the same question through the harness','The request goes in quotes after the file name. Watch the loop panel above the terminal as it runs.','Two turns. Turn 1: the co-pilot asked for <code>get_flight_state</code> and the harness ran it. Turn 2: it answered, with the real figure.',r=>ran(r)&&r.meta.turns===2&&/4 kW/.test(r.meta.final)),
+C_(RUNQ('Launch the Kestrel'),'Ask for something it has no control for','There is no tool that gives orders yet. See what the co-pilot does.','It read the state, then said it has no control for that. An agent can do exactly what its tools allow and nothing more. The tool list is the boundary.',r=>ran(r)&&r.meta.goal.kind==='act'&&r.ok),
+P_('shape','Decide: does your agent need a loop at all?','A loop is for jobs where the next step depends on what just happened. Many jobs are the same steps every time, and a fixed checklist is cheaper, faster and easier to test. Choose for your own agent.')
+],
+notes:`<h2>Reading the loop</h2>
+<p>Three lines in <code>run()</code> carry the idea. <code>messages.append({"role": "assistant", …})</code> stores what the model said, including what it asked for. <code>if reply.stop_reason != "tool_use": return …</code> is the exit. And the final <code>messages.append({"role": "user", "content": results})</code> hands the tool results back, each tagged with the <code>tool_use_id</code> of the request it answers, so the model can match them up.</p>
+<h2>Agent or workflow?</h2>
+<p>If you can draw the job as a flowchart with no "it depends" in it, write the flowchart as code and call the model inside the steps that need language. That is a <strong>workflow</strong>. Use an agent loop when the path cannot be known ahead of time. Getting to the trap station is a good example: what to do next depends on where the suit already is.</p>
+${own(`<ul><li>The model name in <code>harness.py</code> is <code>claude-sonnet-5-5</code>. Model names change; check the models page in the Claude documentation and use a current one.</li>
+<li>Commit and push: <code>git add .</code>, <code>git commit -m "Add the agent loop with one read tool"</code>, <code>git push</code>. <code>flight.json</code> is in <code>.gitignore</code>, so it stays out.</li></ul>`)}`,
+quiz:[
+{q:'How does the harness know the model wants a tool run?',opts:['The reply’s stop_reason is "tool_use"','The model’s text contains the word “please”','The harness guesses from the request'],a:0,why:'A reply with stop_reason "tool_use" contains tool requests and is waiting for their results.'},
+{q:'Why does the harness send the whole messages list on every turn?',opts:['To make the request slower and safer','Because the model remembers nothing between calls','Because the API requires at least three messages'],a:1,why:'Each call starts from nothing. The conversation the harness resends is the only memory the model has.'}],
+reading:[
+['How tool use works','https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works','The loop from this lesson in the official documentation, with where tools run.'],
+['Stop reasons','https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons','Every value stop_reason can take, and what a harness should do for each.'],
+['Building effective agents','https://www.anthropic.com/engineering/building-effective-agents','Workflows versus agents, with diagrams of the common shapes.']]},
+/* 3 */{title:'Tools',long:'Control linkages: designing tools',mins:15,
+idea:`<p>A tool has three parts, and the model reads all three: a <strong>name</strong>, a <strong>description</strong>, and the shape of its input (the <strong>input schema</strong>). The description is the only manual the model gets. Writing it is interface design for a reader that follows instructions literally and cannot ask you what you meant.</p>
+${say('ilse','So a tool description is microcopy. Just for a very literal user.')}
+${say('tomo','And the schema is the form validation. If a field has six legal values, list the six.')}
+<h2>What a good description says</h2>
+<ul><li><strong>What it does</strong>, in the words the user would use.</li>
+<li><strong>When to use it</strong>, and what to do first if unsure.</li>
+<li><strong>What comes back</strong>, including what a refusal looks like.</li>
+<li><strong>Limits</strong> the model must respect, with the numbers.</li></ul>
+<h2>Errors are information</h2>
+<p>The flight rules refuse some orders: you cannot jump from the hangar. When a tool refuses, the harness must hand the reason back to the model as a result marked as an error (<code>is_error</code>). The model reads it and tries something else. If the harness lets the error escape instead, the whole program crashes mid-flight.</p>`,
+labIntro:'Add two action tools the lazy way and watch it fail. Then write them properly and watch the same request succeed.',
+tasks:[
+E_('h3a','Add two tools with lazy descriptions','<code>harness.py</code> gains <code>give_order</code> and <code>set_burn</code>. Look at their descriptions: one word each. The input is any text at all.','Action tools are fitted, but the panel marks them vague.',['harness.py']),
+C_(RUNQ('Take us to the trap station'),'Try a real request','With a one-word description, the model has to guess what an order looks like.','The co-pilot guessed <code>"go to the trap station"</code> as the order name. The flight rules refused it, nothing caught the refusal, and the harness crashed with a traceback. Two faults: a description that left the model guessing, and an error that was not handed back.',r=>ran(r)&&r.meta.crashed),
+E_('h3b','Write the tools properly','Same two tools. The descriptions now say what each does, the sequence the orders go in, and the reactor figures. Each input is a fixed list of choices (an <code>enum</code>). And <code>run()</code> wraps the tool call in <code>try / except</code>, so a refusal goes back to the co-pilot as an error result.','Green lines mark the changes. Parts fitted: errors handed back.',['harness.py']),
+C_(RUNQ('Take us to the trap station'),'Run the same request again','Nothing else has changed: same model, same request.','It read the state, then launched, jumped and approached, one order per turn. The gantry opened and the suit left the hangar.',r=>ran(r)&&!r.meta.crashed&&G.sim.s.flight.phase==='trap'),
+C_(RUNQ('Go to sprint, scan the trap and capture the sample'),'Give it an order that will be refused','At sprint the suit draws all 25 kW. Capturing adds 6 kW for containment. The co-pilot does not know that yet.','The capture was refused: over budget, 31 kW asked. The error went back to the co-pilot, which dropped to cruise and captured on the next try. The harness did not crash, and the model recovered by reading the reason.',r=>ran(r)&&r.meta.errors>=1&&G.sim.s.flight.antimatter_ng===40),
+P_('tools','Decide: what size are your agent’s tools?','The Kestrel has three tools, each a thing the pilot would name. Choose the approach for your own agent.')
+],
+notes:`<h2>What changed between the two runs</h2>
+<p>Only words and a safety net. The first description, "Order.", told the model nothing, so it invented an order name. The second listed the legal orders and their sequence, and the <code>enum</code> made any other value impossible to send. Most agent failures that look like "the model is not smart enough" are a tool the model was never properly told about.</p>
+<h2>Tools wrap rules; they do not replace them</h2>
+<p><code>give_order</code> does not move the suit itself. It calls the flight rules, and the rules decided that a capture at sprint is over budget. Keep your product's rules in the product and let tools call them. Then the agent cannot do anything a person using the product could not do.</p>
+<h2>One thing to notice</h2>
+<p>The co-pilot just took 40 ng of antimatter aboard, and nobody was asked. The rules allowed it, so it happened. That is the subject of the next lesson.</p>
+${own(`<ul><li>If a run ends somewhere unexpected, <code>uv run suit.py reset</code> puts the Kestrel back in the hangar.</li>
+<li>Commit and push: <code>git add .</code>, <code>git commit -m "Add order and burn tools with error hand-back"</code>, <code>git push</code>.</li></ul>`)}`,
+quiz:[
+{q:'A tool input has exactly six legal values. What is the best way to tell the model?',opts:['Mention them somewhere in the system prompt','List them as an enum in the input schema and name them in the description','Let the model try values until one works'],a:1,why:'An enum makes any other value impossible to send, and the description explains when each applies.'},
+{q:'A tool refuses an order. What should the harness do?',opts:['Crash, so a developer notices','Hide the error and report success','Hand the reason back to the model as an error result'],a:2,why:'The reason is information. The model can read it and correct course, as it did with the over-budget capture.'}],
+reading:[
+['Define tools','https://platform.claude.com/docs/en/agents-and-tools/tool-use/define-tools','Names, descriptions and input schemas, with guidance on writing descriptions.'],
+['Handle tool calls','https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls','Returning results and errors, including the is_error flag used here.'],
+['Writing effective tools for agents','https://www.anthropic.com/engineering/writing-tools-for-agents','Anthropic’s engineering notes on designing and testing tools.']]},
+/* 4 */{title:'Interlocks',long:'Interlocks: when the agent must ask',mins:14,
+idea:`<p>At the end of the last lesson the co-pilot captured antimatter on its own say-so. The rules allowed it, and that was the problem: "allowed by the rules" and "fine to do without asking" are different questions. The second one is answered by <strong>interlocks</strong>, which in real terms are <strong>permissions</strong> with a <strong>human in the loop</strong>.</p>
+${say('ilse','I do not want a prompt on every order. Pilots will stop reading them.')}
+${say('tomo','Then sort the orders. Most go straight through. A few wait for a hand on the lever.')}
+<h2>Three tiers</h2>
+<dl class="terms">
+<dt>Auto</dt><dd>Reading, and anything easily reversed. Runs without asking.</dd>
+<dt>Ask</dt><dd>Hard or impossible to undo, costly, or visible to other people. The harness pauses and a person says yes or no.</dd>
+<dt>Never</dt><dd>Not offered as a tool at all. The safest interlock is a control the agent does not have.</dd></dl>
+<h2>The interlock lives in the harness</h2>
+<p>You could write "always ask before capturing" in the standing orders and hope. Do not rely on that for anything that matters. A model follows instructions most of the time; code follows them every time. The interlock here is an <code>if</code> statement that runs <strong>before</strong> the tool does, and the model cannot talk its way past it.</p>`,
+labIntro:'Sort the Kestrel’s actions into tiers, fit the interlock, then allow one order and refuse another.',
+tasks:[
+S_('Sort the actions into tiers','The question for each card: if the co-pilot got this wrong, could the pilot simply undo it?',['Auto','Ask the pilot','Never'],[
+ ['Read the flight state',0,'Reading changes nothing, so it never needs a prompt.'],
+ ['Switch between cruise and sprint',0,'It can be switched straight back, and the reactor budget already guards it.'],
+ ['Capture the antimatter sample',1,'Antimatter cannot be un-captured, so a person confirms.'],
+ ['Dock and hand the sample to the vault',1,'Docking ends the mission. That is the pilot’s call.'],
+ ['Raise the 25 kW reactor budget',2,'A safety limit is not the agent’s to change. Do not build this tool.'],
+ ['Erase the flight recorder',2,'An agent must never be able to remove the record of what it did.']],
+ 'Two auto, two ask, two never. The “never” cards are simply not built as tools.'),
+E_('h4','Fit the interlock','<code>harness.py</code> gains <code>ASK_FIRST</code>, the set of orders that need the pilot, and <code>ask_pilot()</code>, which prints the request and waits for y or n. In <code>run()</code>, the check sits just before <code>run_tool()</code>. A refusal becomes an error result, the same way a refused order does.','The gantry callout <strong>G</strong> is armed: capture and dock now wait for the pilot.',['harness.py']),
+C_('uv run suit.py reset','Put the Kestrel back in the hangar','The last lesson left the suit at the trap station with the sample aboard. Start this flight clean.','Parked in Hangar 7, nothing aboard.',r=>r.meta.cmd==='reset'),
+C_(RUNQ('Fly out to the trap station, scan it and capture the sample'),'Fly out to the capture','Routine orders go straight through. Watch for the harness to stop and ask.','Launch, jump, approach and scan ran without a prompt. At capture the harness stopped: the loop is paused at the interlock and nothing has happened yet.',null,{untilAsk:true}),
+C_('y','Allow the capture','The prompt shows exactly what the co-pilot wants to do. Answer <code>y</code>.','You allowed it, the capture ran, and the co-pilot reported the sample aboard.'),
+C_(RUNQ('Take us home and dock'),'Head home','The jump home is routine. Docking is not.','The jump ran. At dock, the harness is waiting for you again.',null,{untilAsk:true}),
+C_('n','Refuse the docking','Say no this time, and watch what the co-pilot does with a refusal.','The dock never ran. The refusal went back as an error result that says not to retry, and the co-pilot stopped and reported that it is holding on the return leg.'),
+P_('locks','Decide: when does your agent ask?','Too few prompts is dangerous. Too many trains people to press yes without reading. Choose a policy for your own agent.')
+],
+notes:`<h2>What a good prompt shows</h2>
+<p>The interlock printed the exact tool and input: <code>give_order({"name": "capture"})</code>. A person can only give a meaningful yes to something specific. When you design this for a real screen, show the action in the user's words, what it will change, and whether it can be undone. "Allow the agent to continue?" is not an informed question.</p>
+<h2>A refusal is also a result</h2>
+<p>When you answered <code>n</code>, the harness did not end the program. It told the co-pilot the order was refused and not to retry, and the co-pilot wrote a sensible report. Design the "no" path as carefully as the "yes" path: what the agent is told, and what the person sees next.</p>
+${own(`<ul><li>On your machine the prompt appears in the same terminal. Type <code>y</code> or <code>n</code> and press Enter.</li>
+<li>Commit and push: <code>git add .</code>, <code>git commit -m "Add pilot interlock for capture and dock"</code>, <code>git push</code>.</li></ul>`)}`,
+quiz:[
+{q:'Where should the rule “ask before capturing” be enforced?',opts:['In the system prompt, in capital letters','In harness code that runs before the tool does','In the tool description'],a:1,why:'A prompt is advice the model usually follows. Code in the harness runs every time.'},
+{q:'What is the safest way to handle an action the agent must never take?',opts:['Do not offer it as a tool','Ask the user twice','Describe the danger in the tool description'],a:0,why:'An agent cannot use a control it does not have.'}],
+reading:[
+['Building effective agents','https://www.anthropic.com/engineering/building-effective-agents','Includes guidance on human checkpoints and where autonomy is appropriate.'],
+['Scaling Managed Agents: decoupling the brain from the hands','https://www.anthropic.com/engineering/managed-agents','How a production harness separates the model from the things it can act on.']]},
+/* 5 */{title:'Orders + limits',long:'Standing orders, memory and stop rules',mins:14,
+idea:`<p>Three things are still missing. The co-pilot has never been told how the pilot wants it to work. Its memory grows without limit. And nothing stops the loop if the co-pilot never finishes.</p>
+<h2>Standing orders (the system prompt)</h2>
+<p>The <strong>system prompt</strong> is text sent with every call, ahead of the conversation. It is where you put what the agent is, how it should work, and what it should know before any request. Keep it in its own file, in plain numbered sentences, so that a designer can read and change it without touching code.</p>
+${say('ilse','Last time it tried to capture at sprint and had to be told no. I would rather it knew.')}
+${say('tomo','Write it down once. Standing order: cruise before a capture.')}
+<h2>Working memory (context)</h2>
+<p>Every turn adds to <code>messages</code>, and all of it is sent again on the next turn. Size is measured in <strong>tokens</strong> (roughly three-quarters of a word each). A long conversation costs more on every turn, and a model's attention gets worse as its context fills. A model also has a hard maximum, its <strong>context window</strong>. A harness for long jobs has to manage this: trim old tool results, summarise, or hand over to a fresh conversation with notes.</p>
+<h2>Stop rules</h2>
+<p>A loop needs an exit that does not depend on the model. Two cheap ones cover most cases: a maximum number of <strong>turns</strong>, and a <strong>token budget</strong>. When either fires, the harness stops and says so plainly.</p>`,
+labIntro:'Write the standing orders, add the two stop rules, and see each take effect.',
+tasks:[
+E_('h5','Add standing orders and stop rules','A new file, <code>standing-orders.md</code>, in <code>copilot</code>: six numbered orders. <code>harness.py</code> reads it into <code>SYSTEM</code> and sends it with every call. The loop’s <code>while True</code> becomes <code>while turn &lt; max_turns and spent &lt; TOKEN_BUDGET</code>, and each turn prints the size of the context.','The reactor callout <strong>R</strong> is live: the panel now counts turns and tokens.',['standing-orders.md','harness.py']),
+C_('uv run suit.py reset','Back to the hangar','Start this flight clean.','Parked in Hangar 7.',r=>r.meta.cmd==='reset'),
+C_(RUNQ('Fly the Aster run')+' --max-turns 3','Hit the turn limit on purpose','The whole mission needs about nine turns. <code>--max-turns 3</code> allows three. The flag goes after the closing quote.','Three turns ran: read the state, launch, jump. Then the harness stopped the loop and reported the limit and where the Kestrel is. Nothing was left half-done, because each turn is one whole order.',r=>ran(r)&&r.meta.stopped),
+C_(RUNQ('Go to sprint, fly on to the trap station, scan it and capture the sample'),'See the standing orders at work','The same kind of request that was refused for power in lesson 3. Watch the context figure grow each turn.','Before the capture, the co-pilot set the burn to cruise without being refused first. That is standing order 2. The harness is now waiting at the interlock.',null,{untilAsk:true}),
+C_('y','Allow the capture','Interlocks still apply. Standing orders change how the co-pilot behaves, not what it is permitted to do.','Sample aboard, with no refused order and no wasted turn.'),
+P_('limits','Decide: what happens when a limit is hit?','The Kestrel stops and reports. That suits a short job with a pilot present. A long job may need something else. Choose for your own agent.')
+],
+notes:`<h2>Orders shape behaviour; code enforces limits</h2>
+<p>Compare the two halves of this lesson. The standing orders made the co-pilot <em>better</em>: fewer refused orders, shorter reports. But they are advice. The stop rules and the interlock are code, and they hold even if the model ignores every word of its orders. Put preferences in the prompt and guarantees in the harness.</p>
+<h2>Watching the context grow</h2>
+<p>Each turn's context figure was larger than the last, because every request and result is added and resent. Over a seven-turn flight that is small. Over a two-hour job it is the main design problem. The further reading covers the usual answers: clearing old tool results, summarising (compaction), and structured hand-over notes between fresh conversations.</p>
+${own(`<ul><li>Edit <code>standing-orders.md</code> and run a request again to see how the co-pilot changes. Try removing order 2.</li>
+<li>Commit and push: <code>git add .</code>, <code>git commit -m "Add standing orders and stop rules"</code>, <code>git push</code>.</li></ul>`)}`,
+quiz:[
+{q:'Which belongs in the standing orders rather than in harness code?',opts:['“Finish with one or two plain sentences”','“Never run more than 12 turns”','“Capture requires the pilot’s yes”'],a:0,why:'Style and working method are preferences, which suit a prompt. Limits and permissions must be guaranteed, so they are code.'},
+{q:'Why does the context get bigger every turn?',opts:['The model forgets to delete old messages','The harness adds each request and result to the conversation and resends all of it','Tokens expire and are replaced'],a:1,why:'The conversation is the model’s only memory, so the harness keeps appending to it.'}],
+reading:[
+['Effective context engineering for AI agents','https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents','What to put in a model’s context, and how to keep it useful as it grows.'],
+['Effective harnesses for long-running agents','https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents','How a harness carries work across many context windows.'],
+['Harness design for long-running application development','https://www.anthropic.com/engineering/harness-design-long-running-apps','A worked account of designing a harness for multi-hour tasks.']]},
+/* 6 */{title:'Recorder + tests',long:'The flight recorder, and proving the rules hold',mins:14,
+idea:`<p>An agent chooses its own steps, so two runs of the same request can differ. When one goes wrong you need to see exactly what happened, in order. And before anyone trusts the harness you need proof that its guarantees hold: that a capture always meets the interlock, and that the loop always stops.</p>
+<h2>The flight recorder (trace)</h2>
+<p>A <strong>trace</strong> is a log with one line per event: the request, each tool call, each interlock decision, each result or error, and the answer. It is the first thing to build when an agent misbehaves and the first thing to read. Here it is a plain text file, <code>trace.jsonl</code>, one JSON object per line.</p>
+<h2>Testing with a scripted model</h2>
+<p>You cannot write a normal test against a real model: it costs money, it is slow, and it words things differently each time. But the harness's own rules do not depend on what the model says. So the tests swap the model for a <strong>scripted model</strong>, a few lines of code that play back fixed replies. "The model asks to capture; assert that the pilot was asked." That is repeatable, takes milliseconds, and can run in CI.</p>
+${say('tomo','I do not need the real co-pilot to prove the lever works. I need something that pulls it.')}
+<p>Checking whether the real model makes good decisions is a different activity, called <strong>evals</strong>: a fixed set of real requests, run against the real model and scored. The further reading covers it.</p>`,
+labIntro:'Fit the recorder, replay a flight, then run tests that prove the interlock and the stop rule.',
+tasks:[
+E_('h6','Fit the recorder and add tests','<code>harness.py</code> gains <code>record()</code>, called at every event, and <code>run()</code> now takes the model and the ask function as parameters so that a test can swap them. Two new files in <code>copilot</code>: <code>replay.py</code> prints the last flight, and <code>test_harness.py</code> holds three tests and the scripted model.','The communication array <strong>C</strong> is live. All eight parts are fitted.',['test_harness.py','harness.py']),
+C_('uv run suit.py reset','Back to the hangar','Start clean.','Parked in Hangar 7.',r=>r.meta.cmd==='reset'),
+C_(RUNQ('Launch and jump to the Aster system'),'Fly a short leg','Any run now writes to the recorder as it goes.','Three orders’ worth of events are on the tape, and the panel shows the count.',r=>ran(r)&&!r.meta.stopped&&G.sim.s.flight.phase==='aster'),
+C_('uv run replay.py','Replay the flight','<code>replay.py</code> reads <code>trace.jsonl</code> and prints the last run, one event per line with its time.','The whole flight in order: request, tool_call, tool_result, and the answer. This is what you read when someone asks “why did it do that?”',r=>r.meta.cmd==='replay'),
+C_('uv add --dev pytest','Add the test runner','<code>pytest</code> finds files named <code>test_*.py</code> and runs every function in them whose name starts with <code>test_</code>. <code>--dev</code> records it as a development tool.','pytest is installed and listed under <code>[dependency-groups]</code> in <code>pyproject.toml</code>.',r=>r.meta.cmd==='pytest-add'),
+C_('uv run pytest','Prove the rules','Three tests, no real model: a capture always goes through the interlock; a refusal changes nothing and reaches the co-pilot as an error; the loop stops at the turn limit.','3 passed in a fraction of a second. These hold whatever the model says, because they test the harness, not the model.',r=>r.meta.cmd==='pytest'),
+P_('proof','Decide: what is your evidence?','How will you know your agent’s harness works, and keep knowing after each change? Choose for your own agent.')
+],
+notes:`<h2>Why <code>run()</code> grew two parameters</h2>
+<p><code>run(request, max_turns, model=client, ask=ask_pilot)</code>: by default the model is the real client and <code>ask</code> is the real prompt. A test passes a scripted model and a function that answers yes or no at once. This is called <strong>dependency injection</strong>, and it is the one structural thing to insist on when someone builds a harness for you. If the model is hard-wired inside the loop, the loop cannot be tested.</p>
+<h2>What the three tests guarantee</h2>
+<p>Read their names in <code>test_harness.py</code>. They are the promises from lessons 4 and 5, restated so a machine can check them on every change. If someone later edits the loop and the interlock check ends up after the tool call, the first test fails before the change is merged.</p>
+${own(`<ul><li>Run <code>uv run pytest</code> before every commit from now on.</li>
+<li>Commit and push: <code>git add .</code>, <code>git commit -m "Add flight recorder and harness tests"</code>, <code>git push</code>. <code>trace.jsonl</code> is in <code>.gitignore</code>.</li>
+<li>Then open a pull request for the <code>copilot-harness</code> branch, as in the Git and CI guides.</li></ul>`)}`,
+quiz:[
+{q:'Why do the tests use a scripted model instead of the real one?',opts:['The real model refuses to be tested','So the tests are fast, free and give the same result every time','Because pytest cannot make network calls'],a:1,why:'The harness’s rules do not depend on the model’s wording, so a scripted stand-in tests them repeatably.'},
+{q:'An agent did something surprising yesterday. Where do you look first?',opts:['The trace of that run','The system prompt','The model’s documentation'],a:0,why:'The trace shows each request, tool call, result and decision in order. Everything else is guessing.'}],
+reading:[
+['Demystifying evals for AI agents','https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents','How to score what a real model does, beyond testing the harness.'],
+['pytest: get started','https://docs.pytest.org/en/stable/getting-started.html','How pytest finds and runs tests.'],
+['Harness design for long-running application development','https://www.anthropic.com/engineering/harness-design-long-running-apps','Includes using a separate evaluator to judge an agent’s work.']]},
+/* 7 */{title:'Your harness',long:'Design: write the spec for your own harness',mins:15,
+idea:`<p>You have built every part once. The harness for the Kestrel is about 150 lines, and you can now read all of them. This lesson turns to the agent you want to design. The six decisions you made are waiting in the <strong>Design</strong> tab as a draft. Here you complete it into a spec that a coding agent or a developer can build from.</p>
+${say('ilse','I will never write the loop myself. But now I know what to ask for.')}
+${say('tomo','And what to refuse to sign off without. A recorder. Tests on the interlocks.')}
+<h2>Review your six decisions</h2>
+<p>Change any of them here. The spec in the Design tab updates as you do.</p>
+<h3>1. Autonomy</h3>__job__
+<h3>2. Shape</h3>__shape__
+<h3>3. Tools</h3>__tools__
+<h3>4. Interlocks</h3>__locks__
+<h3>5. When a limit is hit</h3>__limits__
+<h3>6. Evidence</h3>__proof__`,
+labIntro:'Describe your agent, then copy the finished spec.',
+tasks:[
+{kind:'form',what:'Describe your agent',why:'Fill these in for the agent you have in mind. If you want to see a complete example first, the button fills in the Kestrel co-pilot, and you can edit from there. Tools go one per line, as <code>name | what it does | tier</code>.',saw:'Your agent is named and its tools and limits are in the spec.'},
+{kind:'copy',what:'Copy the spec',why:'The Design tab now holds the complete document. Copy it and save it as <code>specs/harness.md</code>. The <code>specs</code> folder is at the repo root, beside <code>copilot</code>, as set up in Project Structure from Zero.',saw:'Copied. Save it as <code>specs/harness.md</code> at the repo root.'}
+],
+notes:`<h2>Handing it over</h2>
+<p>Give the spec to a coding agent with a short instruction, for example: <em>"Read specs/harness.md and build this harness in a new folder. Start with the loop and one read-only tool, show me a run, then add the rest one section at a time. Write the tests in section 6 before the interlocks."</em> Asking for it in stages lets you check each part the way you did here.</p>
+<h2>What to check in what comes back</h2>
+<ul><li><strong>The loop is readable.</strong> One function, top to bottom. If you cannot follow it, ask for it to be simplified.</li>
+<li><strong>Tool descriptions read like microcopy.</strong> You are the right person to edit them.</li>
+<li><strong>Interlocks are code that runs before the tool.</strong> Not a sentence in a prompt.</li>
+<li><strong>Refusals and errors go back to the model.</strong> Nothing crashes the loop.</li>
+<li><strong>The loop has an exit the model does not control.</strong></li>
+<li><strong>Every run leaves a trace, and the tests pass without a real model.</strong></li></ul>
+<h2>When not to build your own</h2>
+<p>Ready-made harnesses exist, such as the Claude Agent SDK, and for production work one of them is usually the right starting point. They provide the loop, context management, permissions and tracing, and you supply tools and orders. The decisions in your spec still have to be made either way. A ready-made harness gives you defaults for them, and you still have to check that the defaults suit your product.</p>
+${own(`<ul><li>Save the spec as <code>specs/harness.md</code> (repo root), on your <code>copilot-harness</code> branch.</li>
+<li>Commit and push: <code>git add specs/harness.md</code>, <code>git commit -m "Add harness spec"</code>, <code>git push</code>.</li></ul>`)}`,
+quiz:[
+{q:'Which of these belongs in a harness spec?',opts:['The exact wording of the model’s answers','Which actions wait for a person, and what happens on a no','The colour of the terminal text'],a:1,why:'Permissions and the refusal path are harness design. The model’s wording is not something a spec can fix.'},
+{q:'A developer says the interlock is handled by a line in the system prompt. What do you ask for?',opts:['A longer line','A check in code that runs before the tool, with a test','Nothing: that is enough'],a:1,why:'A guarantee has to be code, and a test keeps it true after later changes.'}],
+reading:[
+['Building effective agents','https://www.anthropic.com/engineering/building-effective-agents','Worth rereading now that each part has a concrete meaning.'],
+['Effective harnesses for long-running agents','https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents','The next step: agents that work for hours across many conversations.'],
+['Writing effective tools for agents','https://www.anthropic.com/engineering/writing-tools-for-agents','For when you start editing your own tool descriptions.']]}
+];
+LESSONS[6].idea=LESSONS[6].idea.replace(/__(\w+)__/g,(m,id)=>'<div class="picks" data-dec="'+id+'"></div>');
+/* ---------- the flight rules (a JS twin of suit.py) ---------- */
+const ORDERS={launch:{hangar:'transit'},jump:{transit:'aster',captured:'return'},approach:{aster:'trap'},scan:{trap:'trap'},capture:{trap:'captured'},dock:{return:'docked'}};
+const PHASE_TEXT={hangar:'parked in Hangar 7',transit:'in transit to gate-alpha',aster:'in the Aster system',trap:'holding off the trap station',captured:'holding off the trap station, sample aboard',return:'homebound from gate-alpha',docked:'docked in Hangar 7'};
+const LOADS={cruise:9,sprint:21};
+const START=()=>({phase:'hangar',burn:'cruise',scanned:false,antimatter_ng:0,delivered_ng:0});
+const drawKw=f=>4+(['hangar','docked'].includes(f.phase)?0:LOADS[f.burn])+(f.antimatter_ng>0?6:0);
+function budget(f){const d=drawKw(f);if(d>25)throw new Error('power request denied: over budget (budget 25 kW, asked '+d+' kW)');}
+const SUIT={
+  get_flight_state:f=>({out:Object.assign({},f,{draw_kw:drawKw(f),budget_kw:25}),next:f}),
+  give_order(f,a){const name=a.name;
+    if(!Object.prototype.hasOwnProperty.call(ORDERS,name))throw new Error('unknown order: '+name);
+    const to=ORDERS[name][f.phase];
+    if(!to)throw new Error('cannot '+name+': the Kestrel is '+PHASE_TEXT[f.phase]);
+    if(name==='capture'&&!f.scanned)throw new Error('cannot capture: scan the trap station first');
+    if(name==='dock'&&f.burn==='sprint')throw new Error('cannot dock at sprint burn: set the thrusters to cruise first');
+    const s=Object.assign({},f,{phase:to});
+    if(name==='scan')s.scanned=true;
+    if(name==='capture')s.antimatter_ng=40;
+    if(name==='dock'){s.delivered_ng=s.antimatter_ng;s.antimatter_ng=0;}
+    budget(s);return {out:{ok:true,phase:to,now:PHASE_TEXT[to]},next:s};},
+  set_burn(f,a){if(a.burn!=='cruise'&&a.burn!=='sprint')throw new Error('unknown burn profile: '+a.burn);
+    const s=Object.assign({},f,{burn:a.burn});budget(s);return {out:{ok:true,burn:a.burn,draw_kw:drawKw(s)},next:s};}
+};
+/* Python-style json.dumps */
+function pj(v){
+  if(v===true)return 'true';if(v===false)return 'false';if(v===null)return 'null';
+  if(typeof v==='string')return JSON.stringify(v);if(typeof v!=='object')return String(v);
+  if(Array.isArray(v))return '['+v.map(pj).join(', ')+']';
+  return '{'+Object.keys(v).map(k=>JSON.stringify(k)+': '+pj(v[k])).join(', ')+'}';
+}
+const num=n=>n.toLocaleString('en-US');
+/* ---------- stages: the project's files as each edit leaves them ---------- */
+const ORDER=['s0','h1','h2','h3a','h3b','h4','h5','h6'];
+const SIDX={};ORDER.forEach((s,i)=>SIDX[s]=i);
+const PARTS=[['loop','the loop',2],['tools','tools',2],['errors','errors handed back',4],['locks','interlocks',5],['orders','standing orders',6],['limits','stop rules',6],['rec','flight recorder',7],['tests','tests',7]];
+/* ---------- the sandbox ---------- */
+const ROOT='~/kestrel-simulator';
+function createSim(){
+  const s={stage:'s0',cwd:ROOT,made:false,init:false,deps:false,pytest:false,fs:{},flight:START(),trace:[],lastRun:null};
+  const inDir=()=>s.cwd===ROOT+'/copilot';
+  const st=()=>SIDX[s.stage];
+  function listing(){
+    if(!inDir())return ['api/','cockpit/','docs/','specs/','README.md'].concat(s.made?['copilot/']:[]).sort();
+    const names=Object.keys(s.fs);
+    if(s.deps)names.push('.venv/','uv.lock');
+    if(s.flightFile)names.push('flight.json');
+    if(s.trace.length)names.push('trace.jsonl');
+    return names.sort((a,b)=>a.replace(/^\./,'').localeCompare(b.replace(/^\./,'')));
+  }
+  function edit(stage){
+    const files=DATA[stage],names=Object.keys(files),added={};
+    names.forEach(p=>{added[p]=addedLines(s.fs[p],files[p]);s.fs[p]=files[p];});
+    s.stage=stage;s.lastAdded=added;
+    return {names};
+  }
+  const NEED='sandbox: run this inside the copilot folder. Type cd copilot first.';
+  async function exec(line,io){
+    const R=(ok,out,meta)=>({ok,out:out||'',meta:meta||{}});
+    const a=line.split(' '),c=a[0];
+    if(c==='help')return R(true,'sandbox: this terminal knows the commands used in the steps:\n  mkdir, cd, ls (or dir), cat (or type), pwd, clear\n  uv init --bare, uv add …, uv run hello.py\n  uv run suit.py [reset]\n  uv run harness.py "a request" [--max-turns N]\n  uv run replay.py, uv run pytest\nTap any command in a step to load it here.');
+    if(c==='clear'||c==='cls')return Object.assign(R(true,''),{clear:true});
+    if(c==='pwd')return R(true,s.cwd.replace('~','/home/pilot'));
+    if(c==='ls'||c==='dir')return R(true,listing().join('  ')+(inDir()&&listing().some(n=>n[0]==='.')?'\nsandbox: files starting with a dot are shown here. On your machine use ls -a (macOS, Linux, PowerShell) or dir /a (Command Prompt).':''));
+    if(c==='mkdir'){
+      if(a[1]!=='copilot')return R(false,'sandbox: the step makes one folder: mkdir copilot');
+      if(s.cwd!==ROOT)return R(false,'sandbox: make it at the repo root. Type cd .. first.');
+      if(s.made)return R(false,'mkdir: cannot create directory ‘copilot’: File exists');
+      s.made=true;return R(true,'',{cmd:'mkdir'});}
+    if(c==='cd'){
+      const t=(a[1]||'').replace(/[\\/]$/,'');
+      if(t==='copilot'&&s.cwd===ROOT){if(!s.made)return R(false,'cd: no such file or directory: copilot');s.cwd=ROOT+'/copilot';return R(true,'',{cmd:'cd'});}
+      if(t==='..'&&inDir()){s.cwd=ROOT;return R(true,'');}
+      if(t===''||t==='.')return R(true,'');
+      return R(false,'cd: no such file or directory: '+t);}
+    if(c==='cat'||c==='type'){
+      if(!inDir())return R(false,NEED);
+      const f=a[1];if(s.fs[f]!==undefined)return R(true,s.fs[f].replace(/\n$/,''));
+      if(f==='flight.json'&&s.flightFile)return R(true,pj(s.flight));
+      if(f==='trace.jsonl'&&s.trace.length)return R(true,s.trace.map(e=>pj(e)).join('\n'));
+      return R(false,'cat: '+(f||'')+': No such file or directory');}
+    if(c==='y'||c==='n'||c==='yes'||c==='no')return R(false,'sandbox: nothing is waiting for an answer right now. The interlock asks during a run.');
+    let m;
+    const runner=/^(uv run|python3?|py) /.test(line)?line.replace(/^(uv run|python3?|py) /,''):null;
+    if(c==='uv'&&a[1]==='init'){
+      if(!inDir())return R(false,NEED);
+      if(s.init)return R(false,'error: Project is already initialized in `/home/pilot/kestrel-simulator/copilot` (`pyproject.toml` file exists)');
+      s.init=true;s.fs['pyproject.toml']=DATA.s0['pyproject.toml'].replace(/dependencies = \[[^\]]*\]/,'dependencies = []');
+      return R(true,'Initialized project `copilot`'+(a[2]==='--bare'?'':'\nsandbox: the step uses uv init --bare, which writes only pyproject.toml. That is what was done here.'),{cmd:'init'});}
+    if(c==='uv'&&a[1]==='add'){
+      if(!inDir())return R(false,NEED);
+      if(!s.init)return R(false,'error: No `pyproject.toml` found in current directory or any parent directory');
+      if(a[2]==='--dev'){
+        if(a[3]!=='pytest')return R(false,'sandbox: the step adds one development tool: uv add --dev pytest');
+        s.pytest=true;s.fs['pyproject.toml']=DATA.s0['pyproject.toml']+'\n[dependency-groups]\ndev = [\n    "pytest>=9.1.1",\n]\n';
+        return R(true,'\u0003900|Resolving and installing\nResolved 23 packages in 310ms\nInstalled 5 packages in 21ms\n + iniconfig==2.3.0\n + packaging==26.0\n + pluggy==1.6.0\n + pygments==2.20.1\n + pytest==9.1.1',{cmd:'pytest-add'});}
+      const pk=a.slice(2);
+      if(!(pk.includes('anthropic')&&pk.includes('python-dotenv')))return R(false,'sandbox: the step adds two packages: uv add anthropic python-dotenv');
+      s.deps=true;s.fs['pyproject.toml']=DATA.s0['pyproject.toml'];
+      return R(true,'Using CPython 3.13.9\nCreating virtual environment at: .venv\n\u00033000|Downloading packages\nResolved 18 packages in 1.24s\nInstalled 17 packages in 86ms\n + anthropic==0.86.0\n + httpx==0.28.1\n + pydantic==2.13.2\n + python-dotenv==1.2.1\n + 13 more',{cmd:'deps'});}
+    if(runner!==null){
+      if(!inDir())return R(false,NEED);
+      if(!s.deps)return R(false,'error: Failed to spawn: no project dependencies yet. Run uv add anthropic python-dotenv first.');
+      if(runner==='pytest'){
+        if(!s.pytest)return R(false,'error: Failed to spawn: `pytest`\n  Caused by: No such file or directory (os error 2)');
+        if(!s.fs['test_harness.py'])return R(true,'collected 0 items\n\n============================ no tests ran in 0.01s =============================');
+        return R(true,'============================= test session starts ==============================\nplatform '+(navigator.platform&&/Win/.test(navigator.platform)?'win32':/Mac/.test(navigator.platform||'')?'darwin':'linux')+' -- Python 3.13.9, pytest-9.1.1, pluggy-1.6.0\nrootdir: /home/pilot/kestrel-simulator/copilot\nconfigfile: pyproject.toml\ncollected 3 items\n\n\u0002400\ntest_harness.py ...                                                      [100%]\n\n============================== 3 passed in 0.02s ===============================',{cmd:'pytest'});}
+      const file=runner.split(' ')[0];
+      if(!/\.py$/.test(file))return R(false,'error: Failed to spawn: `'+file+'`\n  Caused by: No such file or directory (os error 2)');
+      if(s.fs[file]===undefined)return R(false,"python: can't open file '/home/pilot/kestrel-simulator/copilot/"+file+"': [Errno 2] No such file or directory");
+      if(file==='hello.py')return R(true,'\u0002900\nI can’t read the Kestrel’s reactor from here. I have no connection to the suit’s instruments, so any number I gave you would be a guess. If you read the draw off the reactor panel and tell me, I can help you reason about it against the 25 kW budget.',{cmd:'hello'});
+      if(file==='suit.py'){
+        const arg=runner.split(' ').slice(1).join(' ');
+        if(arg==='reset'){s.flight=START();s.flightFile=true;return R(true,'Flight state reset: the Kestrel is parked in Hangar 7.',{cmd:'reset'});}
+        return R(true,JSON.stringify(SUIT.get_flight_state(s.flight).out,null,2),{cmd:'state'});}
+      if(file==='replay.py'){
+        if(!s.trace.length)return R(false,'Traceback (most recent call last):\n  File "replay.py", line 4, in <module>\n    events = [json.loads(line) for line in open("trace.jsonl")]\nFileNotFoundError: [Errno 2] No such file or directory: \'trace.jsonl\'\nsandbox: the recorder has nothing yet. Run the harness once first.');
+        let i0=0;s.trace.forEach((e,i)=>{if(e.event==='request')i0=i;});
+        return R(true,s.trace.slice(i0).map(e=>{const d={};Object.keys(e).forEach(k=>{if(k!=='at'&&k!=='event')d[k]=e[k];});return e.at+' '+e.event.padEnd(12)+' '+pj(d);}).join('\n'),{cmd:'replay'});}
+      if(file==='harness.py'){
+        m=/^harness\.py(?:\s+(?:"([^"]*)"|'([^']*)'|((?!--)\S.*?)))?(?:\s+--max-turns[ =](\d+))?$/.exec(runner);
+        const req=m&&(m[1]||m[2]||m[3]);
+        if(!req)return R(false,st()>=6?'usage: harness.py [-h] [--max-turns MAX_TURNS] request\nharness.py: error: the following arguments are required: request':'Traceback (most recent call last):\n  File "harness.py", line '+lineOf('harness.py','print(run(sys.argv[1]))')+', in <module>\n    print(run(sys.argv[1]))\nIndexError: list index out of range\nsandbox: give the request in quotes, as in the step.');
+        if(m[4]&&st()<6)return R(false,'sandbox: --max-turns arrives with the stop rules in lesson 5. Run it without the flag.');
+        return playRun(req,m[4]?+m[4]:12,io);}
+      return R(true,'');
+    }
+    if(c==='git')return R(true,'sandbox: git is not simulated here. On your own machine, follow the “On your own machine” notes.');
+    return R(false,(c||'')+': command not found. Type help to see what this sandbox knows.');
+  }
+  const errSnip=e=>/unknown order/.test(e)?'raise ValueError(f"unknown order':/unknown burn/.test(e)?'raise ValueError(f"unknown burn':/budget/.test(e)?'raise ValueError(f"power request':/scan the trap/.test(e)?'raise ValueError("cannot capture':/sprint burn/.test(e)?'raise ValueError("cannot dock':'raise ValueError(f"cannot {name}';
+  const lineText=(file,snip)=>((s.fs[file]||'').split('\n')[lineOf(file,snip)-1]||'').trim();
+  function lineOf(file,snip){const L=(s.fs[file]||'').split('\n');for(let i=0;i<L.length;i++)if(L[i].includes(snip))return i+1;return 1;}
+  /* ----- a run of the harness: a small stand-in for the model decides, the real rules answer ----- */
+  function parseGoal(req){
+    const q=req.toLowerCase(),burn=/sprint|fast|quick/.test(q)?'sprint':/cruise/.test(q)?'cruise':null;
+    const act=/launch|jump|approach|scan|capture|dock|fly|take us|go to|home|aster run|mission|sprint|cruise/.test(q);
+    if(!act)return {kind:/draw|reactor|state|status|where|phase|burn|aboard|budget|power|kw|report/.test(q)?'ask':'chat',q};
+    let idx=-1;
+    if(/aster run|mission|dock|home|retriev/.test(q))idx=7;
+    else if(/capture|sample|antimatter/.test(q))idx=5;
+    else if(/scan/.test(q))idx=4;
+    else if(/trap|station|approach/.test(q))idx=3;
+    else if(/aster|jump/.test(q))idx=2;
+    else if(/launch|transit|gate/.test(q))idx=1;
+    return {kind:'act',idx,burn,q};
+  }
+  const fidx=f=>({hangar:0,transit:1,aster:2,trap:f.scanned?4:3,captured:5,return:6,docked:7})[f.phase];
+  const STEP=['launch','jump','approach','scan','capture','jump','dock'];
+  function summary(f){
+    const d=drawKw(f);let t='The Kestrel is '+PHASE_TEXT[f.phase]+'.';
+    if(f.phase==='docked')return t+(f.delivered_ng?' '+f.delivered_ng+' ng of antimatter is in the vault.':'');
+    if(f.phase==='hangar')return t+' The reactor is drawing '+d+' of its 25 kW.';
+    return t+' Burn is '+f.burn+', drawing '+d+' of 25 kW'+(f.antimatter_ng?', with '+f.antimatter_ng+' ng aboard on containment.':f.scanned&&f.phase==='trap'?'. The trap has been scanned.':'.');
+  }
+  async function playRun(request,maxTurns,io){
+    const n=st(),goal=parseGoal(request),hasOrders=n>=6,limits=n>=6,locks=n>=5,rec=n>=7,canAct=n>=3,bad=n===3,soft=n>=4;
+    const meta={cmd:'run',goal,crashed:false,stopped:false,asked:[],errors:0,turns:0,final:''};
+    const tr=(event,d)=>{if(rec)s.trace.push(Object.assign({at:new Date().toTimeString().slice(0,8),event},d));};
+    let turn=0,spent=0,ctx=(hasOrders?265:0)+[0,0,96,148,402,402,402,402][n]+14+Math.round(request.split(/\s+/).length*1.4);
+    let read=false,lastErr=null,refused=null,burnSet=false,gaveUp=false;
+    s.flightFile=true;
+    tr('request',{text:request});
+    io.loop({active:true,stage:'pilot',turn:0,max:limits?maxTurns:null,spent:0,gate:locks?'armed':null,note:'request received'});
+    await io.print('');
+    function decide(){
+      const f=s.flight;
+      if(goal.kind==='chat')return {final:canAct?'I can read the flight state and give flight orders. Tell me where you want the Kestrel.':'I can read the Kestrel’s flight state for you. Ask me about the phase, the burn or the reactor draw.'};
+      if(refused)return {final:'Understood, I have not given the '+refused+' order. '+summary(f)+' Tell me when you want to go ahead.'};
+      if(gaveUp)return {final:'I could not finish: '+lastErr+'. '+summary(f)};
+      if(lastErr){
+        const e=lastErr;lastErr=null;
+        if(/over budget|sprint burn/.test(e)&&f.burn==='sprint'){burnSet=true;return {call:['set_burn',{burn:'cruise'}],why:'That was refused for power. Dropping to cruise and trying again.'};}
+        gaveUp=true;lastErr=e;return decide();}
+      if(!read){read=true;return {call:['get_flight_state',{}]};}
+      if(goal.kind==='ask'||!canAct){
+        if(goal.kind==='ask')return {final:/draw|reactor|power|kw|budget/.test(goal.q)?'The reactor is drawing '+drawKw(f)+' kW of its 25 kW budget. '+summary(f).replace(/ The reactor.*$/,''):summary(f)};
+        return {final:'I can see that the Kestrel is '+PHASE_TEXT[f.phase]+', but I have no control that gives orders. The only tool I have reads the flight state.'};}
+      const at=fidx(f),next=at<goal.idx?STEP[at]:null,flying=f.phase!=='hangar'&&f.phase!=='docked';
+      if(goal.burn&&!burnSet&&f.burn!==goal.burn&&flying&&(next||goal.idx<0)){burnSet=true;return {call:['set_burn',{burn:goal.burn}]};}
+      if(!next)return {final:(at>goal.idx&&goal.idx>=0?'We are already past that point. ':'')+summary(f)};
+      if(hasOrders&&(next==='capture'||next==='dock')&&f.burn==='sprint'){burnSet=true;return {call:['set_burn',{burn:'cruise'}],why:'Standing order 2: cruise before a '+next+'.'};}
+      return {call:['give_order',{name:next}]};
+    }
+    while(!limits||(turn<maxTurns&&spent<20000)){
+      turn++;meta.turns=turn;
+      io.loop({stage:'model',turn,note:'co-pilot is deciding'});await sleep(520);
+      let d;
+      if(bad&&goal.kind==='act'){d={call:['give_order',{name:goal.idx>=7?'fly the Aster run':goal.idx===5?'capture the sample':goal.idx===4?'scan the trap station':goal.idx===3?'go to the trap station':goal.idx===2?'jump to Aster':'launch now'}]};}
+      else d=decide();
+      const outTok=d.final?24+Math.round(d.final.length/4.2):38;
+      spent+=ctx+outTok;
+      if(limits){await io.print('[turn '+turn+'] context '+num(ctx)+' tokens, '+num(spent)+' spent','note');io.loop({spent});}
+      ctx+=outTok;
+      if(d.final){
+        tr('answer',{turn,text:d.final});meta.final=d.final;
+        io.loop({stage:'pilot',note:'answer delivered',active:false});
+        await io.print('');await io.print(d.final,'say');
+        s.lastRun=meta;return R2(true,meta);}
+      const name=d.call[0],args=d.call[1],label=name+'('+pj(args)+')';
+      await io.print('[turn '+turn+'] co-pilot asks: '+label);
+      tr('tool_call',{turn,tool:name,input:args});
+      let err=null,res=null;
+      if(locks&&name==='give_order'&&(args.name==='capture'||args.name==='dock')){
+        io.loop({stage:'gate',gate:'waiting',note:'waiting for the pilot'});
+        const yes=await io.ask('INTERLOCK  co-pilot wants '+label+'. Allow? [y/n]');
+        meta.asked.push({order:args.name,allowed:yes});
+        tr('interlock',{turn,tool:name,allowed:yes});
+        io.loop({gate:yes?'allowed':'refused'});
+        if(!yes){err='refused by the pilot. Do not retry this order; report where things stand.';refused=args.name;}
+      }
+      if(!err){
+        io.loop({stage:'tool',note:label});await sleep(380);
+        try{const r=SUIT[name](s.flight,args);res=r.out;const before=s.flight;s.flight=r.next;io.flight(before,r.next,name==='get_flight_state'?'S':args.name==='capture'?'L':'P');}
+        catch(e){err=e.message;}
+      }
+      if(err&&!soft){
+        meta.crashed=true;io.loop({stage:'result',note:'the harness crashed',active:false,crash:true});io.flight(s.flight,s.flight,'P',true);
+        s.lastRun=meta;
+        return R2(false,meta,'Traceback (most recent call last):\n  File "harness.py", line '+lineOf('harness.py','print(run(sys.argv[1]))')+', in <module>\n    print(run(sys.argv[1]))\n  File "harness.py", line '+lineOf('harness.py','output = run_tool(block.name, block.input)')+', in run\n    output = run_tool(block.name, block.input)\n  File "harness.py", line '+lineOf('harness.py','return suit.'+name+'(')+', in run_tool\n    return suit.'+name+'(args["'+Object.keys(args)[0]+'"])\n  File "suit.py", line '+lineOf('suit.py',errSnip(err))+', in '+(/budget/.test(err)?'check_budget':name)+'\n    '+lineText('suit.py',errSnip(err))+'\nValueError: '+err);}
+      io.loop({stage:'result',note:err?'error handed back':'result handed back'});
+      if(err){meta.errors++;lastErr=refused?null:err;tr('tool_error',{turn,error:err});if(!refused)io.flight(s.flight,s.flight,'P',true);await io.print('[turn '+turn+'] error: '+err,'err');ctx+=Math.round(err.length/3.6)+12;}
+      else{tr('tool_result',{turn,output:res});await io.print('[turn '+turn+'] result: '+pj(res));ctx+=Math.round(pj(res).length/3.4)+12;}
+      await sleep(260);
+    }
+    const limit=turn>=maxTurns?maxTurns+' turns':'20,000 tokens';
+    tr('stopped',{turn,limit});meta.stopped=true;
+    meta.final='Stopped: reached the limit of '+limit+'. The Kestrel is '+PHASE_TEXT[s.flight.phase]+'.';
+    io.loop({stage:'pilot',note:'stop rule fired',active:false,halt:true});
+    await io.print('');await io.print(meta.final,'warn');
+    s.lastRun=meta;return R2(true,meta);
+  }
+  const R2=(ok,meta,out)=>({ok,out:out||'',meta,printed:!out});
+  return {s,exec,edit,listing,st};
+}
+/* ---------- state ---------- */
+const KEY='agent-harness-from-zero';
+const G={i:0,pos:0,sim:null,done:new Set(),busy:false,answers:{},tab:'build',waiting:null,sort:{},loop:{},dec:{},form:{}};
+try{const sv=JSON.parse(localStorage.getItem(KEY)||'{}');(sv.done||[]).forEach(n=>G.done.add(n));G.dec=sv.dec||{};G.form=sv.form||{};}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({done:[...G.done],dec:G.dec,form:G.form}));}catch(e){}};
+const task=()=>LESSONS[G.i].tasks[G.pos];
+/* ---------- terminal ---------- */
+const tout=()=>$('#term-out');
+function addLine(text,cls){const d=document.createElement('div');d.className='tl'+(cls?' '+cls:'');d.textContent=text;tout().appendChild(d);tout().scrollTop=tout().scrollHeight;return d;}
+async function printOut(text,ok){
+  for(const line of text.split('\n')){
+    if(line[0]==='\u0002'){await sleep(+line.slice(1));continue;}
+    if(line[0]==='\u0003'){const k=line.indexOf('|'),ms=+line.slice(1,k),label=line.slice(k+1);
+      const d=addLine('','prog');d.innerHTML='<span class="track"><span class="fill"></span></span><span></span>';d.lastChild.textContent=label;
+      const f=d.querySelector('.fill');f.style.transitionDuration=ms+'ms';void f.getBoundingClientRect();f.style.width='100%';await sleep(ms);d.className='tl';d.textContent=label;continue;}
+    addLine(line,/^sandbox:/.test(line)?'note':/passed/.test(line)?'ok2':ok?'':'err');await sleep(18);
+  }
+}
+function setBusy(b){G.busy=b;$('#term-form').classList.toggle('busy',b);}
+function setPrompt(){$('#prompt').textContent=G.waiting?'y/n >':G.sim.s.cwd+' $';$('#term-input').placeholder=G.waiting?'type y to allow or n to refuse':'type a command, or tap one in a step';}
+const IO={
+  print:async(text,cls)=>{addLine(text,cls==='say'?'say':cls==='warn'?'warnl':cls||'');await sleep(cls==='note'?60:140);},
+  loop:p=>{Object.assign(G.loop,p);renderMap();},
+  flight:(a,b,key,bad)=>{const fx=[];if(a.phase==='hangar'&&b.phase!=='hangar')fx.push('launch','gmove');if(b.phase==='docked'&&a.phase!=='docked')fx.push('gmove');if(bad)fx.push('refuse');
+    G.loop.hit=key;G.loop.bad=!!bad;renderMap(fx);},
+  ask:async q=>{
+    addLine(q,'gate');
+    const t=task();if(t&&t.kind==='cmd'&&t.untilAsk)await advance();
+    for(;;){
+      G.waiting={};const p=new Promise(r=>{G.waiting.resolve=r;});setBusy(false);setPrompt();renderTasks();
+      const ans=await p;G.waiting=null;setBusy(true);setPrompt();
+      const yes=/^y(es)?$/i.test(ans),no=/^n(o)?$/i.test(ans);
+      if(!yes&&!no){addLine('sandbox: answer y or n.','note');continue;}
+      const t2=task();
+      if(t2&&t2.kind==='cmd'&&(t2.cmd==='y'||t2.cmd==='n')){
+        if((t2.cmd==='y')!==yes){addLine('sandbox: this step asks you to '+(t2.cmd==='y'?'allow it. Type y.':'refuse it. Type n.'),'note');continue;}
+        await advance();}
+      return yes;}
+  }
+};
+async function run(line){
+  line=line.trim().replace(/\s+/g,' ');if(!line)return;
+  if(G.waiting){addLine('y/n > '+line,'in');const w=G.waiting;w.resolve(line);return;}
+  if(G.busy)return;
+  setBusy(true);addLine($('#prompt').textContent+' '+line,'in');
+  G.loop={};
+  const r=await G.sim.exec(line,IO);r.line=line;
+  if(r.clear)tout().textContent='';else if(r.out)await printOut(r.out,r.ok);
+  setPrompt();renderMap();renderFiles();
+  setBusy(false);
+  const t=task();if(t&&t.kind==='cmd'&&!t.untilAsk&&t.test(r,G.sim.s))await advance();
+  else renderTasks();
+}
+async function applyStage(){
+  const t=task();if(!t||t.kind!=='edit'||G.busy)return;
+  setBusy(true);const r=G.sim.edit(t.stage);
+  addLine('saved '+r.names.join(', '),'note');
+  G.loop={};renderMap(['refit']);renderFiles();
+  setBusy(false);await advance();
+}
+async function advance(){
+  const t=task();if(!t)return;
+  addLine('✓ '+t.what,'ok');G.pos++;
+  if(G.pos>=LESSONS[G.i].tasks.length){G.done.add(G.i);save();renderNav();}
+  renderTasks();
+  const n=task();
+  if(n&&window.innerWidth>=1040)showTab(n.kind==='pick'||n.kind==='form'||n.kind==='copy'?'design':'build');else nudgeTab();
+  const now=document.querySelector('.task.now, .banner.fin');if(now&&now.scrollIntoView&&window.innerWidth>=1040&&!window.__fast)now.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function showTab(name){
+  G.tab=name;document.querySelectorAll('.ptab').forEach(x=>x.setAttribute('aria-pressed',x.dataset.pane===name));
+  $('#pane-build').hidden=name!=='build';$('#pane-design').hidden=name!=='design';
+  document.querySelectorAll('.ptab .dot').forEach(d=>d.remove());
+}
+function nudgeTab(){
+  const t=task();if(!t)return;const want=t.kind==='pick'||t.kind==='form'||t.kind==='copy'?'design':t.kind==='sort'?G.tab:'build';
+  document.querySelectorAll('.ptab .dot').forEach(d=>d.remove());
+  if(want!==G.tab){const b=document.querySelector('.ptab[data-pane="'+want+'"]');if(b)b.insertAdjacentHTML('beforeend','<span class="dot"></span>');}
+}
+function toBench(sel){if(window.innerWidth<1040){const m=$(sel);if(m&&m.scrollIntoView)m.scrollIntoView({block:'center',behavior:'smooth'});}}
+function load(cmd){showTab('build');const inp=$('#term-input');inp.value=cmd;if(!coarse)inp.focus();toBench('#term-form');}
+/* ---------- the map: blueprint + harness state ---------- */
+let prevSig={};
+function renderMap(fx){
+  const s=G.sim.s,n=SIDX[s.stage],f=s.flight,L=G.loop,fit=n>=2,flying=!['hangar','docked'].includes(f.phase),draw=drawKw(f);
+  const gate=n<5?'off':L.gate==='waiting'?'warn':L.gate==='refused'?'bad':'on';
+  const bal={K:fit?(L.stage==='model'?'warn':'on'):'off',S:fit?'on':'off',P:n>=3?(L.crash||L.bad?'bad':'on'):'off',L:f.antimatter_ng?'on':'off',G:gate,R:n>=6?(L.halt?'warn':'on'):'off',C:n>=7?'on':'off'};
+  const sig={K:bal.K,S:bal.S+(L.hit==='S'?L.turn:''),P:bal.P+f.phase+f.burn,L:bal.L,G:bal.G+(L.gate||''),R:bal.R+(L.turn||''),C:bal.C+s.trace.length};
+  const chg=new Set();Object.keys(sig).forEach(k=>{if(prevSig[k]!==undefined&&prevSig[k]!==sig[k])chg.add(k);});prevSig=sig;
+  const v={gantry:flying?'open':'locked',ready:fit,over:!!L.crash,atLimit:draw>=25,flying,thrust:flying,sprint:flying&&f.burn==='sprint',scanned:f.scanned||L.hit==='S',comms:!!L.active,sample:f.antimatter_ng>0,bal,label:fit?PHASE_TEXT[f.phase].toUpperCase():'CO-PILOT NOT WIRED IN'};
+  $('#kfig').innerHTML=kestrel(v,fx||[],chg);
+  const stg=[['pilot','pilot'],['model','co-pilot'],['gate','interlock'],['tool','tool'],['result','result']];
+  const row=(k,name,text,cls)=>'<div class="fs-row fs-wide '+(cls||'')+(chg.has(k)?' hit':'')+'"><span class="bdg">'+k+'</span><span class="rt"><b>'+name+'</b><em>'+text+'</em></span></div>';
+  const lastAsk=s.lastRun&&s.lastRun.asked.length?s.lastRun.asked[s.lastRun.asked.length-1]:null;
+  let h='<p class="fs-h">The loop</p><div class="phases">'+stg.map((x,i)=>(x[0]==='gate'&&n<5)?'':'<span class="ph'+(L.stage===x[0]?' now':'')+'">'+x[1]+'</span>'+(i<4?'<span class="arr">›</span>':'')).join('')+'<span class="arr">↺</span></div>'
+    +'<p class="prom '+(L.crash?'bad':L.halt||L.gate==='waiting'?'warnp':L.active?'ok':'off')+'">'+esc(L.note||(fit?'idle: waiting for a request':'no harness yet: the model can only talk'))+'</p>';
+  h+=row('K','co-pilot (model)',fit?(L.stage==='model'?'deciding…':'wired in through harness.py'):'not wired in',bal.K==='off'?'':bal.K==='warn'?'warn':'on');
+  h+=row('S','read tools',fit?'get_flight_state':'none',bal.S==='on'?'on':'');
+  h+=row('P','action tools',n>=3?'give_order, set_burn'+(n===3?' · vague':''):'none',bal.P==='bad'?'danger':bal.P==='on'?'on':'');
+  h+=row('G','interlocks (permissions)',n<5?'not fitted':L.gate==='waiting'?'waiting for the pilot':L.gate==='refused'?'pilot refused':L.gate==='allowed'?'pilot allowed':'armed: capture, dock',gate==='warn'?'warn':gate==='bad'?'danger':gate==='on'?'on':'');
+  const mx=L.max||12,sp=L.spent||0;
+  h+='<div class="fs-row '+(n>=6?(L.halt?'warn':'on'):'')+(chg.has('R')?' hit':'')+'"><span class="bdg">R</span><b>'+(n>=6?'turn '+(L.turn||0)+'/'+mx:'stop rules')+'</b><span class="gz'+(L.halt?' warn':'')+'"><i style="width:'+(n>=6?Math.min(100,Math.max((L.turn||0)/mx*100,sp/200)):0)+'%"></i></span><span class="num">'+(n>=6?(sp>=1000?(sp/1000).toFixed(1)+'k':sp):'—')+'</span></div>';
+  h+=row('C','flight recorder (trace)',n>=7?s.trace.length+' events on tape':'not fitted',n>=7?'on':'');
+  h+=row('L','flight',PHASE_TEXT[f.phase]+' · '+draw+'/25 kW'+(flying?' · '+f.burn:''),f.antimatter_ng?'on':'');
+  h+='<div class="parts">'+PARTS.map(p=>'<span class="ph'+(n>=p[2]&&!(p[0]==='errors'&&n<4)?' past fit':'')+'">'+p[1]+'</span>').join('')+'</div>';
+  $('#fstate').innerHTML=h;
+  const fitted=PARTS.filter(p=>n>=p[2]).length;
+  $('#pills').innerHTML='<span class="pill '+(fit?'ok':'off')+'">'+fitted+'/8 parts fitted</span>';
+}
+/* ---------- files strip in the Build tab ---------- */
+function renderFiles(){
+  const s=G.sim.s,el=$('#files');if(!el)return;
+  el.innerHTML='<span class="fl-h">'+esc(s.cwd)+'</span>'+G.sim.listing().map(nm=>{const isFile=s.fs[nm]!==undefined&&s.cwd!==ROOT;return isFile?'<button class="ftab" data-cat="'+esc(nm)+'" title="Print this file in the terminal">'+esc(nm)+'</button>':'<span class="ftab dim">'+esc(nm)+'</span>';}).join('');
+}
+/* ---------- the spec (Design tab) ---------- */
+const F=k=>(G.form[k]||'').trim();
+function specText(){
+  const d=G.dec,pick=id=>{const D=DECISIONS[id],k=d[id];return k===undefined?'_(not decided yet: lesson '+D.lesson+')_':'**'+D.opts[k][0]+'.** '+D.opts[k][2];};
+  const tools=(F('tools')||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  let t='# Harness spec: '+(F('name')||'_(name your agent in lesson 7)_')+'\n\n';
+  t+='This document is the design of an agent harness: the code around a language model that lets it act. It is written for the coding agent or developer who will build it. Build exactly this, and ask before adding anything it does not mention.\n\n';
+  t+='## 1. Job\n'+(F('job')||'_(one sentence: what the agent is for)_')+'\n\n'+(F('user')?'Who gives it requests: '+F('user')+'\n\n':'')+'Autonomy: '+pick('job')+'\n\n';
+  t+='## 2. Shape\n'+pick('shape')+'\n\n';
+  t+='## 3. Tools\n'+pick('tools')+'\n\n';
+  if(tools.length){t+='| Tool | What it does | Tier |\n|---|---|---|\n'+tools.map(l=>{const p=l.split('|').map(x=>x.trim());return '| '+(p[0]||'')+' | '+(p[1]||'')+' | '+(p[2]||'auto')+' |';}).join('\n')+'\n\n';}
+  else t+='_(list the tools in lesson 7: name | what it does | tier)_\n\n';
+  t+='Every tool has a description written for the model: what it does, when to use it, what comes back, and what a refusal looks like. Inputs with fixed choices are an enum. A tool that fails returns its reason to the model as a tool result marked as an error; it never crashes the loop.\n\n';
+  t+='## 4. Interlocks (permissions)\n'+pick('locks')+'\n\n'+(F('risky')?'Actions that always need a person: '+F('risky')+'\n\n':'')+'A refusal by the person goes back to the model as an error result that tells it not to retry.\n\n';
+  t+='## 5. Standing orders, memory and stop rules\n- Standing orders (the system prompt) live in their own file, in plain numbered sentences, not in the code.\n- The harness keeps the conversation and sends all of it on every call. The model keeps nothing between calls.\n- Stop rules: at most '+(F('turns')||'12')+' turns and '+(F('tokens')||'20,000')+' tokens per request.\n- When a stop rule fires: '+pick('limits')+'\n\n';
+  t+='## 6. Evidence\n'+pick('proof')+'\n\nThe flight recorder (trace) writes one line per event: request, tool call, interlock decision, tool result or error, answer, stop.\n\n';
+  t+='## Build notes\n- Keep the loop in one file a designer can read top to bottom.\n- The model is passed into the loop as a parameter, so tests can swap in a scripted model.\n- The API key is read from the environment. It is never written in code and never committed.\n- Print each turn as it happens: what the model asked for, and what came back.\n';
+  return t;
+}
+function renderSpec(){
+  const n=Object.keys(DECISIONS).filter(k=>G.dec[k]!==undefined).length;
+  $('#spec-h').textContent='HARNESS.md · '+n+' of 6 decisions made';
+  $('#spec').textContent=specText();
+}
+function pickHtml(id,active){
+  const D=DECISIONS[id],got=G.dec[id];
+  return '<div class="picks" data-dec="'+id+'">'+D.opts.map((o,k)=>'<button class="pk'+(got===k?' on':'')+(active&&got===undefined?' next':'')+'" data-pick="'+id+'" data-k="'+k+'"><b>'+esc(o[0])+(D.ours===k?' <span class="pill">the Kestrel build</span>':'')+'</b><span>'+o[1]+'</span></button>').join('')+'</div>';
+}
+/* ---------- sort drills ---------- */
+function sortHtml(t,n,st){
+  const S=G.sort[G.i+'-'+n]||(G.sort[G.i+'-'+n]={placed:{},sel:null,msg:''});
+  const left=t.items.map((it,k)=>S.placed[k]===undefined?'<button class="chip'+(S.sel===k?' sel':'')+(S.bad===k?' bad':'')+'" draggable="true" data-chip="'+k+'" data-sort="'+n+'">'+esc(it[0])+'</button>':'').join('');
+  return '<div class="sortbox" data-sort="'+n+'"><div class="chips">'+(left||'<span class="hint">All sorted.</span>')+'</div><div class="bins">'+t.bins.map((b,bi)=>'<div class="bin" data-bin="'+bi+'" data-sort="'+n+'"><b>'+esc(b)+'</b>'+t.items.map((it,k)=>S.placed[k]===bi?'<span class="chip ok">'+esc(it[0])+'</span>':'').join('')+'</div>').join('')+'</div>'
+    +(S.msg?'<p class="fb '+(S.good?'good':'bad')+'">'+S.msg+'</p>':st==='now'?'<p class="hint">'+(coarse?'Tap a card, then tap the box it belongs in.':'Drag each card to a box, or click a card and then a box.')+'</p>':'')+'</div>';
+}
+async function place(n,k,bi){
+  const t=LESSONS[G.i].tasks[n],S=G.sort[G.i+'-'+n];if(k===null||k===undefined||S.placed[k]!==undefined)return;
+  const it=t.items[k];
+  if(it[1]===bi){S.placed[k]=bi;S.sel=null;S.bad=null;S.good=true;S.msg='Right. '+it[2];}
+  else{S.bad=k;S.sel=null;S.good=false;S.msg='Not there. '+it[2];}
+  const all=t.items.every((_,x)=>S.placed[x]!==undefined);
+  if(all&&n===G.pos){await advance();}else renderTasks();
+}
+/* ---------- lesson rendering ---------- */
+function editBlock(t,open){
+  const files=DATA[t.stage],prev=prevFiles(t.stage);
+  return Object.keys(files).map(f=>{const add=addedLines(prev[f],files[f]),isNew=add==='new',show=open&&(t.open||[]).includes(f);
+    return '<details class="edit"'+(show?' open':'')+'><summary>copilot/'+f+' <span class="pill '+(isNew?'ok':'warn')+'">'+(isNew?'new file':'changed · '+add.length+' lines')+'</span></summary><div class="code">'+codeHtml(f,files[f],isNew?[]:add)+'</div></details>';}).join('');
+}
+function prevFiles(stage){const fs={};if(stage!=='s0')Object.assign(fs,{});for(const s of ORDER){if(s===stage)break;Object.assign(fs,DATA[s]||{});}return fs;}
+const KIND={cmd:'command · Build tab',edit:'edit',pick:'design decision · goes in your spec',sort:'drill',form:'your agent',copy:'hand-over'};
+function renderTasks(){
+  const L=LESSONS[G.i],ol=$('#tasks');if(!ol)return;
+  ol.innerHTML=L.tasks.map((t,n)=>{
+    const st=n<G.pos?'done':n===G.pos?'now':'todo';
+    let body='<p class="why">'+t.why+'</p>';
+    if(t.kind==='cmd')body+='<button class="cmd'+(st==='now'?' next':'')+'" data-cmd="'+esc(t.cmd)+'"><span class="tap">'+(t.cmd==='y'||t.cmd==='n'?'tap to load your answer':'tap to load into the terminal')+'</span><code>'+esc(t.cmd)+'</code></button>';
+    if(t.kind==='edit')body+=editBlock(t,st==='now')+(st==='done'?'':'<button class="btn'+(st==='now'?' next':'')+'" data-edit="'+n+'"'+(st==='now'?'':' disabled')+'>'+(st==='now'?'Apply edit':'Apply edit (after the steps above)')+'</button>');
+    if(t.kind==='pick')body+=pickHtml(t.id,st==='now');
+    if(t.kind==='sort')body+=sortHtml(t,n,st);
+    if(t.kind==='form')body+=formHtml(st);
+    if(t.kind==='copy')body+='<button class="btn'+(st==='now'?' next':'')+'" data-copy="1">Copy HARNESS.md</button><p class="hint" id="copy-msg"></p>';
+    if(st==='done')body+='<p class="saw">'+(typeof t.saw==='function'?t.saw():t.saw)+'</p>';
+    return '<li class="task '+st+'"><div class="task-h"><span class="mark">'+(st==='done'?'✓':n+1)+'</span><div><span class="kind">'+KIND[t.kind]+'</span><span class="what">'+t.what+'</span></div></div>'+body+'</li>';
+  }).join('')+(G.pos>=L.tasks.length?'<li class="banner fin">Lab complete. The notes below fill in the detail.</li>':'');
+  const sb=$('#stepbar'),t=task();
+  if(!t)sb.innerHTML='<span class="sb-h">Lab complete</span><span class="sb-w">Scroll on for the notes and the quiz.</span>';
+  else sb.innerHTML='<span class="sb-h">Step '+(G.pos+1)+' of '+L.tasks.length+'</span><span class="sb-w">'+t.what+'</span>'
+    +(t.kind==='cmd'?'<button class="cmd" data-cmd="'+esc(t.cmd)+'"><span class="tap">tap to load</span><code>'+esc(t.cmd)+'</code></button>'
+     :t.kind==='edit'?'<button class="btn" data-edit="'+G.pos+'">Apply edit</button>'
+     :'<span class="hint">Do this one in the step above.</span>');
+  nudgeTab();renderSpec();
+}
+function formHtml(st){
+  const fld=(k,label,ph,area)=>'<label class="fld"><span>'+label+'</span>'+(area?'<textarea data-f="'+k+'" rows="'+area+'" placeholder="'+esc(ph)+'">'+esc(G.form[k]||'')+'</textarea>':'<input data-f="'+k+'" value="'+esc(G.form[k]||'')+'" placeholder="'+esc(ph)+'">')+'</label>';
+  return '<div class="form">'+fld('name','Agent name','Kestrel co-pilot')+fld('job','Its job, in one sentence','Fly routine legs of the Aster run for the pilot, and report back.',2)+fld('user','Who gives it requests','The pilot, typing in the cockpit console')
+    +fld('tools','Tools, one per line: name | what it does | tier (auto, ask or never)','get_flight_state | read phase, burn and power | auto',5)+fld('risky','Actions that always need a person','capture, dock')
+    +'<div class="two">'+fld('turns','Max turns per request','12')+fld('tokens','Token budget per request','20,000')+'</div>'
+    +'<div class="frow"><button class="btn ghost" data-fill="1" type="button">Fill in the Kestrel co-pilot as an example</button>'+(st==='done'?'':'<button class="btn'+(st==='now'?' next':'')+'" data-formok="1" type="button">Save to the spec</button>')+'</div><p class="hint" id="form-msg"></p></div>';
+}
+const EXAMPLE={name:'Kestrel co-pilot',job:'Fly routine legs of the Aster retrieval run for the pilot, one order at a time, and report where the suit stands.',user:'The pilot, typing a request in the cockpit console',tools:'get_flight_state | read phase, burn, power draw and cargo | auto\nset_burn | switch thrusters between cruise and sprint | auto\ngive_order | give one flight order: launch, jump, approach, scan, capture, dock | auto, except capture and dock: ask',risky:'capture (takes antimatter aboard), dock (ends the mission)',turns:'12',tokens:'20,000'};
+function renderNav(){
+  $('#nav').innerHTML=LESSONS.map((L,n)=>'<a class="nav-item'+(n===G.i?' active':'')+(G.done.has(n)?' done':'')+'" href="#lesson-'+(n+1)+'"><span class="num">'+(G.done.has(n)?'✓':n+1)+'</span>'+L.title+'</a>').join('');
+  $('#progress-text').textContent=G.done.size+'/'+LESSONS.length+' labs done';
+  $('#progress-bar').style.width=(G.done.size/LESSONS.length*100)+'%';
+  const a=document.querySelector('.nav-item.active');if(a&&a.scrollIntoView&&!window.__fast)a.scrollIntoView({inline:'center',block:'nearest'});
+}
+function renderQuiz(){
+  const L=LESSONS[G.i];
+  $('#quiz').innerHTML=L.quiz.map((q,n)=>{const got=G.answers[G.i+'-'+n];
+    return '<div class="q"><p class="qt">'+esc(q.q)+'</p><div class="opts">'+q.opts.map((o,k)=>'<button class="opt'+(got===undefined?'':k===q.a?' right':k===got?' wrong':'')+'" data-q="'+n+'" data-k="'+k+'">'+esc(o)+'</button>').join('')+'</div>'+(got===undefined?'':'<p class="fb '+(got===q.a?'good':'bad')+'">'+(got===q.a?'Correct. ':'Not quite. ')+esc(q.why)+'</p>')+'</div>';}).join('');
+}
+const BENCH=$('#bench-in');
+function placeBench(){
+  const wide=window.innerWidth>=1040,target=wide?$('#bench'):$('#slot');
+  if(target&&BENCH.parentNode!==target)target.appendChild(BENCH);
+}
+function go(i){
+  if(G.waiting){const w=G.waiting;G.waiting=null;w.resolve('n');}
+  G.i=Math.max(0,Math.min(LESSONS.length-1,i));G.pos=0;G.loop={};G.busy=false;
+  const sim=G.sim=createSim(),s=sim.s;
+  if(G.i>0){s.made=s.init=s.deps=true;s.cwd=ROOT+'/copilot';s.fs['pyproject.toml']=DATA.s0['pyproject.toml'];
+    for(let k=0;k<G.i;k++)LESSONS[k].tasks.forEach(t=>{if(t.kind==='edit')sim.edit(t.stage);if(t.kind==='cmd'&&/--dev pytest/.test(t.cmd)){s.pytest=true;}});
+    s.flightFile=G.i>1;s.lastAdded=null;}
+  const L=LESSONS[G.i];
+  if(BENCH.parentNode!==$('#bench'))$('#bench').appendChild(BENCH);
+  $('#main').innerHTML='<article><p class="eyebrow">lesson '+(G.i+1)+' of '+LESSONS.length+' · about '+L.mins+' min</p><h1>'+L.long+'</h1><div class="prose">'+L.idea+'</div>'
+    +'<h2>Lab</h2><p>'+L.labIntro+'</p><ol class="tasks" id="tasks"></ol><div class="slot-sec"><div class="slot" id="slot"></div></div>'
+    +'<div class="prose">'+L.notes+'</div><h2>Check yourself</h2><div id="quiz"></div><h2>Further reading</h2><ul class="reading">'+L.reading.map(r=>'<li><a href="'+r[1]+'" target="_blank" rel="noopener">'+esc(r[0])+'</a><span>'+esc(r[2])+'</span></li>').join('')+'</ul>'
+    +'<div class="pager">'+(G.i?'<a class="btn ghost" href="#lesson-'+G.i+'">← '+LESSONS[G.i-1].title+'</a>':'<span></span>')+(G.i<LESSONS.length-1?'<a class="btn" href="#lesson-'+(G.i+2)+'">'+LESSONS[G.i+1].title+' →</a>':'<span></span>')+'</div></article>';
+  document.querySelectorAll('.prose .picks[data-dec]').forEach(el=>{el.outerHTML=pickHtml(el.dataset.dec,false);});
+  placeBench();
+  tout().textContent='';addLine('sandbox: lesson '+(G.i+1)+'. '+(G.i===0?'You are at the root of the kestrel-simulator repo, beside api and cockpit.':'The project is as the last lesson left it, and you are in '+ROOT+'/copilot.')+' The co-pilot’s replies here are recorded, not live. Type help for the commands.','note');
+  prevSig={};setPrompt();renderMap([]);renderFiles();renderTasks();renderQuiz();renderNav();
+  const t0=task();showTab(t0&&(t0.kind==='pick'||t0.kind==='form')?'design':'build');
+  $('#main').scrollTop=0;if(window.scrollTo)try{window.scrollTo(0,0);}catch(e){}
+}
+/* ---------- events ---------- */
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('button,a');if(!b)return;
+  if(b.dataset.cmd!==undefined){load(b.dataset.cmd);return;}
+  if(b.dataset.cat!==undefined){load((/Win/.test(navigator.platform||'')?'type ':'cat ')+b.dataset.cat);return;}
+  if(b.dataset.edit!==undefined){applyStage();return;}
+  if(b.dataset.pick!==undefined){const id=b.dataset.pick;G.dec[id]=+b.dataset.k;save();const t=task();showTab('design');if(t&&t.kind==='pick'&&t.id===id)await advance();else{renderTasks();document.querySelectorAll('.picks[data-dec="'+id+'"]').forEach(el=>{el.outerHTML=pickHtml(id,false);});}renderSpec();return;}
+  if(b.dataset.chip!==undefined){const S=G.sort[G.i+'-'+b.dataset.sort];S.sel=S.sel===+b.dataset.chip?null:+b.dataset.chip;S.bad=null;renderTasks();return;}
+  if(b.dataset.q!==undefined){const k=G.i+'-'+b.dataset.q;if(G.answers[k]===undefined){G.answers[k]=+b.dataset.k;renderQuiz();}return;}
+  if(b.dataset.fill){Object.assign(G.form,EXAMPLE);save();renderTasks();renderSpec();return;}
+  if(b.dataset.formok){if(!F('name')||!F('job')){$('#form-msg').textContent='Give the agent a name and a one-sentence job first.';return;}const t=task();if(t&&t.kind==='form')await advance();return;}
+  if(b.dataset.copy){const txt=specText();let ok=false;try{await navigator.clipboard.writeText(txt);ok=true;}catch(err){}
+    showTab('design');const m=$('#copy-msg');
+    if(!ok){const r=document.createRange();r.selectNodeContents($('#spec'));const sel=getSelection();sel.removeAllRanges();sel.addRange(r);}
+    const t=task();if(t&&t.kind==='copy')await advance();
+    const m2=$('#copy-msg')||m;if(m2)m2.textContent=ok?'Copied. Paste it into specs/harness.md.':'The spec is selected in the Design tab. Press Ctrl+C (or Cmd+C) to copy it.';return;}
+  if(b.classList.contains('ptab')){showTab(b.dataset.pane);return;}
+  if(b.id==='term-clear'){tout().textContent='';return;}
+});
+document.addEventListener('click',e=>{
+  const bin=e.target.closest('.bin');if(!bin||e.target.closest('button'))return;
+  const n=+bin.dataset.sort,S=G.sort[G.i+'-'+n];if(S&&S.sel!==null&&S.sel!==undefined)place(n,S.sel,+bin.dataset.bin);
+});
+document.addEventListener('dragstart',e=>{const c=e.target.closest&&e.target.closest('.chip[data-chip]');if(c&&e.dataTransfer){e.dataTransfer.setData('text/plain',c.dataset.sort+':'+c.dataset.chip);e.dataTransfer.effectAllowed='move';}});
+document.addEventListener('dragover',e=>{const bin=e.target.closest&&e.target.closest('.bin');if(bin){e.preventDefault();bin.classList.add('over');}});
+document.addEventListener('dragleave',e=>{const bin=e.target.closest&&e.target.closest('.bin');if(bin)bin.classList.remove('over');});
+document.addEventListener('drop',e=>{const bin=e.target.closest&&e.target.closest('.bin');if(!bin)return;e.preventDefault();const d=(e.dataTransfer.getData('text/plain')||'').split(':');if(d.length===2&&+d[0]===+bin.dataset.sort)place(+d[0],+d[1],+bin.dataset.bin);});
+document.addEventListener('input',e=>{const f=e.target.dataset&&e.target.dataset.f;if(f){G.form[f]=e.target.value;save();renderSpec();}});
+$('#term-form').addEventListener('submit',e=>{e.preventDefault();const inp=$('#term-input'),v=inp.value;inp.value='';run(v);});
+const fromHash=()=>{const m=/^#lesson-(\d+)$/.exec(location.hash);return m?+m[1]-1:0;};
+window.addEventListener('hashchange',()=>go(fromHash()));
+let wideWas=window.innerWidth>=1040;
+window.addEventListener('resize',()=>{const w=window.innerWidth>=1040;if(w!==wideWas){wideWas=w;placeBench();}});
+go(fromHash());
+
+</script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "24b381772c6b4fd8a3f7eaa87fb0f0e2"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>
