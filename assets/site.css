@@ -660,3 +660,6 @@ dialog.fb-why .fb-updated { margin-top: 14px; }
 .fp-stage ol .fp-opt a { border-style: dashed; }
 .fp-stage ol .fp-opt .fp-n { background: transparent; color: var(--ink); border: 1px solid var(--ink); }
 .fp-tag { font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+/* LinkedIn button in the Full Stack Designers menu */
+.nav a.nav-cta { color: var(--on-accent, #fff); background: var(--accent); }
+.nav a.nav-cta:hover { color: var(--on-accent, #fff); background: var(--accent); filter: brightness(1.08); }
