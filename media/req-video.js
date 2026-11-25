@@ -13,7 +13,14 @@
     '.kr-tabs button:focus-visible{outline:2px solid currentColor;outline-offset:2px}' +
     '.kr-video video{display:block;width:100%;height:auto;aspect-ratio:16/9;border-radius:10px;background:#081d3a}' +
     '.kr-video figcaption{font-size:13px;opacity:.75;margin-top:8px;line-height:1.4}' +
-    '.kr-video{margin:0 0 6px}';
+    '.kr-video{margin:0 0 6px}' +
+    /* in a flex column modal (the rq style) the document panel must be the part that scrolls */
+    '.kr-flex>.kr-tabs{flex:none;padding:0 16px;margin:6px 0 0}' +
+    '.kr-flex>.kr-vid{flex:none;padding:12px 16px 16px;overflow:auto}' +
+    '.kr-flex>.kr-doc{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}' +
+    '.kr-flex>.kr-doc>*{flex:none}.kr-flex>.kr-doc>#rq-body{flex:1 1 auto;min-height:0;overflow:auto}' +
+    '.kr-flex>[hidden]{display:none!important}' +
+    '.kr-dlg>.kr-tabs{padding:0 14px}.kr-dlg>.kr-vid{padding:4px 14px 16px}';
   document.head.appendChild(css);
   var uid = 0;
 
@@ -22,7 +29,7 @@
     var n = ++uid, rest = [], el = head ? head.nextSibling : box.firstChild;
     while (el) { rest.push(el); el = el.nextSibling; }
     var tabs = document.createElement('div'); tabs.className = 'kr-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Requirements');
-    var pV = document.createElement('div'), pD = document.createElement('div'); pD.className = 'kr-doc';
+    var pV = document.createElement('div'), pD = document.createElement('div'); pD.className = 'kr-doc'; pV.className = 'kr-vid';
     [['Video', pV], ['Document', pD]].forEach(function (x, i) {
       var b = document.createElement('button'); b.type = 'button'; b.textContent = x[0];
       b.id = 'kr-tab-' + n + '-' + i; b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', 'kr-panel-' + n + '-' + i);
@@ -41,6 +48,7 @@
     rest.forEach(function (x) { pD.appendChild(x); });
     var at = head ? head.nextSibling : box.firstChild;
     box.insertBefore(tabs, at); box.insertBefore(pV, at); box.insertBefore(pD, at);
+    box.classList.add(getComputedStyle(box).display === 'flex' ? 'kr-flex' : 'kr-dlg');
     function show(i) {
       [pV, pD].forEach(function (p, j) { p.hidden = j !== i; tabs.children[j].setAttribute('aria-selected', String(j === i)); tabs.children[j].tabIndex = j === i ? 0 : -1; });
       if (i !== 0 && !v.paused) v.pause();
