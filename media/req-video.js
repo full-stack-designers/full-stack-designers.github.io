@@ -70,6 +70,35 @@
       new MutationObserver(function () { if (rq.hidden && !t1.video.paused) t1.video.pause(); }).observe(rq, { attributes: true, attributeFilter: ['hidden'] });
     }
   }
+  // style 3: the Learning Path's requirements dialog: <dialog class="fb-doc"><h2>…</h2><input class="doc-filter">…<div class="doc-body">
+  Array.prototype.forEach.call(document.querySelectorAll('dialog.fb-doc'), function (dd) {
+    var t3 = setup(dd, dd.querySelector('h2')); if (!t3) return;
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-why="' + dd.id + '"]'); if (b) t3.show(0);
+    }, true);
+    dd.addEventListener('close', function () { if (!t3.video.paused) t3.video.pause(); });
+    var fl = dd.querySelector('.doc-filter'), none = dd.querySelector('.doc-none');
+    if (fl) fl.addEventListener('input', function () {
+      var q = fl.value.trim().toLowerCase(), any = false;
+      Array.prototype.forEach.call(dd.querySelectorAll('.doc-body table'), function (tb) {
+        var shown = 0;
+        Array.prototype.forEach.call(tb.querySelectorAll('tbody tr'), function (tr) {
+          var hit = !q || tr.textContent.toLowerCase().indexOf(q) >= 0; tr.hidden = !hit; if (hit) shown++;
+        });
+        var w = tb.closest('.doc-t') || tb; w.hidden = !!q && !shown; if (shown) any = true;
+      });
+      Array.prototype.forEach.call(dd.querySelectorAll('.doc-body > p, .doc-body > ul, .doc-body > ol, .doc-body > h3, .doc-body > pre'), function (x) { x.hidden = !!q; });
+      var head = null, seen = 0, kids = dd.querySelector('.doc-body').children;    // a section heading stays only if something under it matches
+      var close = function () { if (head) head.hidden = !!q && !seen; };
+      for (var i = 0; i < kids.length; i++) {
+        var k = kids[i];
+        if (k.tagName === 'H2') { close(); head = k; seen = 0; }
+        else if (!k.hidden && (k.matches('.doc-t, table'))) seen++;
+      }
+      close();
+      if (none) none.hidden = !q || any;
+    });
+  });
   // style 2: <dialog id="req">, filled by the page's own script when it opens
   var d = document.getElementById('req');
   if (d && d.tagName === 'DIALOG') {
