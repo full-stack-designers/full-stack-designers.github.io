@@ -663,7 +663,3 @@ dialog.fb-why .fb-updated { margin-top: 14px; }
 /* LinkedIn button in the Full Stack Designers menu */
 .nav a.nav-cta { color: var(--on-accent, #fff); background: var(--accent); }
 .nav a.nav-cta:hover { color: var(--on-accent, #fff); background: var(--accent); filter: brightness(1.08); }
-/* Kestrel requirements dialog on the Learning Path: Video and Document tabs (added by /media/req-video.js), filter */
-.fb-doc .kr-tabs { position: sticky; top: -28px; z-index: 1; background: var(--surface); margin: 14px -32px 16px; padding: 0 32px; }
-.fb-doc .doc-filter { width: 100%; max-width: 360px; font: 14px var(--mono); padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunk); color: var(--ink); margin: 0 0 14px; }
-.fb-doc .doc-none { color: var(--muted); }

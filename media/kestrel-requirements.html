@@ -1,0 +1,1869 @@
+<p>Nov 17, 2026 · Clint Lewis</p>
+<h2>1. Purpose and scope</h2>
+<p>The Kestrel simulator is a web app in which a pilot powers up the KF-07 Kestrel Mk II, flies one mission, and has the result recorded. This document is the single set of requirements the build is checked against.</p>
+<p>It covers the simulator as a product (flight rules, cockpit, server, data) and the way it is built and run (tests, pipeline, deployment, monitoring). It does not cover the artwork of the suit, which is reused from the tutorials.</p>
+<p>Every requirement has an ID so code, tests and commits can point at it.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Prefix</th>
+<th>Area</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLT</td>
+<td>Flight rules (the business logic)</td>
+</tr>
+<tr>
+<td>CKP</td>
+<td>Cockpit (the browser app)</td>
+</tr>
+<tr>
+<td>API</td>
+<td>Server and API</td>
+</tr>
+<tr>
+<td>DAT</td>
+<td>Data</td>
+</tr>
+<tr>
+<td>IAM</td>
+<td>Identity and access</td>
+</tr>
+<tr>
+<td>QA</td>
+<td>Testing</td>
+</tr>
+<tr>
+<td>OPS</td>
+<td>Build, containers, deployment, networking</td>
+</tr>
+<tr>
+<td>OBS</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>DSN</td>
+<td>Design and repository conventions</td>
+</tr>
+</tbody>
+</table></div>
+<p>"Must" marks a requirement the build fails without. "Should" marks one that can be deferred with a note in the progress log.</p>
+<h2>2. Sources</h2>
+<p>All 19 tutorials in the series were read for this document. Ten of them tell part of the Kestrel story; the other nine teach the stack with a different example and contribute conventions only.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Tutorial</th>
+<th>Kestrel content</th>
+<th>Contributes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="/tutorials/observability/">Observability from Zero</a></td>
+<td>The Aster retrieval mission: phases, orders, 25 kW budget, the bottle</td>
+<td>Flight rules, logs, metrics, traces, health checks, alerts</td>
+</tr>
+<tr>
+<td><a href="/tutorials/test-cases/">Test Cases from Zero</a></td>
+<td>Nine subsystems, rules R1 to R6, 21 test cases</td>
+<td>Preflight rules, test-case format</td>
+</tr>
+<tr>
+<td><a href="/tutorials/playwright/">Playwright + pytest from Zero</a></td>
+<td>The Kestrel Console: every page, label and message</td>
+<td>Console contract, test tooling</td>
+</tr>
+<tr>
+<td><a href="/tutorials/react/">React + TypeScript from Zero</a></td>
+<td>The cockpit's four screens; Ilse and Tomo</td>
+<td>Cockpit structure, front-end stack</td>
+</tr>
+<tr>
+<td><a href="/tutorials/sqlalchemy/">SQLAlchemy + Alembic from Zero</a></td>
+<td><code>kestrel-control</code>, pilots and sorties tables</td>
+<td>Data model, migration rules</td>
+</tr>
+<tr>
+<td><a href="/tutorials/http/">HTTP + Networking from Zero</a></td>
+<td>Routes, roles, waypoints, CORS and TLS for the suit</td>
+<td>API behaviour, status codes, CORS, TLS</td>
+</tr>
+<tr>
+<td><a href="/tutorials/cloud-deploy/">Cloud Deploy from Zero</a></td>
+<td>The Mk II blueprint; releases 1.0.0 to 1.2.0; the gantry</td>
+<td>Deployment, configuration, rollback</td>
+</tr>
+<tr>
+<td><a href="/tutorials/docker/">Docker from Zero</a></td>
+<td>Reactor control service and its log store</td>
+<td>Containers, Compose, volumes</td>
+</tr>
+<tr>
+<td><a href="/tutorials/nginx/">NGINX from Zero</a></td>
+<td>Compute cores, the gate, the 25 kW compute budget</td>
+<td>Reverse proxy, rate limit, cache</td>
+</tr>
+<tr>
+<td><a href="/tutorials/kubernetes/">Kubernetes from Zero</a></td>
+<td>Sections, nine services, recon / assault / orbital loadouts</td>
+<td>Orchestration (not needed for version 1)</td>
+</tr>
+<tr>
+<td><a href="/tutorials/fastapi/">FastAPI from Zero</a></td>
+<td>None (shop example)</td>
+<td>API structure, validation, dependencies, tests</td>
+</tr>
+<tr>
+<td><a href="/tutorials/postgres/">Postgres from Zero</a></td>
+<td>None (shop example)</td>
+<td>Types, constraints, roles, backups</td>
+</tr>
+<tr>
+<td><a href="/tutorials/oauth/">OAuth from Zero</a></td>
+<td>None (shop example)</td>
+<td>Sign-in flows, token rules</td>
+</tr>
+<tr>
+<td><a href="/tutorials/tailwind/">Tailwind + shadcn/ui from Zero</a></td>
+<td>None (Projects page)</td>
+<td>Styling, components, tokens</td>
+</tr>
+<tr>
+<td><a href="/tutorials/ci/">CI from Zero</a></td>
+<td>None (shop example)</td>
+<td>Pipeline, branch protection</td>
+</tr>
+<tr>
+<td>Git Basics Sandbox</td>
+<td>None (<code>hello-api</code>)</td>
+<td>Branch and pull-request workflow, secrets</td>
+</tr>
+<tr>
+<td>Agent Files Tutor</td>
+<td>None (<code>hello-api</code>)</td>
+<td><code>AGENTS.md</code>, <code>DESIGN.md</code>, <code>tokens.json</code>, specs</td>
+</tr>
+<tr>
+<td>OpenAPI Design Tutor</td>
+<td>None (Tally Desk)</td>
+<td>API design rules, <code>openapi.yaml</code></td>
+</tr>
+<tr>
+<td>MCP Interface Design Tutor</td>
+<td>None (Tally Desk)</td>
+<td>Not needed for version 1</td>
+</tr>
+</tbody>
+</table></div>
+<p>The business-logic tutorial now in progress will implement section 5 and cite its requirement IDs.</p>
+<h2>3. The Kestrel canon</h2>
+<p>These are the names and numbers the simulator must use, taken as written from the tutorials. Where two tutorials disagree, this section gives the ruling and section 13 records the disagreement.</p>
+<h3>The suit and its people</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Canon</th>
+<th>From</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Designation</td>
+<td>KF-07 Kestrel Mk II, a 17-metre piloted frame</td>
+<td>Cloud Deploy, Docker, Kubernetes</td>
+</tr>
+<tr>
+<td>Home</td>
+<td>Hangar 7, standing in the gantry</td>
+<td>Docker, Cloud Deploy</td>
+</tr>
+<tr>
+<td>Designer</td>
+<td>Ilse Varga, mobile suit designer</td>
+<td>React + TypeScript</td>
+</tr>
+<tr>
+<td>Cockpit tech</td>
+<td>Tomo Reyes</td>
+<td>React + TypeScript</td>
+</tr>
+<tr>
+<td>Console pilot</td>
+<td>Ada, <code>ada@example.com</code>, "pilot of KF-07"</td>
+<td>Test Cases, Playwright</td>
+</tr>
+<tr>
+<td>Squadron roster</td>
+<td>Wren (captain), Ibis (lieutenant), Heron (ensign), Kite</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>Mission control</td>
+<td>The operator on the downlink, user <code>ops</code></td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>Roles</td>
+<td><code>pilot</code> and <code>tech</code> (hangar tech)</td>
+<td>HTTP + Networking</td>
+</tr>
+<tr>
+<td>Past missions</td>
+<td>M-041 (2 Nov 2026, Complete), M-058 (9 Nov 2026, Complete)</td>
+<td>Playwright</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Subsystems</h3>
+<p>The simulator uses the nine subsystems of the preflight console. The draw is the load each one puts on the test bench during its check.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Category</th>
+<th>Check draw (kW)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sensors</td>
+<td>nav</td>
+<td>6.5</td>
+</tr>
+<tr>
+<td>Reactor</td>
+<td>power</td>
+<td>12</td>
+</tr>
+<tr>
+<td>Defense systems</td>
+<td>defense</td>
+<td>14</td>
+</tr>
+<tr>
+<td>Guidance</td>
+<td>nav</td>
+<td>7.5</td>
+</tr>
+<tr>
+<td>Limbs</td>
+<td>motion</td>
+<td>9</td>
+</tr>
+<tr>
+<td>Locomotion</td>
+<td>motion</td>
+<td>16</td>
+</tr>
+<tr>
+<td>Propulsion</td>
+<td>power</td>
+<td>22</td>
+</tr>
+<tr>
+<td>Communication array</td>
+<td>comms</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Cockpit</td>
+<td>crew</td>
+<td>3</td>
+</tr>
+</tbody>
+</table></div>
+<p>Other tutorials name services rather than subsystems. Each service belongs to one of the nine.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Services that belong to it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reactor</td>
+<td>reactor</td>
+</tr>
+<tr>
+<td>Propulsion</td>
+<td>thrusters</td>
+</tr>
+<tr>
+<td>Guidance</td>
+<td>nav, navigation, targeting</td>
+</tr>
+<tr>
+<td>Sensors</td>
+<td>sensors</td>
+</tr>
+<tr>
+<td>Communication array</td>
+<td>comms</td>
+</tr>
+<tr>
+<td>Cockpit</td>
+<td>flight computer, cockpit computer, life-support</td>
+</tr>
+<tr>
+<td>Defense systems</td>
+<td>shield, railgun</td>
+</tr>
+<tr>
+<td>Locomotion</td>
+<td>stabiliser</td>
+</tr>
+<tr>
+<td>Limbs</td>
+<td>containment (the magnetic bottle, carried on the right arm)</td>
+</tr>
+</tbody>
+</table></div>
+<h3>The mission</h3>
+<p>The simulator flies one mission, the Kestrel's first: Aster retrieval.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Canon</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Objective</td>
+<td>Retrieve 40 nanograms of antimatter (antihydrogen) from the unmanned trap station orbiting Aster</td>
+</tr>
+<tr>
+<td>Distance</td>
+<td>Aster is 12 light-years from Hangar 7</td>
+</tr>
+<tr>
+<td>Route</td>
+<td>Hangar 7, gate-alpha, jump, Aster, trap station, and back the same way</td>
+</tr>
+<tr>
+<td>Cargo</td>
+<td>One magnetic bottle; its field must hold without a break from capture to hand-over</td>
+</tr>
+<tr>
+<td>Hand-over</td>
+<td>The Hangar 7 vault</td>
+</tr>
+<tr>
+<td>Phases</td>
+<td><code>hangar</code>, <code>transit</code>, <code>aster</code>, <code>trap</code>, <code>captured</code>, <code>return</code>, <code>docked</code></td>
+</tr>
+<tr>
+<td>Mission clock</td>
+<td>Shown as <code>T+HH:MM:SS</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3>Flight numbers</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reactor power budget</td>
+<td>25 kW, a hard limit</td>
+</tr>
+<tr>
+<td>Normal reactor output</td>
+<td>13 kW</td>
+</tr>
+<tr>
+<td>Jump surge</td>
+<td>24 kW for under 20 seconds</td>
+</tr>
+<tr>
+<td>Flight computer draw</td>
+<td>1 kW</td>
+</tr>
+<tr>
+<td>Navigation draw</td>
+<td>1 kW</td>
+</tr>
+<tr>
+<td>Sensors draw in flight</td>
+<td>2 kW</td>
+</tr>
+<tr>
+<td>Containment draw</td>
+<td>6 kW while a sample is aboard, otherwise 0</td>
+</tr>
+<tr>
+<td>Thrusters draw</td>
+<td>9 kW at cruise, 21 kW at sprint, 0 in the hangar or docked</td>
+</tr>
+<tr>
+<td>Bottle field</td>
+<td>5.2 T normal, 3.1 T degraded, pre-cool to 4 K</td>
+</tr>
+<tr>
+<td>Backup cells</td>
+<td>Hold the field for 45 minutes</td>
+</tr>
+<tr>
+<td>Sample</td>
+<td>40 ng</td>
+</tr>
+<tr>
+<td>Starter cell</td>
+<td>Gives 5 kW when a preflight load is under 50 kW</td>
+</tr>
+</tbody>
+</table></div>
+<h2>4. System overview</h2>
+<p>The simulator is a browser app that runs the flight, backed by a small API that signs pilots in and keeps the mission log. This is the hybrid architecture chosen for the business logic: rules that run every second live in the browser, and rules that must be trusted or remembered live on the server.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Built with</th>
+<th>Runs on</th>
+<th>Owns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flight core</td>
+<td>TypeScript, pure functions in <code>src/core</code></td>
+<td>The pilot's browser</td>
+<td>Every flight rule in section 5 while a mission is being flown</td>
+</tr>
+<tr>
+<td>Cockpit</td>
+<td>React, TypeScript, Vite</td>
+<td>GitHub Pages</td>
+<td>Showing the state and sending orders to the flight core</td>
+</tr>
+<tr>
+<td>Kestrel control (<code>kestrel-control</code>)</td>
+<td>Python, FastAPI</td>
+<td>One container on a server</td>
+<td>Sign-in, the roster, the mission log, re-checking every mission it is sent</td>
+</tr>
+<tr>
+<td>Database (<code>kestrel</code>)</td>
+<td>PostgreSQL on Neon</td>
+<td>Neon</td>
+<td>Pilots and sorties, with constraints as the last line of defence</td>
+</tr>
+<tr>
+<td>Pipeline</td>
+<td>GitHub Actions</td>
+<td>GitHub</td>
+<td>Lint, tests, build and deploy on every change</td>
+</tr>
+</tbody>
+</table></div>
+<h3>What a pilot does</h3>
+<ol>
+<li>Signs in.</li>
+<li>Runs preflight: queues subsystem checks on the console and starts the preflight.</li>
+<li>Flies Aster retrieval: gives orders that move the suit through the seven phases while the flight core enforces the power budget.</li>
+<li>Docks. The cockpit sends the mission to Kestrel control, which re-checks it and writes it to the mission log.</li>
+<li>Reads the mission log.</li>
+</ol>
+<h3>Ground rules</h3>
+<ul>
+<li>The flight core has no React, no network and no storage code in it, so it can be tested without a screen.</li>
+<li>A screen may decide what to show. It may not decide what is allowed.</li>
+<li>The server never trusts a result the browser reports. It replays the orders through its own copy of the rules.</li>
+<li>Out of scope for version 1: Kubernetes, an NGINX balancer in front of several copies, and an MCP server. Their Kestrel details stay in their tutorials.</li>
+</ul>
+<h2>5. Flight rules (FLT)</h2>
+<p>These are the rules the business-logic tutorial implements. Each is written so one or more test cases can be derived from it. "New" in the source column marks a rule no tutorial states, added here because the simulator needs an answer.</p>
+<h3>Preflight</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLT-01</td>
+<td>The total draw must be the sum of every load switched on, in kW. With nothing on it is 0 kW.</td>
+<td>Test Cases R1</td>
+</tr>
+<tr>
+<td>FLT-02</td>
+<td>Throttling back must take a percentage off the total draw. Throttle back is a whole number from 0 to 100: at 0 nothing is taken off, at 100 the draw is 0 kW.</td>
+<td>Test Cases R2</td>
+</tr>
+<tr>
+<td>FLT-03</td>
+<td>A throttle-back value outside 0 to 100, or not a whole number, must be refused with a reason.</td>
+<td>New (R2 leaves it open)</td>
+</tr>
+<tr>
+<td>FLT-04</td>
+<td>A total draw of 50 kW or more must take 0 kW from the starter cell. Less than 50 kW must take 5 kW. An empty queue takes none.</td>
+<td>Test Cases R3, R5</td>
+</tr>
+<tr>
+<td>FLT-05</td>
+<td>The check queue must report load (sum of queued draws), starter cell (FLT-04) and total draw (load plus starter cell), each to one decimal with the unit kW.</td>
+<td>Test Cases R5</td>
+</tr>
+<tr>
+<td>FLT-06</td>
+<td>A preflight must only start for a signed-in pilot.</td>
+<td>Test Cases, Playwright</td>
+</tr>
+<tr>
+<td>FLT-07</td>
+<td>The <code>launch</code> order must be refused until a preflight has been started for this mission.</td>
+<td>New</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Mission phases and orders</h3>
+<p>The mission starts in <code>hangar</code>. An order is the only thing that can move it.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Allowed in</th>
+<th>Moves the suit to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>launch</code></td>
+<td><code>hangar</code></td>
+<td><code>transit</code></td>
+</tr>
+<tr>
+<td><code>align</code></td>
+<td><code>transit</code>, <code>return</code></td>
+<td>no move</td>
+</tr>
+<tr>
+<td><code>jump</code></td>
+<td><code>transit</code></td>
+<td><code>aster</code></td>
+</tr>
+<tr>
+<td><code>jump</code></td>
+<td><code>captured</code></td>
+<td><code>return</code></td>
+</tr>
+<tr>
+<td><code>approach</code></td>
+<td><code>aster</code></td>
+<td><code>trap</code></td>
+</tr>
+<tr>
+<td><code>scan</code></td>
+<td><code>trap</code></td>
+<td>no move</td>
+</tr>
+<tr>
+<td><code>capture</code></td>
+<td><code>trap</code></td>
+<td><code>captured</code></td>
+</tr>
+<tr>
+<td><code>hold</code></td>
+<td><code>captured</code>, <code>return</code></td>
+<td>no move</td>
+</tr>
+<tr>
+<td><code>trim</code></td>
+<td>every phase except <code>hangar</code> and <code>docked</code></td>
+<td>no move</td>
+</tr>
+<tr>
+<td><code>dock</code></td>
+<td><code>return</code></td>
+<td><code>docked</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLT-10</td>
+<td>The flight state must hold: phase, burn profile, antimatter aboard in ng, bottle field, mission clock, the order log, and the last alert.</td>
+<td>Observability, new</td>
+</tr>
+<tr>
+<td>FLT-11</td>
+<td>The phases must be exactly the seven in section 3, in that order.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-12</td>
+<td>An order must be accepted only in the phases the table above lists for it, and must move the suit only as the table says.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-13</td>
+<td>An order given in any other phase must be refused with "cannot NAME: the Kestrel is" followed by the phase text (for example "parked in Hangar 7").</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-14</td>
+<td>An order name that is not in the table must be refused as an unknown order.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-15</td>
+<td><code>dock</code> must be refused at sprint with "cannot dock at sprint burn: set the thrusters to cruise first".</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-16</td>
+<td><code>docked</code> is the end of the mission. No order is accepted after it.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-17</td>
+<td><code>capture</code> must be refused until at least one <code>scan</code> has been accepted in <code>trap</code> (the scan pre-cools the bottle).</td>
+<td>New</td>
+</tr>
+<tr>
+<td>FLT-18</td>
+<td><code>capture</code> must put 40 ng aboard. <code>dock</code> must deliver whatever is aboard and leave 0 ng aboard.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-19</td>
+<td>Each accepted order must advance the mission clock by 15 seconds.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-20</td>
+<td>The mission result must be Complete when the suit is docked and 40 ng were delivered.</td>
+<td>Observability, Playwright</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Power</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLT-30</td>
+<td>The burn profile must be <code>cruise</code> or <code>sprint</code>. Any other value must be refused.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-31</td>
+<td>The flight draw must be the sum of: flight computer 1 kW, navigation 1 kW, sensors 2 kW, containment 6 kW while antimatter is aboard, and thrusters 9 kW at cruise or 21 kW at sprint. Thrusters draw 0 kW in <code>hangar</code> and <code>docked</code>.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-32</td>
+<td>The flight draw must never exceed the 25 kW budget. A draw of exactly 25 kW is allowed.</td>
+<td>Observability, Docker, NGINX</td>
+</tr>
+<tr>
+<td>FLT-33</td>
+<td>Any order or burn change that would take the draw over budget must be refused at once, naming the budget and the draw asked for. This covers switching to sprint with a sample aboard (31 kW) and <code>capture</code> at sprint.</td>
+<td>Observability postmortem</td>
+</tr>
+<tr>
+<td>FLT-34</td>
+<td>A <code>jump</code> must show the reactor peaking at 24 kW for under 20 seconds. The surge is displayed, not charged against FLT-32.</td>
+<td>Observability</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Promises that hold after every order</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLT-40</td>
+<td>Flight draw is at most 25 kW.</td>
+<td>FLT-32</td>
+</tr>
+<tr>
+<td>FLT-41</td>
+<td>Antimatter aboard is 0 ng or 40 ng, and is 40 ng only in <code>captured</code> and <code>return</code>.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-42</td>
+<td>While antimatter is aboard, the bottle is on its main field at 5.2 T. It must not drop from capture to hand-over.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>FLT-43</td>
+<td>The phase is one of the seven.</td>
+<td>FLT-11</td>
+</tr>
+</tbody>
+</table></div>
+<h3>How the rules behave</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FLT-50</td>
+<td>Every rule must be a pure function: the same state and order always give the same answer, and the state passed in is never changed.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>FLT-51</td>
+<td>A rule must answer with either the new state or a refusal and its reason. A refusal is an ordinary answer, not an exception.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>FLT-52</td>
+<td>A refused order must change nothing except the alert. The next accepted order must clear the alert.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>FLT-53</td>
+<td>Every change to the flight state must go through one function that takes the state and an order and returns the new state.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>FLT-54</td>
+<td>Every order given, accepted or refused, must be appended to the order log with its result.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>FLT-55</td>
+<td>The flight rules must exist twice with the same results: in TypeScript in the browser and in Python on the server.</td>
+<td>New</td>
+</tr>
+</tbody>
+</table></div>
+<h2>6. Cockpit (CKP)</h2>
+<p>The browser app has two halves: the Kestrel Console for preflight, whose wording is already fixed by the Playwright tutorial, and the cockpit for flight, whose four screens come from the React tutorial.</p>
+<h3>Pages</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Route</th>
+<th>Page title</th>
+<th>Heading</th>
+<th>Signed out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>Kestrel Console · KF-07 preflight</td>
+<td>Kestrel Console</td>
+<td>Open</td>
+</tr>
+<tr>
+<td><code>/queue</code></td>
+<td>Check queue · Kestrel Console</td>
+<td>Check queue</td>
+<td>Open</td>
+</tr>
+<tr>
+<td><code>/login</code></td>
+<td>Sign in · Kestrel Console</td>
+<td>Sign in</td>
+<td>Open</td>
+</tr>
+<tr>
+<td><code>/account</code></td>
+<td>Pilot account · Kestrel Console</td>
+<td>Welcome back, Ada</td>
+<td>Goes to <code>/login</code></td>
+</tr>
+<tr>
+<td><code>/missions</code></td>
+<td>Mission log · Kestrel Console</td>
+<td>Mission log</td>
+<td>Goes to <code>/login</code></td>
+</tr>
+<tr>
+<td><code>/cockpit</code> (new)</td>
+<td>Cockpit · Kestrel Console</td>
+<td>Kestrel cockpit</td>
+<td>Goes to <code>/login</code></td>
+</tr>
+<tr>
+<td>anything else</td>
+<td>Not found · Kestrel Console</td>
+<td>404</td>
+<td>"There is no page at this address."</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Console</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CKP-01</td>
+<td>Every page must have the route, title and heading in the table above.</td>
+<td>Playwright</td>
+</tr>
+<tr>
+<td>CKP-02</td>
+<td>Every page must show the menu: Home, "Queue (n)" with the number of queued checks, then "Sign in" when signed out or "Mission log" when signed in.</td>
+<td>Playwright</td>
+</tr>
+<tr>
+<td>CKP-03</td>
+<td>Home must list the nine subsystems under the heading "Subsystems", each with its name, category, draw (as "6.5 kW") and a "Queue check" button.</td>
+<td>Test Cases R4, Playwright</td>
+</tr>
+<tr>
+<td>CKP-04</td>
+<td>Typing in "Search systems" must keep the subsystems whose name or category contains the text, ignoring capitals. An empty search lists all nine. No match shows <code>No systems match "text"</code>. The list updates about 300 ms after typing stops.</td>
+<td>Test Cases R4, Playwright</td>
+</tr>
+<tr>
+<td>CKP-05</td>
+<td>"Queue check" must add the subsystem to the queue and show the status "Queued the NAME check".</td>
+<td>Test Cases R5</td>
+</tr>
+<tr>
+<td>CKP-06</td>
+<td>The queue page must show a table of System and Draw, or "The queue is empty", with Load, Starter cell and Total draw per FLT-05, and a "Start preflight" button.</td>
+<td>Playwright</td>
+</tr>
+<tr>
+<td>CKP-07</td>
+<td>"Start preflight" must go to <code>/login</code> when signed out and show "Preflight started" when signed in.</td>
+<td>Playwright</td>
+</tr>
+<tr>
+<td>CKP-08</td>
+<td>A failed sign-in must stay on <code>/login</code> and show the alert "Wrong email or password". A successful one must open <code>/account</code> with "Signed in as EMAIL, pilot of KF-07" and a link to the mission log.</td>
+<td>Test Cases R6, Playwright</td>
+</tr>
+<tr>
+<td>CKP-09</td>
+<td>The mission log must be a table of Mission, Date and Result, newest last, read from the API.</td>
+<td>Playwright</td>
+</tr>
+<tr>
+<td>CKP-10</td>
+<td>A fresh session must start signed out with an empty queue. Moving between pages must clear status lines, errors, form fields and the search.</td>
+<td>Playwright</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Cockpit</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CKP-20</td>
+<td>The cockpit must be built from one component per screen: alert bar, systems, main display, comms. A mission screen is added for phase and orders.</td>
+<td>React + TypeScript, new</td>
+</tr>
+<tr>
+<td>CKP-21</td>
+<td>The alert bar must show the last alert in its danger style, and "All systems nominal" when there is none.</td>
+<td>React + TypeScript</td>
+</tr>
+<tr>
+<td>CKP-22</td>
+<td>The systems screen must show each flight load from FLT-31 with its draw, the total, and the 25 kW budget.</td>
+<td>Observability, new</td>
+</tr>
+<tr>
+<td>CKP-23</td>
+<td>The main display must show reactor output and the burn profile, with a control to switch between cruise and sprint.</td>
+<td>React + TypeScript, Observability</td>
+</tr>
+<tr>
+<td>CKP-24</td>
+<td>The mission screen must show the phase, the mission clock as <code>T+HH:MM:SS</code>, the antimatter aboard, and one control per order.</td>
+<td>Observability, new</td>
+</tr>
+<tr>
+<td>CKP-25</td>
+<td>The comms screen must show the order log, newest last.</td>
+<td>React + TypeScript, new</td>
+</tr>
+<tr>
+<td>CKP-26</td>
+<td>No component may contain a flight rule. Components read the state and send orders; a refusal's reason comes from the flight core and is shown as it is.</td>
+<td>Section 4</td>
+</tr>
+<tr>
+<td>CKP-27</td>
+<td>The Mk II blueprint from the tutorials must be reused and must change with the state: gantry, burn, antimatter aboard, and an over-budget refusal.</td>
+<td>Cloud Deploy, kestrel-simulator notes</td>
+</tr>
+<tr>
+<td>CKP-28</td>
+<td>When the suit docks, the cockpit must send the mission to the API and show whether it was recorded.</td>
+<td>Section 4</td>
+</tr>
+</tbody>
+</table></div>
+<h3>For every page</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CKP-40</td>
+<td>Every control must be reachable by its role and visible name, and usable with the keyboard alone. Status lines use <code>role=status</code>; errors use <code>role=alert</code>.</td>
+<td>Playwright</td>
+</tr>
+<tr>
+<td>CKP-41</td>
+<td>Every page must work at 375 px and 1280 px wide, designed small screen first.</td>
+<td>Tailwind + shadcn/ui</td>
+</tr>
+<tr>
+<td>CKP-42</td>
+<td>The app must show a different message for each of: not signed in (401), not allowed (403), not found (404), invalid input (422), and a server fault (5xx).</td>
+<td>HTTP + Networking</td>
+</tr>
+<tr>
+<td>CKP-43</td>
+<td>Text fields must accept accented letters such as é, à and ç.</td>
+<td>Test Cases</td>
+</tr>
+<tr>
+<td>CKP-44</td>
+<td>A direct visit or a refresh on any route must load that page when hosted on GitHub Pages.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>CKP-45</td>
+<td>A mission in progress should survive a page reload.</td>
+<td>Tailwind + shadcn/ui (next step)</td>
+</tr>
+</tbody>
+</table></div>
+<h2>7. Server and API (API)</h2>
+<p>Kestrel control is one FastAPI application, titled <code>kestrel-control</code>, listening on port 8000. It has three jobs: sign pilots in, keep the roster, and keep a mission log it can vouch for.</p>
+<h3>Endpoints</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Method and path</th>
+<th>Who</th>
+<th>Does</th>
+<th>Answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /healthz</code></td>
+<td>Anyone</td>
+<td>Says the process is alive</td>
+<td>200 <code>{"status":"ok"}</code></td>
+</tr>
+<tr>
+<td><code>GET /readyz</code></td>
+<td>Anyone</td>
+<td>Says whether the database answers</td>
+<td>200 ready, or 503 naming the failed check</td>
+</tr>
+<tr>
+<td><code>GET /version</code></td>
+<td>Anyone</td>
+<td>Gives the release number</td>
+<td>200 <code>{"version":"1.0.0"}</code></td>
+</tr>
+<tr>
+<td><code>GET /status</code></td>
+<td>Anyone</td>
+<td>Names the frame and mission</td>
+<td>200 with frame "KF-07 Kestrel Mk II", mission "Aster retrieval"</td>
+</tr>
+<tr>
+<td><code>GET /pilots</code></td>
+<td>Tech</td>
+<td>Lists the roster</td>
+<td>200, a page of pilots</td>
+</tr>
+<tr>
+<td><code>POST /pilots</code></td>
+<td>Tech</td>
+<td>Enlists a pilot</td>
+<td>201, or 409 "Callsign already taken"</td>
+</tr>
+<tr>
+<td><code>GET /pilots/{pilot_id}</code></td>
+<td>Tech, or the pilot themself</td>
+<td>Shows one pilot</td>
+<td>200, or 404 "No such pilot"</td>
+</tr>
+<tr>
+<td><code>GET /missions</code></td>
+<td>Signed-in pilot</td>
+<td>Lists that pilot's missions</td>
+<td>200, a page of missions</td>
+</tr>
+<tr>
+<td><code>POST /missions</code></td>
+<td>Signed-in pilot</td>
+<td>Submits a flown mission's order log</td>
+<td>201, or 422 when the log does not replay</td>
+</tr>
+<tr>
+<td><code>GET /missions/{mission_id}</code></td>
+<td>The pilot who flew it, or a tech</td>
+<td>Shows one mission</td>
+<td>200, 403 or 404</td>
+</tr>
+</tbody>
+</table></div>
+<p>Sign-in adds two endpoints from the FastAPI tutorial: POST /token takes an email and password as form fields and answers with an access token, and GET /pilots/me returns the signed-in pilot.</p>
+<h3>Requirements</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API-01</td>
+<td>The API must provide the endpoints in the table above, with those answers.</td>
+<td>SQLAlchemy, Observability, Cloud Deploy</td>
+</tr>
+<tr>
+<td>API-02</td>
+<td><code>POST /missions</code> must replay the submitted order log through the server's own flight rules (FLT-55). If any order would be answered differently, the mission must be refused with 422 and nothing stored. The result that is stored is the server's, not the browser's.</td>
+<td>Section 4</td>
+</tr>
+<tr>
+<td>API-03</td>
+<td>The pilot a mission belongs to must come from the sign-in token, never from the request body, path or query.</td>
+<td>OpenAPI Design, OAuth</td>
+</tr>
+<tr>
+<td>API-04</td>
+<td><code>POST /missions</code> must accept an <code>Idempotency-Key</code> header so that a retry does not record the mission twice.</td>
+<td>OpenAPI Design</td>
+</tr>
+<tr>
+<td>API-05</td>
+<td>Every input must be typed and validated by the framework. Invalid input answers 422 with a message naming the field.</td>
+<td>FastAPI, HTTP + Networking</td>
+</tr>
+<tr>
+<td>API-06</td>
+<td>Every endpoint must declare a response model, so internal fields such as password hashes never leave the server.</td>
+<td>FastAPI, SQLAlchemy</td>
+</tr>
+<tr>
+<td>API-07</td>
+<td>Status codes must be used as follows: 201 for a create, 204 when nothing is returned, 401 not signed in, 403 signed in but not allowed, 404 missing, 405 wrong method, 409 conflict, 422 invalid input. A 500 always means a bug.</td>
+<td>FastAPI, HTTP + Networking</td>
+</tr>
+<tr>
+<td>API-08</td>
+<td>List endpoints must take <code>limit</code> (default 25, at most 100) and an opaque <code>cursor</code>, and return <code>data</code> and <code>next_cursor</code>.</td>
+<td>OpenAPI Design, FastAPI</td>
+</tr>
+<tr>
+<td>API-09</td>
+<td><code>/healthz</code> must check only the process. <code>/readyz</code> must check the database and name what failed.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>API-10</td>
+<td>The API must be stateless: nothing a request needs later is kept in a Python variable.</td>
+<td>FastAPI, HTTP + Networking</td>
+</tr>
+<tr>
+<td>API-11</td>
+<td>Each request must get its own database session through a dependency, closed when the request ends.</td>
+<td>FastAPI, SQLAlchemy</td>
+</tr>
+<tr>
+<td>API-12</td>
+<td>CORS must allow exactly the cockpit's origin for each environment. No wildcard origin.</td>
+<td>HTTP + Networking</td>
+</tr>
+<tr>
+<td>API-13</td>
+<td>Configuration must come from environment variables (<code>KESTREL_ENV</code>, <code>DATABASE_URL</code>, <code>LOG_LEVEL</code>, and the signing key or identity-provider settings). The app must refuse to start, saying which one, if a setting is missing.</td>
+<td>Cloud Deploy</td>
+</tr>
+<tr>
+<td>API-14</td>
+<td>The code must be laid out as a package: <code>app/main.py</code>, <code>app/config.py</code>, <code>app/db.py</code>, <code>app/models.py</code>, one file per resource under <code>app/routers/</code>, and the flight rules in their own module with no FastAPI or database code in it.</td>
+<td>FastAPI, SQLAlchemy, section 4</td>
+</tr>
+<tr>
+<td>API-15</td>
+<td>The API must only be served over HTTPS, and must send the <code>strict-transport-security</code> header.</td>
+<td>HTTP + Networking, Cloud Deploy</td>
+</tr>
+<tr>
+<td>API-16</td>
+<td>The contract should be written first as <code>openapi.yaml</code> (OpenAPI 3.1), kept in the repository, and checked against what the app generates.</td>
+<td>OpenAPI Design</td>
+</tr>
+<tr>
+<td>API-17</td>
+<td>Field and query names must be snake_case. Dates are <code>2026-11-09</code>; timestamps are UTC with <code>Z</code>.</td>
+<td>OpenAPI Design</td>
+</tr>
+</tbody>
+</table></div>
+<h2>8. Data (DAT)</h2>
+<p>The database is PostgreSQL, named <code>kestrel</code>, hosted on Neon. It keeps two tables from the SQLAlchemy tutorial, extended so a sortie can hold a flown mission. Columns marked new are added by this document.</p>
+<h3><code>pilots</code></h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>integer, identity</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>callsign</code></td>
+<td>varchar(30)</td>
+<td>Required, unique</td>
+</tr>
+<tr>
+<td><code>joined_at</code></td>
+<td>timestamp with time zone</td>
+<td>Required, defaults to now</td>
+</tr>
+<tr>
+<td><code>grade</code></td>
+<td>varchar(20)</td>
+<td>Optional (renamed from <code>rank</code>)</td>
+</tr>
+<tr>
+<td><code>clearance</code></td>
+<td>integer</td>
+<td>Required; existing pilots backfilled with 1</td>
+</tr>
+<tr>
+<td><code>email</code> (new)</td>
+<td>text</td>
+<td>Required, unique; what the pilot signs in with</td>
+</tr>
+<tr>
+<td><code>role</code> (new)</td>
+<td>text</td>
+<td>Required; <code>pilot</code> or <code>tech</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3><code>sorties</code></h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>integer, identity</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>pilot_id</code></td>
+<td>integer</td>
+<td>Required, references <code>pilots.id</code>, indexed</td>
+</tr>
+<tr>
+<td><code>mission</code></td>
+<td>varchar(40)</td>
+<td>Required; "Aster retrieval"</td>
+</tr>
+<tr>
+<td><code>launched_at</code></td>
+<td>timestamp with time zone</td>
+<td>Required, defaults to now</td>
+</tr>
+<tr>
+<td><code>code</code> (new)</td>
+<td>text</td>
+<td>Required, unique; the mission number shown in the log, such as M-058</td>
+</tr>
+<tr>
+<td><code>result</code> (new)</td>
+<td>text</td>
+<td>Required; <code>Complete</code> or <code>Incomplete</code></td>
+</tr>
+<tr>
+<td><code>delivered_ng</code> (new)</td>
+<td>integer</td>
+<td>Required; 0 or 40</td>
+</tr>
+<tr>
+<td><code>order_log</code> (new)</td>
+<td>jsonb</td>
+<td>Required; the orders as replayed by the server</td>
+</tr>
+<tr>
+<td><code>idempotency_key</code> (new)</td>
+<td>text</td>
+<td>Unique; from API-04</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Requirements</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DAT-01</td>
+<td>The schema must contain the two tables above, plus Alembic's <code>alembic_version</code>.</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>DAT-02</td>
+<td>Every rule in the tables must be enforced by the database itself (unique, foreign key, not null, and check constraints on <code>role</code>, <code>result</code> and <code>delivered_ng</code>), as well as by the API.</td>
+<td>Postgres, section 4</td>
+</tr>
+<tr>
+<td>DAT-03</td>
+<td>Models must use SQLAlchemy 2.0 typed mapping (<code>Mapped</code>, <code>mapped_column</code>) with psycopg 3, one engine for the app.</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>DAT-04</td>
+<td>The schema must only ever be changed by an Alembic migration. <code>create_all</code>, <code>drop_all</code> and hand-typed <code>ALTER</code> must not be run against a migrated database.</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>DAT-05</td>
+<td>A model change and its migration must be committed together. A revision already applied to a shared database must not be edited.</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>DAT-06</td>
+<td>Every autogenerated migration must be read before it is applied. A required column on a table with rows is added in three steps (add as optional, backfill, make required). A rename uses a rename, never drop and add.</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>DAT-07</td>
+<td>Time columns must be <code>timestamp with time zone</code>. Primary keys must be identity columns. Foreign-key columns must be indexed. Table names are plural, lower-case, with underscores.</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td>DAT-08</td>
+<td>The API must connect as a role that is not the owner or a superuser.</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td>DAT-09</td>
+<td>The connection string is a secret, supplied as <code>DATABASE_URL</code>, and must require TLS (<code>sslmode=require</code>).</td>
+<td>Postgres, Cloud Deploy</td>
+</tr>
+<tr>
+<td>DAT-10</td>
+<td>A write that touches more than one row or table must happen inside one transaction.</td>
+<td>Postgres</td>
+</tr>
+<tr>
+<td>DAT-11</td>
+<td>A fresh database must be seeded with the roster (Wren, Ibis, Heron), the pilot Ada, and missions M-041 and M-058.</td>
+<td>SQLAlchemy, Playwright</td>
+</tr>
+<tr>
+<td>DAT-12</td>
+<td>A backup should be taken before any release that migrates, and proven once by restoring it.</td>
+<td>Postgres, SQLAlchemy</td>
+</tr>
+</tbody>
+</table></div>
+<h2>9. Identity and access (IAM)</h2>
+<p>There are two roles, pilot and tech. Version 1 signs pilots in the way the FastAPI tutorial teaches: an email and password form, answered with a short-lived token the API signs itself.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>IAM-01</td>
+<td>Every user must have exactly one role: <code>pilot</code> or <code>tech</code>.</td>
+<td>HTTP + Networking</td>
+</tr>
+<tr>
+<td>IAM-02</td>
+<td>A pilot must be able to see and record only their own missions. A tech must be able to see the roster and every mission, and enlist pilots.</td>
+<td>FastAPI, HTTP + Networking</td>
+</tr>
+<tr>
+<td>IAM-03</td>
+<td>The console's mission log, account page, cockpit and "Start preflight" must require a signed-in user (FLT-06, section 6).</td>
+<td>Test Cases, Playwright</td>
+</tr>
+<tr>
+<td>IAM-04</td>
+<td>A request without a valid token must answer 401 with <code>www-authenticate: Bearer</code>. A valid token without the needed role must answer 403. The two must never be swapped.</td>
+<td>HTTP + Networking, OAuth</td>
+</tr>
+<tr>
+<td>IAM-05</td>
+<td>A failed sign-in must give one message, "Wrong email or password", whichever of the two was wrong.</td>
+<td>Test Cases R6, FastAPI</td>
+</tr>
+<tr>
+<td>IAM-06</td>
+<td>If the API stores passwords, it must store only a hash made with a maintained library (Argon2).</td>
+<td>FastAPI</td>
+</tr>
+<tr>
+<td>IAM-07</td>
+<td>Access tokens must be short-lived (30 minutes at most) and sent as a Bearer token on every request, over HTTPS only.</td>
+<td>FastAPI, OAuth, HTTP + Networking</td>
+</tr>
+<tr>
+<td>IAM-08</td>
+<td>The API must verify every token's signature and expiry with a fixed algorithm set in configuration. It must never trust a token it has only decoded.</td>
+<td>OAuth</td>
+</tr>
+<tr>
+<td>IAM-09</td>
+<td>Tokens must not be kept in <code>localStorage</code> or <code>sessionStorage</code>. They are held in memory, or behind an <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code> cookie.</td>
+<td>OAuth</td>
+</tr>
+<tr>
+<td>IAM-10</td>
+<td>No secret, token or password may appear in a URL, a log line, the repository, or the browser bundle.</td>
+<td>HTTP + Networking, Git Basics, Observability</td>
+</tr>
+<tr>
+<td>IAM-11</td>
+<td>The test pilot for automated tests is <code>ada@example.com</code>. Her password must come from a CI secret, not from the test code.</td>
+<td>Test Cases, CI</td>
+</tr>
+</tbody>
+</table></div>
+<h2>10. Quality and operations (QA, OPS, OBS)</h2>
+<p>A change is done when its tests pass in the pipeline, it is deployed from a numbered release, and the running system can explain itself.</p>
+<h3>Testing</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>QA-01</td>
+<td>Test cases must be written before the feature, as a Markdown sheet at <code>docs/test-cases.md</code>, changed in the same pull request as the behaviour.</td>
+<td>Test Cases</td>
+</tr>
+<tr>
+<td>QA-02</td>
+<td>Each case must have an ID (<code>TC-AREA-NN</code>), a priority (P1 smoke, P2 regression, P3 nice to have), a level (unit or browser), and Given / When / Then with a Then that can be observed.</td>
+<td>Test Cases</td>
+</tr>
+<tr>
+<td>QA-03</td>
+<td>The 21 cases of the tutorial's model sheet (TC-PWR, TC-CON, TC-SRCH, TC-QUE, TC-AUTH) must pass against the simulator.</td>
+<td>Test Cases</td>
+</tr>
+<tr>
+<td>QA-04</td>
+<td>Every FLT requirement must have at least one case, and every limit must be tested just below, at and just above it (49.99, 50 and 120 kW for the starter cell; 25 kW for the budget).</td>
+<td>Test Cases</td>
+</tr>
+<tr>
+<td>QA-05</td>
+<td>The flight core must be tested with Vitest, with no browser. Its tests must include one that fires several hundred random orders and checks FLT-40 to FLT-43 after each.</td>
+<td>Business-logic tutorial</td>
+</tr>
+<tr>
+<td>QA-06</td>
+<td>The server's flight rules must be tested with pytest, and one shared set of order logs must give the same results in both languages (FLT-55).</td>
+<td>FastAPI, new</td>
+</tr>
+<tr>
+<td>QA-07</td>
+<td>API tests must use FastAPI's <code>TestClient</code> and run without a server. Database rules must be tested against real PostgreSQL, not SQLite.</td>
+<td>FastAPI, Postgres</td>
+</tr>
+<tr>
+<td>QA-08</td>
+<td>Browser tests must use Playwright with pytest. Each test starts signed out with an empty queue, finds elements by role and visible name, and waits with <code>expect</code>, never with a sleep.</td>
+<td>Playwright + pytest</td>
+</tr>
+<tr>
+<td>QA-09</td>
+<td>One case must become one test, named for what it promises, with the case ID in a comment above it. A Then must not be weakened to make a test pass.</td>
+<td>Test Cases</td>
+</tr>
+<tr>
+<td>QA-10</td>
+<td>A smoke set marked <code>smoke</code> must cover: the console lists nine subsystems, a check can be queued, a pilot can sign in, and the starter-cell limit.</td>
+<td>Test Cases, Playwright</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Build and deployment</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OPS-01</td>
+<td>All work must reach <code>main</code> through a branch and a pull request. Nothing is pushed to <code>main</code> directly.</td>
+<td>Git Basics, CI</td>
+</tr>
+<tr>
+<td>OPS-02</td>
+<td>The pipeline must run on every pull request and on <code>main</code>: lint, unit tests, then browser tests (which wait for the first two). All must be required checks.</td>
+<td>CI</td>
+</tr>
+<tr>
+<td>OPS-03</td>
+<td>The pipeline must also run <code>alembic upgrade head</code> on an empty PostgreSQL and then <code>alembic check</code>.</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>OPS-04</td>
+<td>A failing browser test must upload its trace and screenshot.</td>
+<td>Playwright, CI</td>
+</tr>
+<tr>
+<td>OPS-05</td>
+<td>The pipeline's token must be read-only by default. Secrets come from GitHub secrets; <code>.env</code> is ignored and <code>.env.example</code> is committed.</td>
+<td>CI, Git Basics</td>
+</tr>
+<tr>
+<td>OPS-06</td>
+<td>The API must ship as a container image built from a Dockerfile, with a pinned base image, dependencies installed before the code is copied, and no secret baked in.</td>
+<td>Docker</td>
+</tr>
+<tr>
+<td>OPS-07</td>
+<td>Each release must have a version number and an image tagged with it. <code>latest</code> must not be deployed.</td>
+<td>Cloud Deploy, Kubernetes</td>
+</tr>
+<tr>
+<td>OPS-08</td>
+<td>The container must have a health check and a restart policy. A release counts as live only once its health check passes.</td>
+<td>Cloud Deploy, Docker</td>
+</tr>
+<tr>
+<td>OPS-09</td>
+<td>A deploy must keep the previous release ready, and go back to it automatically if the new one fails its health check.</td>
+<td>Cloud Deploy</td>
+</tr>
+<tr>
+<td>OPS-10</td>
+<td>Migrations must be applied before a new release takes traffic (DAT-04).</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>OPS-11</td>
+<td>The cockpit must be built with <code>npm run build</code> (type check, then bundle) and published to GitHub Pages by the pipeline.</td>
+<td>React + TypeScript, kestrel-simulator notes</td>
+</tr>
+<tr>
+<td>OPS-12</td>
+<td>The API must sit behind a proxy that terminates HTTPS and redirects HTTP to HTTPS. The database must not be reachable from the public internet except by the API's own connection.</td>
+<td>Cloud Deploy, Docker, NGINX</td>
+</tr>
+<tr>
+<td>OPS-13</td>
+<td>Pushing a version tag should build, publish and deploy that release with no manual step.</td>
+<td>Cloud Deploy</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Observability</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OBS-01</td>
+<td>The API must log one JSON object per line to standard output with <code>ts</code> (UTC), <code>level</code>, <code>service</code>, <code>msg</code> and a <code>trace_id</code>.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>OBS-02</td>
+<td>Every response must carry an <code>x-trace-id</code> header matching the log lines of that request.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>OBS-03</td>
+<td>A recorded mission must log the pilot, the mission code and the result. A refused mission must log the order that failed to replay.</td>
+<td>Observability, API-02</td>
+</tr>
+<tr>
+<td>OBS-04</td>
+<td>The API must expose <code>/metrics</code> with request counts by method, route and status, and request duration.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>OBS-05</td>
+<td>The API should count missions by result (<code>kestrel_orders_total</code> with <code>order</code> and <code>result</code> labels is the tutorial's pattern) and keep label values few.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>OBS-06</td>
+<td>Two alerts should exist: the service has stopped answering for 1 minute, and more than 5% of requests are failing for 1 minute.</td>
+<td>Observability</td>
+</tr>
+<tr>
+<td>OBS-07</td>
+<td>Logs must never contain a secret, token, password or email address.</td>
+<td>Observability, OpenAPI Design</td>
+</tr>
+</tbody>
+</table></div>
+<h2>11. Design and repository conventions (DSN)</h2>
+<p>The repository is <code>kestrel-simulator</code> on GitHub, and it must be readable by a person or a coding agent arriving cold.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Requirement</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DSN-01</td>
+<td>The repository must have <code>main</code> as its default branch, a <code>.gitignore</code> covering <code>.env</code> before the first commit, and a committed <code>.env.example</code> with names and no values.</td>
+<td>Git Basics</td>
+</tr>
+<tr>
+<td>DSN-02</td>
+<td><code>README.md</code> must say what the simulator is, how to run each part, how to get a local sign-in, and which environment variables exist.</td>
+<td>Git Basics, OpenAPI Design</td>
+</tr>
+<tr>
+<td>DSN-03</td>
+<td><code>AGENTS.md</code> must contain: Project (with stack versions), Commands (install, run, test, lint, each exact), Project structure, Code style, Testing, Git workflow, and Boundaries (Always, Ask first, Never). <code>CLAUDE.md</code> contains the single line <code>@AGENTS.md</code>.</td>
+<td>Agent Files</td>
+</tr>
+<tr>
+<td>DSN-04</td>
+<td><code>DESIGN.md</code> and <code>tokens.json</code> must describe the look. Tokens are named for their purpose, not their value. One of the two files is the source and the other is generated from it.</td>
+<td>Agent Files</td>
+</tr>
+<tr>
+<td>DSN-05</td>
+<td>Text on its background must reach a contrast of at least 4.5 to 1, and the primary colour on its surface at least 3 to 1.</td>
+<td>Agent Files</td>
+</tr>
+<tr>
+<td>DSN-06</td>
+<td>Each feature must have a spec at <code>specs/NAME.md</code> with Goal, Context, Acceptance criteria, Out of scope, Constraints, How to verify, and Open questions. Acceptance criteria must cite the requirement IDs in this document.</td>
+<td>Agent Files</td>
+</tr>
+<tr>
+<td>DSN-07</td>
+<td>Commit messages must be imperative and cover one idea each. Branches are named for what they do and are deleted after merging.</td>
+<td>Git Basics</td>
+</tr>
+<tr>
+<td>DSN-08</td>
+<td>Screens must use the design tokens only: no hard-coded colour values, and no class names built at run time.</td>
+<td>Tailwind + shadcn/ui</td>
+</tr>
+<tr>
+<td>DSN-09</td>
+<td>The cockpit must be React with TypeScript in strict mode, built by Vite, on Node.js 20 or newer.</td>
+<td>React + TypeScript, Tailwind + shadcn/ui</td>
+</tr>
+<tr>
+<td>DSN-10</td>
+<td>The cockpit and the API should live in separate top-level folders of the one repository, each with its own install, run and test commands.</td>
+<td>New</td>
+</tr>
+<tr>
+<td>DSN-11</td>
+<td>The simulator's look is its own. It need not match the tutorials' palette, and the token file already in the repository stands.</td>
+<td>kestrel-simulator notes</td>
+</tr>
+</tbody>
+</table></div>
+<h2>12. Where each rule is enforced</h2>
+<p>A rule that matters is checked in more than one place, so one mistake cannot break it. This table is the map the two business-logic tutorials follow: the browser column is part 1, the API and database columns are part 2.</p>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Flight core (browser)</th>
+<th>API</th>
+<th>Database</th>
+<th>Tutorial that teaches it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Draw never exceeds 25 kW (FLT-32)</td>
+<td>Refuses the order at once</td>
+<td>Refuses the mission on replay</td>
+<td>Not stored, so nothing to check</td>
+<td>Business logic, FastAPI</td>
+</tr>
+<tr>
+<td>Orders only in their phases (FLT-12)</td>
+<td>Transition table</td>
+<td>Same table in Python, on replay</td>
+<td>Not applicable</td>
+<td>Business logic, FastAPI</td>
+</tr>
+<tr>
+<td>Antimatter is 0 or 40 ng (FLT-41)</td>
+<td>Checked after every order</td>
+<td>Result computed by the server</td>
+<td>Check constraint on <code>delivered_ng</code></td>
+<td>Business logic, Postgres</td>
+</tr>
+<tr>
+<td>Mission result (FLT-20)</td>
+<td>Shown to the pilot</td>
+<td>Decided by the server</td>
+<td>Check constraint on <code>result</code></td>
+<td>FastAPI, SQLAlchemy</td>
+</tr>
+<tr>
+<td>A mission belongs to its pilot (API-03)</td>
+<td>Not decided here</td>
+<td>Taken from the token</td>
+<td>Foreign key on <code>pilot_id</code></td>
+<td>OAuth, FastAPI, Postgres</td>
+</tr>
+<tr>
+<td>A mission is recorded once (API-04)</td>
+<td>Sends one key per mission</td>
+<td>Checks the key</td>
+<td>Unique <code>idempotency_key</code></td>
+<td>OpenAPI Design, Postgres</td>
+</tr>
+<tr>
+<td>Callsigns are unique</td>
+<td>Not decided here</td>
+<td>Answers 409</td>
+<td>Unique constraint</td>
+<td>SQLAlchemy + Alembic</td>
+</tr>
+<tr>
+<td>Preflight needs a sign-in (FLT-06)</td>
+<td>Sends the pilot to <code>/login</code></td>
+<td>Refuses without a token</td>
+<td>Not applicable</td>
+<td>Playwright, OAuth</td>
+</tr>
+<tr>
+<td>Starter cell limit (FLT-04)</td>
+<td>Pure function</td>
+<td>Not needed: nothing is stored</td>
+<td>Not applicable</td>
+<td>Test Cases, Playwright</td>
+</tr>
+</tbody>
+</table></div>
+<h2>13. Conflicts and rulings</h2>
+<p>The tutorials were written one at a time and disagree in 18 places. All are ruled below.</p>
+<h3>Decided on 17 November 2026</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>What the tutorials say</th>
+<th>Ruling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Two power scales</td>
+<td>Preflight loads add up to 94 kW and the starter cell cuts in under 50 kW (Test Cases). In flight the reactor budget is 25 kW (Observability, Docker).</td>
+<td>Both stand. Preflight figures are test-bench loads on the hangar's ground supply; flight figures are reactor power.</td>
+</tr>
+<tr>
+<td>Sign-in flow</td>
+<td>FastAPI teaches a password form and a token the API signs itself. OAuth teaches an identity provider with authorization code and PKCE.</td>
+<td>Version 1 follows the FastAPI tutorial under the IAM rules. An identity provider is version 2.</td>
+</tr>
+<tr>
+<td>Styling</td>
+<td>The React tutorial's cockpit uses a hand-written stylesheet. The Tailwind tutorial uses Tailwind 4 with shadcn/ui.</td>
+<td>Tailwind with shadcn/ui, fed by the repository's tokens.</td>
+</tr>
+<tr>
+<td>Where the API runs</td>
+<td>Cloud Deploy uses a rented server with Docker Compose and a Caddy gateway. The database is on Neon and the cockpit on GitHub Pages.</td>
+<td>One small rented server running the API container behind Caddy, as Cloud Deploy teaches, with no database container because the database is on Neon. It needs an address on a domain you own.</td>
+</tr>
+<tr>
+<td>Host names in the story</td>
+<td><code>kestrel.test</code> (HTTP, Observability) and <code>kestrel.hangar-7.dev</code> (Cloud Deploy)</td>
+<td>Both stand: <code>kestrel.test</code> is the hangar network, <code>kestrel.hangar-7.dev</code> is the public address.</td>
+</tr>
+<tr>
+<td>New rules in this document</td>
+<td>FLT-03, FLT-07, FLT-17, the <code>/cockpit</code> route, and the new columns in section 8 are in no tutorial.</td>
+<td>Accepted.</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Ruled here</h3>
+<div class="doc-t"><table>
+<thead>
+<tr>
+<th>Topic</th>
+<th>What the tutorials say</th>
+<th>Ruling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Designation</td>
+<td>"KF-07 Kestrel Mk II" in the newer tutorials, "KF-07 Kestrel" in Kubernetes, NGINX and the Observability status reply</td>
+<td>KF-07 Kestrel Mk II everywhere</td>
+</tr>
+<tr>
+<td>Reactor figures</td>
+<td>13 kW output and 25 kW limit (Docker, Observability); 1380 MW (Kubernetes); 25 kW at idle (HTTP)</td>
+<td>25 kW budget, 13 kW normal output</td>
+</tr>
+<tr>
+<td>Subsystem names</td>
+<td>Nine in the console; a different nine in Kubernetes (with railgun, shield, life-support); seven services in Observability; "navigation" in Docker</td>
+<td>The Test Cases nine are the subsystems. Every other name is a service inside one of them, mapped in section 3</td>
+</tr>
+<tr>
+<td>Mission log or sorties</td>
+<td>"Mission log" with M-041 on the console; a <code>sorties</code> table with missions like "recon sweep" in the database</td>
+<td>Screens and API say missions; the table stays <code>sorties</code></td>
+</tr>
+<tr>
+<td>Health check path</td>
+<td><code>/health</code> (Cloud Deploy, Docker); <code>/healthz</code> and <code>/readyz</code> (Observability)</td>
+<td><code>/healthz</code> and <code>/readyz</code></td>
+</tr>
+<tr>
+<td>ORM</td>
+<td>SQLModel on SQLite (FastAPI); SQLAlchemy 2.0 on PostgreSQL (SQLAlchemy + Alembic)</td>
+<td>SQLAlchemy 2.0 on PostgreSQL</td>
+</tr>
+<tr>
+<td>PostgreSQL version</td>
+<td>16 (Docker, Postgres); 17 (Cloud Deploy, SQLAlchemy)</td>
+<td>17. Neon offers it, but new projects default to 18, so pick 17 when creating the project</td>
+</tr>
+<tr>
+<td>Python version</td>
+<td>3.12 (Docker, Agent Files); 3.13 (Cloud Deploy); 3.14 (FastAPI, Playwright)</td>
+<td>3.14, stated once in <code>AGENTS.md</code></td>
+</tr>
+<tr>
+<td>Port</td>
+<td>8000 (most); 8080 (Kubernetes)</td>
+<td>8000</td>
+</tr>
+<tr>
+<td>Error body</td>
+<td><code>{"detail": ...}</code> (FastAPI, HTTP, SQLAlchemy); RFC 9457 problem documents (OpenAPI Design)</td>
+<td><code>detail</code> for version 1</td>
+</tr>
+<tr>
+<td>Pipeline file</td>
+<td><code>tests.yml</code> with older action versions (Playwright); <code>ci.yml</code> with lint, unit and browser jobs (CI)</td>
+<td><code>ci.yml</code> from the CI tutorial</td>
+</tr>
+<tr>
+<td>Test password</td>
+<td>"skyward" (Test Cases, Playwright); "teatime" (FastAPI, CI)</td>
+<td>Neither in code: a CI secret (IAM-11)</td>
+</tr>
+<tr>
+<td>Image and registry names</td>
+<td><code>hangar7/kestrel-reactor</code>, <code>hangar/NAME</code>, <code>ghcr.io/hangar-7/control</code>, <code>ghcr.io/hangar7/kestrel-flight</code></td>
+<td>In the tutorials the registry account is hangar-7 everywhere. The real build has one API image, named for the real repository</td>
+</tr>
+<tr>
+<td>Waypoints, loadouts, compute cores</td>
+<td>Waypoints (HTTP), recon / assault / orbital loadouts (Kubernetes) and compute cores (NGINX) are part of the story</td>
+<td>Not in version 1</td>
+</tr>
+</tbody>
+</table></div>
