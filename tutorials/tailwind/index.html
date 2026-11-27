@@ -288,6 +288,21 @@ dl.cheat dd{margin:0 0 8px;font-size:.9rem;color:var(--dim)}
 .kb.sy-reactor .ring,.kb.sy-reactor .ring2{stroke:#8ff6ff}
 .kb.sy-reactor .rcore{fill:#8ff6ff}
 .kb .bal text{font-size:8.5px}
+.gitbox{border:1px solid var(--line);border-radius:4px;background:var(--sunk);padding:6px 8px;margin:0 0 12px;font:400 .7rem/1.45 var(--mono);color:var(--dim)}
+.gitbox.hit{animation:hit 1.2s}
+.gb-h{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.gb-br{color:var(--hi);font-weight:700;overflow-wrap:anywhere}
+.gb-br::before{content:"\2387  ";font-weight:400;color:var(--dim)}
+.gb-br.main{color:var(--ink)}
+.gb-st.m{color:var(--warn)}.gb-st.s,.gb-st.ok{color:var(--good)}
+.gitbox ol{list-style:none;margin:5px 0 0;padding:5px 0 0;border-top:1px dashed var(--line);display:grid;gap:3px}
+.gitbox li{overflow-wrap:anywhere;color:var(--ink)}
+.gitbox code{color:var(--dim);font-size:1em}
+.gb-e{margin:4px 0 0;font-size:1em}
+.gm{font:700 .62rem var(--mono);font-style:normal;padding:0 4px;border-radius:2px;margin-left:4px}
+.gm.m{background:var(--warn-soft);color:var(--warn)}.gm.u{background:var(--bad-soft);color:var(--bad)}.gm.s{background:var(--good-soft);color:var(--good)}
+.tsec{font:700 .74rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--warn);margin:14px 0 0;padding-top:12px;border-top:1px dashed var(--line)}
+.tsec::before{content:"\2387  ";color:var(--dim)}
 .klegend{font:400 .7rem/1.4 var(--mono);color:var(--dim);margin:6px 0 12px}
 .zone h3 .pill{float:right;text-transform:none;letter-spacing:0;font-weight:500}
 /* ---- characters ---- */
@@ -436,6 +451,8 @@ table.types td{border-bottom:1px solid var(--line);padding:6px 10px 6px 0;vertic
             </div>
           </div>
           <div class="zone z-proj">
+            <h3>Git</h3>
+            <div class="gitbox" id="gitbox" aria-live="polite"></div>
             <h3>KF-07 Kestrel Mk II</h3>
             <div class="kfig bp" id="kfig"></div>
             <p class="klegend" id="klegend" aria-live="polite"></p>
@@ -906,7 +923,7 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep=ms=>window.__fast?Promise.resolve():new Promise(r=>setTimeout(r,ms));
 const KEY='twshadcn-zero-v3';
-const DEF=()=>({ch:0,done:{},w:{cwd:'root',tw:false,types:false,init:false,dev:false,comps:[],skill:false},slots:{},queue:[],vp:'fit',dark:false,flags:{},quiz:{}});
+const DEF=()=>({ch:0,done:{},w:{cwd:'root',tw:false,types:false,init:false,dev:false,comps:[],skill:false},slots:{},queue:[],vp:'fit',dark:false,flags:{},quiz:{},g:{br:'main',brs:['main'],up:{},commits:[],staged:false,done:{},pushed:{},merged:{},pulled:{}}});
 let S=DEF();
 try{const r=JSON.parse(localStorage.getItem(KEY)||'null');if(r&&r.w)S=Object.assign(DEF(),r)}catch(e){}
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
@@ -1068,7 +1085,8 @@ and its import.
 
 ## Add it with a pull request
 
-From the repository root, on an up-to-date main:
+From the repository root, on an up-to-date main (skip this if you made the branch at the
+start of the chapter):
 
     git switch -c feat/console-schematics
 
@@ -1682,9 +1700,20 @@ ${say2('ilse','I design the suit, and I designed this console. You are going to 
 </dl>
 <h2>Where this guide sits</h2>
 <div class="prose"><ul>
-<li><b>Before it:</b> <em>Project Structure from Zero</em> created <code>kestrel-simulator/cockpit</code> with its <code>app</code>, <code>features</code> and <code>shared</code> folders. <em>Business Logic from Zero</em> wrote the flight rules.</li>
+<li><b>Before it:</b> <em>Git Basics Sandbox</em> taught the commands you will use to save your work here. <em>Project Structure from Zero</em> created <code>kestrel-simulator/cockpit</code> with its <code>app</code>, <code>features</code> and <code>shared</code> folders. <em>Business Logic from Zero</em> wrote the flight rules.</li>
 <li><b>This guide</b> is about how a screen looks and is put together. It keeps every rule out of the screen: a screen may decide what to show, never what is allowed (${rq('CKP-26')}).</li>
 <li><b>After it:</b> <em>React + TypeScript from Zero</em> covers components, state and pages properly. You will meet a little React here, explained as it appears.</li>
+</ul></div>
+<h2>You commit as you go</h2>
+<p>Every chapter ends with you saving its work to git yourself: read what changed, stage it, commit it with a message, push it to GitHub. Nothing is committed for you. The commands run in the same terminal, and a <b>git panel</b> beside Project files shows the branch you are on, what is uncommitted, and your latest commits.</p>
+<div class="tscroll"><table class="types"><tr><th>Chapters</th><th>Branch</th><th>Ends with</th></tr>
+<tr><td>1 to 7</td><td><code>feat/console-home</code></td><td>one commit per chapter, then one pull request for the whole page</td></tr>
+<tr><td>8</td><td><code>feat/console-schematics</code></td><td>one commit, one pull request</td></tr>
+<tr><td>9</td><td><code>chore/shadcn-agent-skill</code></td><td>one commit, one pull request</td></tr></table></div>
+<div class="prose"><ul>
+<li><b>Branch first, always.</b> Work never goes straight onto <code>main</code>. Chapter 1 starts by making the branch (${rq('DSN-07')}).</li>
+<li><b>One idea per commit.</b> A chapter is one idea, and its message says what the change does: “Add…”, “Style…”, “Theme…”.</li>
+<li><b>On your own machine,</b> the list <code>git status</code> prints at the end of a chapter is your checklist. Every file it names must exist in your project with that chapter's changes. Click a file under Project files to print it, or copy it from the editor tab.</li>
 </ul></div>
 <h2>How this page works</h2>
 <p>The lesson is on this side. The sandbox shows the <b>console in a browser</b>, the <b>project files</b> and the <b>Mk II blueprint</b>, above a <b>terminal</b> tab and an <b>editor</b> tab. Every step shows exactly what to run or type. Click a step and it is loaded for you; you press <b>run</b> or <b>save</b>. Tailwind really runs in the preview, so any class you type works. On the blueprint, bench power follows the dev server, and a subsystem lights when its check is queued.</p>
@@ -1698,7 +1727,7 @@ intro:`<p class="build"><b>Build step</b>No console yet. This chapter fits the t
 ${say2('tomo','Six small edits and four commands. It is the dullest chapter and you only do it once per project. Run them in order: the last command checks the earlier ones and tells you what is missing.')}`,
 tasks:[
 {id:'c1.a',t:'cmd',what:'Step into the front-end project',cmd:'cd cockpit',
- parts:[P('cd cockpit','The repository holds two projects, <code>cockpit</code> (front end) and <code>api</code>. Every command in this guide must be run from inside <code>cockpit</code>, or it fails with a “could not read package.json” error.')],
+ parts:[P('cd cockpit','The repository holds two projects, <code>cockpit</code> (front end) and <code>api</code>. Every <code>npm</code> and <code>npx</code> command in this guide must be run from inside <code>cockpit</code>, or it fails with a “could not read package.json” error. Git commands work from here too, so you stay in this folder for the rest of the guide.')],
  saw:'The prompt changed from <code>kestrel-simulator</code> to <code>cockpit</code>.'},
 {id:'c1.b',t:'cmd',what:'Install Tailwind',cmd:'npm install tailwindcss @tailwindcss/vite',
  parts:[P('npm install','Download packages and record them in <code>package.json</code>. (The shadcn docs show <code>pnpm add</code>; it means the same and this terminal accepts both.)'),P('tailwindcss','Tailwind itself.'),P('@tailwindcss/vite','The plugin that lets Vite run Tailwind over your files.')],
@@ -1927,7 +1956,7 @@ outro:`<h2>Where should a change go?</h2>
 <div class="aside"><b>Owning the file has a cost</b>Improvements to shadcn's Button don't reach you automatically. <code>npx shadcn@latest add button --diff</code> shows what changed upstream compared with your copy, so you can take what you want.</div>`},
 
 {id:'schematic',short:'schematic',title:'A card with a live schematic',
-view:()=>{const t=CH[8].tasks.find(x=>!S.done[x.id]);return {file:S.flags.ho&&!t?'pcF':t&&(t.id==='c9.a'||t.id==='c9.b')?'html':'pcS',screen:S.flags.ho?'c9all':'c9'}},
+view:()=>{const t=CH[8].tasks.find(x=>!S.done[x.id]&&!x.git);return {file:S.flags.ho&&!t?'pcF':t&&(t.id==='c9.a'||t.id==='c9.b')?'html':'pcS',screen:S.flags.ho?'c9all':'c9'}},
 need:{setup:1,comps:FULL,canon:['c4.hs','c4.bv','c4.v2','c4.s','c4.card','c5.search','c5.status','c6.primary','c6.radius','c6.brand','c7.brandv'],unq:1},
 intro:`<p class="build"><b>Build step</b>One card gets a live schematic. The Sensors card shows the sensor mast standing by, and it comes alive when its check is queued. You wire that one by hand; the guide then hands you the finished code for all nine.</p>
 ${say2('ilse','I drew the nine schematics and animated them in the HTML5 Animation Editor. They arrive as one file. You are not going to animate anything. Your job is to give the animation a well-made place on the card, and to tell it what state the card is in.')}
@@ -1983,10 +2012,10 @@ ${snip('<Schematic name={schematic} segment={queued ? "checking" : "standby"} cl
 <tr><td><code>SubsystemCard.tsx</code></td><td><code>cockpit/src/features/preflight/components/</code></td><td>replaces yours</td></tr>
 <tr><td>one script line</td><td><code>cockpit/index.html</code></td><td>add by hand</td></tr></table></div>
 <div class="prose"><ol>
-<li>Make a branch: <code>git switch -c feat/console-schematics</code>.</li>
+<li>Stay on <code>feat/console-schematics</code>, the branch you made at the start of this chapter.</li>
 <li>Copy the files in and add the script line.</li>
 <li>Check it: <code>npm run dev</code>, then <code>npm run lint</code> and <code>npm test</code> from <code>cockpit</code>.</li>
-<li>Commit, push, open the pull request, read the diff, merge, delete the branch (${rq('DSN-07')}).</li>
+<li>Commit, push, open the pull request, read the diff, merge, delete the branch: the “Commit this chapter” steps above (${rq('DSN-07')}).</li>
 </ol></div>
 <h2>Where the real signal will come from</h2>
 <p>Today the segment follows a click. Later the result of a preflight check will arrive from the API, a listener will put it into the app's state, and the same prop will carry it. The component, the classes and the animation file do not change. Only the expression grows:</p>
@@ -2055,6 +2084,7 @@ outro:`<h2>The rest of the console</h2>
 </ul>`}
 ];
 const QUIZ=[
+{q:'You finished a chapter and git status says “On branch main”. What do you do before committing?',o:['Commit anyway and fix it later','git switch -c a-branch-name: the changes come with you','Delete the changes and start again'],a:1,why:'Uncommitted changes follow you onto a new branch. Committing on main skips the pull request, and git will not warn you.'},
 {q:'How much padding is p-4?',o:['4px','16px','40px'],a:1,why:'Each spacing step is 4px, so step 4 is 16px.'},
 {q:'The grid has sm:grid-cols-2 lg:grid-cols-3. How many columns on a 375px phone?',o:['One','Two','Three'],a:0,why:'Prefixed classes switch on at their breakpoint and above. Below 640px only the unprefixed classes apply, and a grid with no column count is one column.'},
 {q:'After “add button” in this project, where does the Button live?',o:['Inside node_modules, read-only','In src/shared/ui/button.tsx, as your own file','On shadcn\'s servers'],a:1,why:'shadcn/ui copies source into your project, into the folder the ui alias in components.json names.'},
@@ -2064,6 +2094,7 @@ const QUIZ=[
 {q:'A check result will one day arrive from the API. How does the schematic find out?',o:['The server sends the animation a play command','The result goes into state, and the state picks the segment name','The animation asks the server every second'],a:1,why:'The component turns state into the data-segment attribute and the player follows the attribute. The animation never talks to the back end.'}
 ];
 const CHEAT=[
+['Before starting work','<code>git status</code>, <code>git switch main</code>, <code>git pull</code>, <code>git switch -c feat/name</code>'],['See what changed','<code>git status</code> (files), <code>git diff</code> (lines)'],['Save a finished idea','<code>git add .</code> then <code>git commit -m "Add the thing"</code>'],['Send it to GitHub','first time <code>git push -u origin feat/name</code>, after that <code>git push</code>'],['After the pull request is merged','<code>git switch main</code>, <code>git pull</code>, <code>git branch -d feat/name</code>'],['Check it builds before review','<code>npm run build</code>'],
 ['Auto layout, horizontal','<code>flex</code> (vertical: <code>flex flex-col</code>)'],['Spacing between items','<code>gap-4</code> = 16px (step × 4px)'],['Padding','<code>p-6</code>, <code>px-4</code>, <code>py-2</code>'],['Align / distribute','<code>items-center</code>, <code>justify-between</code>'],
 ['Fill container','<code>w-full</code>, <code>h-full</code> or <code>flex-1</code>'],['Hug contents','default, or <code>w-fit</code>'],['Fixed size','<code>w-64</code>, <code>h-9</code>, <code>size-9</code>, <code>w-[327px]</code>'],['Responsive columns','<code>grid gap-4 sm:grid-cols-2 lg:grid-cols-3</code>'],
 ['Fill colour','<code>bg-primary</code>, <code>bg-background</code>, <code>bg-muted</code>'],['Text colour','<code>text-foreground</code>, <code>text-muted-foreground</code>'],['Stroke','<code>border</code>, <code>border-b</code>, <code>border-border</code>'],['Corner radius','<code>rounded-md</code>, <code>rounded-xl</code>, <code>rounded-full</code>'],
@@ -2077,6 +2108,200 @@ const CHEAT=[
 ['Start the dev server','<code>npm run dev</code>'],['Add components','<code>npx shadcn@latest add button card</code>'],['Preview an add without writing','<code>npx shadcn@latest add dialog --dry-run</code>'],
 ['Compare your copy with upstream','<code>npx shadcn@latest add button --diff</code>'],['Component docs from the CLI','<code>npx shadcn@latest docs dialog</code>'],['Project summary','<code>npx shadcn@latest info</code>'],['New project with everything set up','<code>npx shadcn@latest init -t vite</code>'],['Agent skill','<code>npx skills add shadcn/ui</code>']
 ];
+
+
+/* ---------- git: every chapter ends with the learner committing its work ---------- */
+const HOME_BR='feat/console-home',SCH_BR='feat/console-schematics',SKILL_BR='chore/shadcn-agent-skill';
+const BR_OF=c=>c<=7?HOME_BR:c===8?SCH_BR:SKILL_BR;
+const PCARD='src/features/preflight/components/SubsystemCard.tsx';
+/* what each chapter leaves changed, as git sees it (paths from inside cockpit) */
+const GD={
+1:{from:'c1.b',msg:'Add Tailwind and shadcn/ui to the cockpit',M:['package-lock.json','package.json','src/app/App.tsx','src/index.css','tsconfig.app.json','tsconfig.json','vite.config.ts'],U:['components.json','src/lib/'],A:['components.json','src/lib/utils.ts'],sum:'9 files changed, 1243 insertions(+), 131 deletions(-)'},
+2:{from:'c2.a',msg:'Style the Sensors subsystem card',M:['src/app/App.tsx'],U:[],A:[],sum:'1 file changed, 12 insertions(+), 8 deletions(-)'},
+3:{from:'c3.a',msg:'Lay out the console home page',M:['index.html','src/app/App.tsx'],U:['src/features/preflight/'],A:[PCARD,'src/features/preflight/domain/subsystems.ts','src/features/preflight/index.ts','src/features/preflight/types.ts'],sum:'6 files changed, 78 insertions(+), 13 deletions(-)'},
+4:{from:'c4.a',msg:'Use shadcn Button, Card and Badge on the console',M:['src/app/App.tsx',PCARD],U:['src/shared/ui/badge.tsx','src/shared/ui/button.tsx','src/shared/ui/card.tsx'],A:['src/shared/ui/badge.tsx','src/shared/ui/button.tsx','src/shared/ui/card.tsx'],sum:'5 files changed, 142 insertions(+), 21 deletions(-)'},
+5:{from:'c5.a',msg:'Add search and check queueing to the console home page',M:['src/app/App.tsx',PCARD],U:['src/shared/ui/input.tsx','src/shared/ui/label.tsx'],A:['src/shared/ui/input.tsx','src/shared/ui/label.tsx'],sum:'4 files changed, 71 insertions(+), 9 deletions(-)'},
+6:{from:'c6.a',msg:'Theme the console with design tokens',M:['src/app/App.tsx','src/index.css'],U:[],A:[],sum:'2 files changed, 9 insertions(+), 4 deletions(-)'},
+7:{from:'c7.a',msg:'Add a brand button variant for queued checks',M:[PCARD,'src/shared/ui/button.tsx'],U:[],A:[],sum:'2 files changed, 4 insertions(+), 3 deletions(-)'},
+8:{from:'c9.a',msg:'Add subsystem schematics to the console cards',M:['index.html',PCARD,'src/features/preflight/domain/subsystems.ts','src/features/preflight/types.ts'],U:['public/schematics/','src/shared/ui/schematic.tsx'],A:['public/schematics/kestrel-schematics.js','src/shared/ui/schematic.tsx'],sum:'6 files changed, 58 insertions(+), 6 deletions(-)'},
+9:{from:'c8.b',msg:'Add the shadcn skill for coding agents',M:[],U:['.agents/','skills-lock.json'],A:['skills-lock.json'],sum:'5 files changed, 268 insertions(+)',more:' (plus one "create mode" line for each file of the skill; the folder is .claude/ if you chose Claude Code)'}
+};
+const G=()=>{if(!S.g)S.g=DEF().g;return S.g};
+const buildDone=c=>CH[c].tasks.filter(t=>!t.git).every(t=>S.done[t.id]);
+const dirtyNow=()=>{const c=S.ch,d=GD[c];return !!d&&!G().done[c]&&!!S.done[d.from]};
+const gcount=d=>d.M.length+d.A.length;
+const ghash=(c,msg)=>(((c*2654435761)>>>0)^(msg.length*40503+c*977)).toString(16).padStart(8,'0').slice(1,8);
+const grel=p=>S.w.cwd==='root'?'cockpit/'+p:p;
+function gitCatch(){const g=G(),c=S.ch,did=[];
+  for(let i=1;i<c;i++)if(!g.done[i]||!g.pushed[i]){if(!g.done[i])g.commits.push({br:BR_OF(i),msg:GD[i].msg,hash:ghash(i,GD[i].msg),ch:i,up:1});g.done[i]=g.pushed[i]=1;did.includes('earlier chapters committed')||did.push('earlier chapters committed')}
+  g.commits.forEach(k=>{if(k.ch<c)k.up=1});
+  const merge=b=>{if(!g.merged[b]||!g.pulled[b]){g.merged[b]=g.pulled[b]=1;g.brs=g.brs.filter(x=>x!==b);delete g.up[b];if(g.br===b)g.br='main';did.push(b+' merged')}};
+  if(c>=2&&c<=7&&!g.merged[HOME_BR]){if(!g.brs.includes(HOME_BR))g.brs.push(HOME_BR);if(g.br!==HOME_BR){g.br=HOME_BR;did.push('on branch '+HOME_BR)}if(!g.up[HOME_BR])g.up[HOME_BR]=1}
+  if(c>=8)merge(HOME_BR);
+  if(c>=9)merge(SCH_BR);
+  g.staged=false;
+  if(did.length)line('# sandbox caught up for this chapter (git): '+did.join(', '),'note')}
+function statusLines(){const g=G(),c=S.ch,d=GD[c],o=['On branch '+g.br];
+  const ahead=g.commits.filter(k=>k.br===g.br&&!k.up).length;
+  if(g.br==='main')o.push("Your branch is up to date with 'origin/main'.");
+  else if(g.up[g.br])o.push(ahead?"Your branch is ahead of 'origin/"+g.br+"' by "+ahead+' commit'+(ahead>1?'s':'')+'.':"Your branch is up to date with 'origin/"+g.br+"'.");
+  if(ahead&&g.up[g.br])o.push('  (use "git push" to publish your local commits)');
+  if(g.br==='main'||g.up[g.br])o.push('');
+  if(!dirtyNow()){o.push('nothing to commit, working tree clean');return o}
+  if(g.staged){o.push('Changes to be committed:','  (use "git restore --staged <file>..." to unstage)');
+    [...d.M.map(p=>['modified:   ',p]),...d.A.map(p=>['new file:   ',p])].sort((a,b)=>a[1]<b[1]?-1:1).forEach(x=>o.push(['        '+x[0]+grel(x[1]),'ok']));o.push('');return o}
+  if(d.M.length){o.push('Changes not staged for commit:','  (use "git add <file>..." to update what will be committed)','  (use "git restore <file>..." to discard changes in working directory)');d.M.forEach(p=>o.push(['        modified:   '+grel(p),'err']));o.push('')}
+  if(d.U.length){o.push('Untracked files:','  (use "git add <file>..." to include in what will be committed)');d.U.forEach(p=>o.push(['        '+grel(p),'err']));o.push('')}
+  o.push(d.M.length?'no changes added to commit (use "git add" and/or "git commit -a")':'nothing added to commit but untracked files present (use "git add" to track)');return o}
+async function gitCmd(cmd){const g=G(),c=S.ch,d=GD[c];let m;
+  if(cmd==='git status'){await say(statusLines());return true}
+  if(cmd==='git branch'){await say(g.brs.slice().sort().map(b=>[(b===g.br?'* ':'  ')+b,b===g.br?'ok':'']));return true}
+  if(cmd==='git log --oneline'||cmd==='git log'){const mine=g.commits.filter(k=>k.br===g.br||(g.merged[k.br]&&g.pulled[k.br])).slice().reverse();
+    await say([...mine.map(k=>k.hash+' '+k.msg),'4c1d9e2 (earlier commits: project structure, flight rules, README)']);return true}
+  if(cmd==='git diff --stat'||cmd==='git diff'){if(!dirtyNow()||g.staged){return true}await say([...d.M.map(p=>' '+grel(p)+' | changed'),' '+d.M.length+' file'+(d.M.length===1?'':'s')+' changed',['  (git diff prints the changed lines themselves, red for removed and green for added; new, untracked files are not shown until you add them)','note']]);return true}
+  if(m=cmd.match(/^git (?:switch -c|checkout -b) (\S+)$/)){const n=m[1],want=BR_OF(c);
+    if(g.br===n){line('# sandbox: you are already on '+n+', so there is nothing to do.','note');return true}
+    if(g.brs.includes(n)){line("fatal: a branch named '"+n+"' already exists",'err');return false}
+    if(n!==want){line('# sandbox: this guide\'s steps use the branch name '+want+'. On your own machine, name a branch for what it does.','note');return false}
+    if(g.merged[n]){line('# sandbox: '+n+' was already merged; this chapter\'s work is on main.','note');return true}
+    g.brs.push(n);g.br=n;line("Switched to a new branch '"+n+"'");return true}
+  if(m=cmd.match(/^git (?:switch|checkout) (\S+)$/)){const n=m[1];
+    if(n===g.br){line("Already on '"+n+"'");return true}
+    if(!g.brs.includes(n)){line('fatal: invalid reference: '+n,'err');return false}
+    g.br=n;g.staged=false;await say(["Switched to branch '"+n+"'",n==='main'||g.up[n]?"Your branch is up to date with 'origin/"+n+"'.":'']);return true}
+  if(/^git add (\.|-A|--all|cockpit\/?)$/.test(cmd)){
+    if(/cockpit/.test(cmd)&&S.w.cwd!=='root'){line("fatal: pathspec 'cockpit' did not match any files",'err');line('# You are inside cockpit already. From here, the whole folder is spelled with a dot: git add .','note');return false}
+    if(dirtyNow()&&!buildDone(c)){line('# sandbox: finish this chapter\'s build steps first. A commit is one finished idea, and this one is half built.','note');return false}
+    if(dirtyNow())g.staged=true;return true}
+  if(/^git add\b/.test(cmd)){line('# sandbox: staging single files is not simulated. Use git add . to stage everything in this folder.','note');return false}
+  if(cmd==='git commit'){line('# Without -m, git opens a text editor for the message. Here, give the message on the line: git commit -m "Say what the change does"','note');return false}
+  if(m=cmd.match(/^git commit -m (?:"([^"]*)"|'([^']*)')$/)){const msg=(m[1]!==undefined?m[1]:m[2]).trim();
+    if(m[2]!==undefined&&m[1]===undefined)line('# Single quotes work in bash and PowerShell but not in Windows Command Prompt. Double quotes work everywhere.','note');
+    if(!msg){line('Aborting commit due to empty commit message.','err');return false}
+    if(!dirtyNow()){await say(['On branch '+g.br,'nothing to commit, working tree clean']);if(d&&g.done[c])line('# sandbox: this chapter is already committed.','note');return !!(d&&g.done[c])}
+    if(!g.staged){await say(statusLines().slice(1));line('# Nothing is staged yet, so there is nothing to commit. Run git add . first.','note');return false}
+    if(g.br==='main'){line('# sandbox: stopped. You are on main. Real git would accept this, and the commit would land on main with no pull request and no review. Make the branch first: git switch -c '+BR_OF(c)+' (your uncommitted changes come with you).','err');return false}
+    if(/^(added|adds|adding|fixed|fixes|updated|updates|changed|changes|wip|stuff)\b/i.test(msg))line('# Tip: write the message as an instruction, "Add…", "Fix…", not "Added…" or "Updates…". The commit is still made.','note');
+    const h=ghash(c,msg);await say([['['+g.br+' '+h+'] '+msg,'ok'],' '+d.sum,...d.A.map(p=>' create mode 100644 '+(p.startsWith('.')||p==='skills-lock.json'?p:'cockpit/'+p)),...(d.more?[[d.more,'note']]:[])]);
+    g.commits.push({br:g.br,msg,hash:h,ch:c,up:0});g.done[c]=1;g.staged=false;fx.push('refit');return true}
+  if(/^git commit\b/.test(cmd)){line('# sandbox: use the form git commit -m "message", with the message in double quotes.','note');return false}
+  if(m=cmd.match(/^git push(?: (?:-u|--set-upstream) origin (\S+))?$/)){const n=m[1],b=g.br;
+    if(n&&n!==b){line('error: src refspec '+n+' does not match any','err');line("error: failed to push some refs to 'https://github.com/you/kestrel-simulator.git'",'err');line('# The name after origin must be the branch you are on: '+b,'note');return false}
+    if(b==='main'){line('Everything up-to-date');return true}
+    if(!n&&!g.up[b]){await say([['fatal: The current branch '+b+' has no upstream branch.','err'],'To push the current branch and set the remote as upstream, use','','    git push --set-upstream origin '+b,'']);line('# GitHub has never seen this branch. The first push has to name it; -u is the short form of --set-upstream.','note');return false}
+    const mine=g.commits.filter(k=>k.br===b&&!k.up);
+    if(!mine.length&&g.up[b]){line('Everything up-to-date');return true}
+    const first=!g.up[b],last=mine[mine.length-1],prev=g.commits.filter(k=>k.br===b&&k.up).pop();
+    await say(['Enumerating objects: '+(11+mine.length*6)+', done.',{bar:'  Writing objects',ms:1400},'To https://github.com/you/kestrel-simulator.git',
+      first?' * [new branch]      '+b+' -> '+b:'   '+(prev?prev.hash:'4c1d9e2')+'..'+(last?last.hash:'0000000')+'  '+b+' -> '+b,
+      ...(first?[["branch '"+b+"' set up to track 'origin/"+b+"'.",'ok'],'remote:','remote: Create a pull request for \''+b+'\' on GitHub by visiting:','remote:      https://github.com/you/kestrel-simulator/pull/new/'+b,'remote:']:[])]);
+    g.up[b]=1;mine.forEach(k=>{k.up=1;g.pushed[k.ch]=1});return true}
+  if(cmd==='git pull'){const b=g.br;
+    if(b!=='main'){if(!g.up[b]&&b===BR_OF(c)&&!g.commits.some(k=>k.br===b)){line('# sandbox: you have already made the branch, so there is nothing to pull onto it. On your own machine, pull on main before you branch.','note');return true}if(!g.up[b]){await say([['There is no tracking information for the current branch.','err'],'Please specify which branch you want to merge with.']);return false}line('Already up to date.');return true}
+    const todo=Object.keys(g.merged).filter(x=>g.merged[x]&&!g.pulled[x]);
+    if(!todo.length){line('Already up to date.');return true}
+    const ks=g.commits.filter(k=>todo.includes(k.br)),n=Math.max(new Set(ks.flatMap(k=>GD[k.ch].M.concat(GD[k.ch].A))).size,...ks.map(k=>parseInt(GD[k.ch].sum)));
+    await say(['remote: Enumerating objects: 1, done.','From https://github.com/you/kestrel-simulator','   4c1d9e2..'+ghash(c+20,todo[0])+'  main       -> origin/main','Updating 4c1d9e2..'+ghash(c+20,todo[0]),['Fast-forward','ok'],' '+n+' file'+(n===1?'':'s')+' changed']);
+    todo.forEach(x=>g.pulled[x]=1);fx.push('refit');return true}
+  if(m=cmd.match(/^git branch (-d|-D) (\S+)$/)){const n=m[2];
+    if(n===g.br){line("error: cannot delete branch '"+n+"' used by worktree at '/Users/you/kestrel-simulator'",'err');line('# You are standing on it. Switch to main first.','note');return false}
+    if(!g.brs.includes(n)){if(g.merged[n]){line('# sandbox: '+n+' is already gone.','note');return true}line("error: branch '"+n+"' not found",'err');return false}
+    if(n==='main'){line('# sandbox: main stays.','note');return false}
+    if(m[1]==='-d'&&!(g.merged[n]&&g.pulled[n])){await say([["error: the branch '"+n+"' is not fully merged",'err'],"hint: If you are sure you want to delete it, run 'git branch -D "+n+"'"]);line(g.merged[n]?'# Your main does not have the merge yet. Run git pull first, then try again.':'# Its work is not on main. Merge the pull request first.','note');return false}
+    const k=g.commits.filter(x=>x.br===n).pop();g.brs=g.brs.filter(x=>x!==n);delete g.up[n];line('Deleted branch '+n+' (was '+(k?k.hash:'4c1d9e2')+').');return true}
+  line('# sandbox: that git command is not simulated. It understands: status, add ., commit -m "…", push, push -u origin <branch>, pull, switch, switch -c, branch, branch -d, log --oneline, diff --stat','note');return false}
+function ackPR(key){const g=G(),b=BR_OF(S.ch);showTab('term');
+  if(!g.done[S.ch]||!g.pushed[S.ch]){line('# Nothing to open a pull request from yet: commit and push this chapter first.','note');return}
+  if(!g.merged[b])line('# sandbox: pull request for '+b+' opened, read and merged on GitHub; its branch deleted there. Your computer does not know yet.','note');
+  g.merged[b]=1;S.flags[key]=1;changed()}
+const gmark=p=>{if(!dirtyNow())return '';const d=GD[S.ch],u=d.A.includes(p);if(!u&&!d.M.includes(p))return '';return ' <i class="gm '+(G().staged?'s':u?'u':'m')+'" title="'+(G().staged?'staged':u?'untracked (new)':'modified')+'">'+(u?'U':'M')+'</i>'};
+function renderGit(){const g=G(),c=S.ch,d=GD[c],b=g.br,el=$('#gitbox');if(!el)return;
+  const ahead=g.commits.filter(k=>k.br===b&&!k.up).length;let st,cls='';
+  if(dirtyNow()){st=gcount(d)+' file'+(gcount(d)===1?'':'s')+(g.staged?' staged, not committed':' changed, not staged');cls=g.staged?'s':'m'}
+  else if(ahead){st=ahead+' commit'+(ahead>1?'s':'')+' not pushed';cls='m'}
+  else if(b==='main'&&Object.keys(g.merged).some(x=>g.merged[x]&&!g.pulled[x])){st='behind GitHub: run git pull';cls='m'}
+  else if(b!=='main'&&g.merged[b]){st='merged on GitHub';cls='ok'}
+  else if(b!=='main'&&g.up[b]&&g.commits.some(k=>k.br===b)){st='clean, pushed';cls='ok'}
+  else{st='clean';cls='ok'}
+  const ks=g.commits.filter(k=>k.br===b||(b==='main'&&g.merged[k.br]&&g.pulled[k.br])).slice(-3).reverse();
+  el.innerHTML='<div class="gb-h"><span class="gb-br'+(b==='main'?' main':'')+'">'+esc(b)+'</span><span class="gb-st '+cls+'">'+st+'</span></div>'+
+    (ks.length?'<ol>'+ks.map(k=>'<li><code>'+k.hash+'</code> '+esc(k.msg)+(k.up?'':' <i class="gm m" title="not pushed yet">local</i>')+'</li>').join('')+'</ol>':'<p class="gb-e">No commits from this guide on this branch yet.</p>')}
+
+/* the steps: a branch before the work, a commit after every chapter, a pull request when a piece is whole */
+const gt=(id,cmd,what,parts,saw,x)=>Object.assign({id,t:'cmd',git:1,cmd,what,parts,saw},x||{});
+const HEAD_C='Commit this chapter',HEAD_PR='Get it onto main',HEAD_B='Before you change anything';
+const anyMsg=cmd=>/^git commit -m (".+"|'.+')$/.test(cmd);
+function endSteps(c,o){const d=GD[c],n=gcount(d),first=!!o.first,b=BR_OF(c);
+  return [
+   gt('g'+c+'.s','git status',o.sWhat||'See what this chapter changed',o.sParts,o.sSaw||(n+' file'+(n===1?'':'s')+' listed in red. On your own machine this list is your checklist: every file named here must exist there, with this chapter\'s changes in it.'),{head:HEAD_C,end:1}),
+   gt('g'+c+'.a','git add .',o.aWhat||'Stage the changes',o.aParts,o.aSaw||'No output, which is git for “done”. Run <code>git status</code> again and the same files are listed in green under “Changes to be committed”. The <b>M</b> and <b>U</b> marks beside Project files turned green too.',{end:1}),
+   gt('g'+c+'.c','git commit -m "'+d.msg+'"',o.cWhat||'Commit, saying what the change does',o.cParts,o.cSaw||'One commit on <code>'+b+'</code>, shown in the git panel with the tag “local”: it exists on your computer only.',{end:1,match:anyMsg}),
+   gt('g'+c+'.p',first?'git push -u origin '+b:'git push',o.pWhat||(first?'Push the branch to GitHub for the first time':'Push the commit to GitHub'),o.pParts,o.pSaw||(first?'GitHub now has the branch, and your local branch is linked to it. From here on a plain <code>git push</code> is enough.':'The commit is on GitHub. The “local” tag is gone from the git panel.'),{end:1})]}
+function prSteps(c,key,o){const b=BR_OF(c);o=o||{};
+  return [
+   {id:'g'+c+'.pr',t:'do',git:1,end:1,ack:key,head:HEAD_PR,what:'Open a pull request on GitHub, read it, merge it',how:'On github.com: Compare & pull request → Files changed → Merge pull request → Delete branch',target:'#gitbox',ok:()=>!!S.flags[key],
+    parts:o.prParts||[P('Compare & pull request','After a push, your repository\'s page on GitHub shows a yellow bar with this button. The link that <code>git push</code> printed goes to the same form. Base is <code>main</code>, compare is <code>'+b+'</code>.'),P('Title and description','Say what the branch does and name the requirement IDs it covers. The title becomes the line people read in the history.'),P('Files changed','Read your own diff before anyone else does. This is the last place to catch a stray file, a leftover test value or a secret.'),P('Merge pull request, then Delete branch','Use the default, “Create a merge commit”. Then press “Delete branch”: that removes the copy on GitHub. If <em>CI from Zero</em> is set up, wait for the checks to go green first.')],
+    saw:'The work is on <code>main</code> on GitHub. Your computer still has the old <code>main</code> and the finished branch; the next three steps tidy that up.'},
+   gt('g'+c+'.m','git switch main','Go back to main',[P('git switch main','Change the files in your folder to the <code>main</code> you had before the merge. For a moment the chapter\'s work seems to vanish from your editor. It is safe on GitHub.'),P('“up to date with origin/main”','Git says this from memory. It has not asked GitHub since your last pull, so it does not know about the merge yet.')],'You are on <code>main</code>. The git panel says it is behind GitHub.',{end:1,post:()=>G().br==='main'}),
+   gt('g'+c+'.l','git pull','Bring the merged work down',[P('git pull','Ask GitHub for anything new on this branch and apply it. “Fast-forward” means your <code>main</code> simply moved ahead to match: nothing had to be combined.'),P('Do this before every new branch','A branch made from a stale <code>main</code> is where the surprise “Merge branch \'main\'” commit comes from later.')],'Your <code>main</code> matches GitHub and has everything the pull request held.',{end:1,post:()=>!!G().pulled[b]}),
+   gt('g'+c+'.d','git branch -d '+b,'Delete the finished branch',[P('git branch -d','Delete a local branch. Small <code>-d</code> is the safe form: it refuses if the branch holds work that is not on <code>main</code>.'),P('If it refuses','“not fully merged” after a real merge usually means you chose “Squash and merge” on GitHub, which git cannot recognise. Check the pull request says Merged, then use capital <code>-D</code>.')],'One branch left, <code>main</code>, and it is clean ('+rq('DSN-07')+').',{end:1,post:()=>!G().brs.includes(b)})]}
+const G_STEPS={
+1:{pre:[
+  gt('g1.x','git status','Check where you stand before starting',[P('git status','The question to ask before and after everything: which branch am I on, and is anything changed? It never alters anything.'),P('kestrel-simulator','You are at the repository root. Git commands work from any folder inside the repository; the <code>npm</code> commands later do not.'),P('What you want to see','“On branch main” and “nothing to commit, working tree clean”. If something is listed, commit or discard it first, so that old changes do not get mixed into this guide\'s work.')],'On <code>main</code>, nothing to commit. A clean start.',{head:HEAD_B}),
+  gt('g1.y','git pull','Make sure your main is current',[P('git pull','Fetch anything new from GitHub and apply it. If you merged a pull request on GitHub after the last guide and never pulled, this is where it arrives.'),P('Why now','A branch starts from wherever <code>main</code> is at this moment. Start from a stale one and GitHub will later show a conflict or a surprise “Merge branch \'main\'” commit.')],'“Already up to date.” Your <code>main</code> matches GitHub.'),
+  gt('g1.z','git switch -c '+HOME_BR,'Make a branch for this guide\'s work',[P('git switch -c','Create a branch and move onto it. A branch is a separate line of history: your commits pile up on it and <code>main</code> stays as it was until a pull request brings them over. (<code>git checkout -b</code> is the older spelling.)'),P(HOME_BR,'Named for what it does ('+rq('DSN-07')+'): a new feature, the console home page. Chapters 1 to 7 all go on this branch, one commit each.'),P('The mistake this prevents','Skip this step and every commit lands straight on <code>main</code>, with no pull request and nothing to review. Git will not warn you. Look at the branch name in the git panel before you commit.')],'You are on <code>'+HOME_BR+'</code>. The git panel beside Project files shows it.')],
+ post:()=>endSteps(1,{first:1,
+  sParts:[P('git status, from inside cockpit','Paths are shown from the folder you are in. Red means “changed, not yet staged”.'),P('modified','Files git already knew that now differ: the configs you edited, <code>index.css</code>, <code>App.tsx</code>, and the two package files that <code>npm install</code> rewrote.'),P('Untracked files','Files git has never seen: <code>components.json</code> and the new <code>src/lib</code> folder (a new folder is shown as one line).'),P('What is not there','<code>node_modules</code>. The scaffold\'s <code>.gitignore</code> keeps it out, because anyone can rebuild it with <code>npm install</code>. If you ever see it, or a <code>.env</code> file, in this list, stop and fix <code>.gitignore</code> before adding anything ('+rq('DSN-01')+').')],
+  aParts:[P('git add','Put changes in the <b>staging area</b>: the set that the next commit will contain. Nothing is saved yet.'),P('. (a dot)','“This folder and everything under it.” You are in <code>cockpit</code>, so that is the whole front end and nothing else. Always read <code>git status</code> first, so that the dot never sweeps in a file you did not mean.')],
+  cParts:[P('git commit','Save the staged changes as one permanent snapshot, with your name, the time and a message.'),P('-m "…"','The message. Write it as an instruction that completes “This commit will…”: Add, Fix, Style, Remove. One idea per commit ('+rq('DSN-07')+'). You may reword it; the sandbox accepts any message.'),P('Double quotes','They work in every terminal. Single quotes fail in Windows Command Prompt.'),P('On your own machine first','Run <code>npm run build</code>. A commit that does not build is the commonest thing a reviewer, or CI, sends back.')],
+  pParts:[P('git push','Send your commits to GitHub. Until you push, they exist on one computer.'),P('-u origin '+HOME_BR,'Needed once per branch. <code>origin</code> is git\'s name for your repository on GitHub; <code>-u</code> links the local branch to a new one there with the same name.'),P('The pull request link','GitHub prints an address for opening a pull request. Leave it for now. This branch gets one pull request, at the end of chapter 7, when the page is whole.')]})},
+2:{post:()=>endSteps(2,{
+  sParts:[P('One file','This chapter only edited <code>src/app/App.tsx</code>. Small commits like this are normal and easy to review.'),P('git diff','To see the changed lines themselves and not just the file names, run <code>git diff</code> before staging. Red lines were removed, green lines added.')],
+  aParts:[P('git add .','Stage it. The dot is the current folder, <code>cockpit</code>.')],
+  cParts:[P('The message','It names the one thing this commit does. Someone reading <code>git log</code> in six months should be able to find “where the card got its styling” without opening a file.')],
+  pParts:[P('git push','No <code>-u</code> this time: the branch is already linked to GitHub, so git knows where to send it.')]})},
+3:{post:()=>endSteps(3,{
+  sParts:[P('src/features/preflight/','A whole new folder shows as one untracked line. It holds four files: the card, the subsystem data, the type and the feature\'s <code>index.ts</code>. On your machine you created these yourself; check all four exist.'),P('index.html','Listed only if you set the page title from the note further down. If you have not, your list is one line shorter.')],
+  aParts:[P('git add .','Picks up the new folder and both modified files in one go. After it, <code>git status</code> lists each new file separately as “new file”.')],
+  cParts:[P('One idea','Header, grid and the move of the card into its own file are all “lay out the page”. If you had also fixed an unrelated typo, that would be a second commit.')],
+  pParts:[P('git push','Each push is also a backup. If your computer died now, three chapters of work would be safe on GitHub.')]})},
+4:{post:()=>endSteps(4,{
+  sParts:[P('src/shared/ui/*.tsx','The three files the shadcn CLI wrote. They are your source code now, so they are committed like any file you wrote by hand. That is the difference from <code>node_modules</code>.'),P('Your list may be longer','If the CLI installed a package for a component, <code>package.json</code> and <code>package-lock.json</code> appear as modified too. Commit them with the rest: they belong to the same change.')],
+  aParts:[P('git add .','Stage the two edited files and the three new ones.')],
+  cParts:[P('Why not a commit per step?','A commit should leave the project working. Halfway through this chapter the page showed an error screen. Commit when an idea is finished, and nobody ever checks out a broken state.')],
+  pParts:[P('git push','Send it up.')]})},
+5:{post:()=>endSteps(5,{
+  sParts:[P('Read it every time','The list is short and you could guess it. Read it anyway. The habit is what catches the day a stray file or a half-finished experiment is sitting in the folder.')],
+  aParts:[P('git add .','Stage them.')],
+  cParts:[P('git log --oneline','After committing, try it: one line per commit, newest first. This is the history a reviewer reads, which is why the messages matter.')],
+  pParts:[P('git push','Send it up.')]})},
+6:{post:()=>endSteps(6,{
+  sParts:[P('Two files','The tokens in <code>src/index.css</code>, and <code>App.tsx</code>, where the KF-07 plate was added to the header.'),P('Changed your mind about a file?','<code>git restore src/index.css</code> throws away uncommitted edits to that file and puts back the last committed version. There is no undo for it, so read the name twice.')],
+  aParts:[P('git add .','Stage them.')],
+  cParts:[P('Committed something wrong?','Do not try to rewrite history. Fix the file and make a new commit that says what it fixes. On a branch only you use, that is always safe.')],
+  pParts:[P('git push','Send it up.')]})},
+7:{post:()=>[
+  gt('g7.b','npm run build','Check the project builds before asking for review',[P('npm run build','Runs TypeScript over every file, then Vite\'s production build. The dev server forgives things this does not: a wrong import path, a missing prop, an unused variable.'),P('Why before the pull request','A pull request that does not build wastes the reviewer\'s time and fails CI. Find it here, where fixing it is one edit.')],'No errors, and a <code>dist</code> folder was written. It is in <code>.gitignore</code>, so git will not list it.',{head:'Commit this chapter',end:1}),
+  ...endSteps(7,{sParts:[P('Two files','Your edit to the shared Button, and the card that now asks for the <code>brand</code> variant.'),P('No dist','The build output is not listed, because <code>.gitignore</code> names it. Built files are never committed.')],
+   aParts:[P('git add .','Stage them.')],cParts:[P('The last commit on this branch','Seven commits, one per chapter, each a finished idea. That is a branch a reviewer can read from top to bottom.')],
+   pParts:[P('git push','The whole home page is now on GitHub, on its branch. Next it goes to <code>main</code>.')]}).map((t,i)=>i===0?Object.assign(t,{head:null}):t),
+  ...prSteps(7,'pr7')]},
+8:{pre:[gt('g8.x','git switch -c '+SCH_BR,'Make a branch for the schematics',[P('A new branch for a new idea','The home page is merged. Schematics are a separate piece of work, so they get their own branch and their own pull request.'),P('From an up-to-date main','You pulled at the end of chapter 7, so <code>main</code> is current. If you are coming back after a break, run <code>git switch main</code> and <code>git pull</code> first.')],'You are on <code>'+SCH_BR+'</code>.',{head:HEAD_B})],
+ post:()=>[...endSteps(8,{first:1,
+  sParts:[P('After the hand-over','On your own machine, run this once you have copied the hand-over files in and checked the page (the README in the zip lists them). The list should match this one.'),P('public/schematics/','The animation file, new. It is an asset the site serves, so it is committed.'),P('Check first','From <code>cockpit</code>: <code>npm run build</code>, <code>npm run lint</code> and <code>npm test</code>.')],
+  aParts:[P('git add .','Stage the four changed files and the two new ones.')],
+  cParts:[P('The message','One idea: the cards gained schematics. The hand-wired Sensors version and the finished one are the same idea, so they are one commit.')],
+  pParts:[P('-u origin '+SCH_BR,'A new branch, so the first push names it again.')]}),...prSteps(8,'pr8')]},
+9:{mid:[gt('g9.x','git switch -c '+SKILL_BR,'Make a branch before installing the skill',[P('chore/…','The prefix says what kind of change it is. <code>feat</code> adds something a user can see; <code>chore</code> is upkeep, such as tooling and configuration.'),P('Why branch for something this small','The installer writes files into your repository. Anything that changes the repository goes through a branch and a pull request, however small.')],'You are on <code>'+SKILL_BR+'</code>.')],
+ post:()=>[...endSteps(9,{first:1,
+  sParts:[P('skills-lock.json','Records which skill was installed and from where, so that a teammate gets the same one.'),P('.agents/','The skill itself. The folder name depends on the agent you chose during the install: for Claude Code it is <code>.claude/</code>. Your list shows whichever was written.')],
+  aParts:[P('git add .','Stage the new files.')],
+  cParts:[P('The message','Tooling, not a feature, and it says so.')],
+  pParts:[P('-u origin '+SKILL_BR,'First push of a new branch.')]}),...prSteps(9,'pr9')]}
+};
+for(const c in G_STEPS){const s=G_STEPS[c],ch=CH[c];
+  if(s.mid)ch.tasks.splice(1,0,...s.mid);
+  ch.tasks=[...(s.pre||[]),...ch.tasks,...(s.post?s.post():[])]}
 
 const ALL=CH.flatMap(x=>x.tasks);
 
@@ -2141,7 +2366,9 @@ function inProj(){if(S.w.cwd!=='cockpit'){line('npm error enoent Could not read 
 const UIREL=()=>UI()+'/';
 async function dispatch(cmd,raw){const w=S.w;let m;
   if(cmd==='clear'||cmd==='cls'){out.innerHTML='';return true}
-  if(cmd==='help'){await say(['This sandbox understands:','  npm install tailwindcss @tailwindcss/vite','  npm install -D @types/node','  npx shadcn@latest init               set shadcn/ui up in this project','  npx shadcn@latest add <names>        add components (try --dry-run)','  npx shadcn@latest docs <name>        where to read about a component','  npx shadcn@latest info               project summary','  npx skills add shadcn/ui             agent skill','  npm run dev                          start the dev server','  cd, ls, cat <file>, pwd, clear',['Command Prompt forms work too: dir, type <file>, backslashes in paths. pnpm, yarn and bun spellings are accepted.','note']]);return true}
+  if(cmd==='help'){await say(['This sandbox understands:','  npm install tailwindcss @tailwindcss/vite','  npm install -D @types/node','  npx shadcn@latest init               set shadcn/ui up in this project','  npx shadcn@latest add <names>        add components (try --dry-run)','  npx shadcn@latest docs <name>        where to read about a component','  npx shadcn@latest info               project summary','  npx skills add shadcn/ui             agent skill','  npm run dev                          start the dev server','  npm run build                        check that the project builds','  git status | add . | commit -m "…" | push | pull | switch | branch | log --oneline','  cd, ls, cat <file>, pwd, clear',['Command Prompt forms work too: dir, type <file>, backslashes in paths. pnpm, yarn and bun spellings are accepted.','note']]);return true}
+  if(/^git\b/.test(cmd))return gitCmd(cmd);
+  if(cmd==='npm run build'){if(!inProj())return false;await say(['','> cockpit@0.0.0 build','> tsc -b && vite build','',{bar:'  transforming',ms:1500},'✓ 48 modules transformed.','dist/index.html                   0.52 kB','dist/assets/index-C4kQ2v1a.css   21.84 kB','dist/assets/index-Bq7xT0dP.js   214.07 kB',['✓ built in 1.31s','ok']]);return true}
   if(cmd==='pwd'||cmd==='cd'){line(w.cwd==='root'?'/Users/you/kestrel-simulator':'/Users/you/kestrel-simulator/cockpit');return true}
   if(m=cmd.match(/^cd\s+(.+)$/)){const d=m[1].replace(/\/$/,'');if(d==='cockpit'&&w.cwd==='root'){w.cwd='cockpit';return true}if(d==='..'&&w.cwd==='cockpit'){w.cwd='root';return true}if(d==='.')return true;if(d==='cockpit'){line('You are already inside cockpit.','note');return true}line('cd: no such file or directory: '+d,'err');return false}
   if(m=cmd.match(/^ls(?:\s+(?:-a\s+)?(\S+))?$/)){
@@ -2191,7 +2418,7 @@ const stamp=()=>new Date().toLocaleTimeString([], {hour12:false});
 async function runCmd(raw){raw=raw.trim();if(!raw||busy)return;busy=true;$('#tform').classList.add('busy');hist.push(raw);hi=hist.length;
   line(ps()+' '+raw,'in');const cmd=norm(raw);let ok=false;try{ok=await dispatch(cmd,raw)}catch(e){line(String(e),'err')}
   busy=false;$('#tform').classList.remove('busy');
-  if(ok)for(const t of CH[S.ch].tasks)if(t.t==='cmd'&&!S.done[t.id]&&norm(t.cmd)===cmd){S.done[t.id]=1;break}
+  if(ok)for(const t of CH[S.ch].tasks)if(t.t==='cmd'&&!S.done[t.id]&&(t.match?t.match(cmd):norm(t.cmd)===cmd)){if(t.git&&((t.end&&t!==nowTask())||(t.post&&!t.post())))break;S.done[t.id]=1;break}
   changed();}
 const ps=()=>(S.w.cwd==='root'?'kestrel-simulator':'cockpit')+' $';
 
@@ -2236,7 +2463,7 @@ function renderTree(){const t=$('#tree'),ps_=paths();let h='<div class="dir">coc
   for(const p of ps_.slice().sort((a,b)=>order(a)<order(b)?-1:1)){const seg=p.split('/');
     for(let i=0;i<seg.length-1;i++){const d=seg.slice(0,i+1).join('/');if(!seen.has(d)){seen.add(d);h+='<div class="dir">'+'  '.repeat(i+1)+seg[i]+'/</div>'}}
     const ind='  '.repeat(seg.length),nm=seg[seg.length-1];
-    h+=/…/.test(nm)?'<div class="dir">'+ind+'…</div>':`<button data-cat="${p}" class="${fresh.has(p)?'fresh':''}" title="cat ${p}">${ind}${nm}</button>`}
+    h+=/…/.test(nm)?'<div class="dir">'+ind+'…</div>':`<button data-cat="${p}" class="${fresh.has(p)?'fresh':''}" title="cat ${p}">${ind}${nm}${gmark(p)}</button>`}
   t.innerHTML=h;const d=$('#devpill');d.className='pill '+(S.w.dev?'up':'off');d.textContent=S.w.dev?'dev server · :5173':'dev server stopped';fresh=new Set()}
 /* the Mk II blueprint: bench power follows the dev server, a callout appears for each card on screen, a queued check lights its subsystem */
 let lastBal='';
@@ -2254,6 +2481,7 @@ function renderK(){const q=new Set(S.queue||[]),onScreen=S.ch>=3?SUBS.map(s=>s[0
 const nowTask=()=>CH[S.ch].tasks.find(t=>!S.done[t.id]);
 const short=k=>({'c1.css':'index.css','c1.base':'baseUrl','c1.paths':'@/*','c1.base2':'baseUrl','c1.paths2':'@/*','c1.imp':'line 2','c1.plug':'plugins','c1.alias':'"@"','c1.ui':'ui'}[k]||k.split('.')[1]);
 function cmdBtn(t){
+  if(t.ack)return `<button class="cmd" data-ack="${t.ack}"><span class="tap">do this on GitHub, then click here</span><code data-p="☞">${esc(t.how)}</code></button>`;
   if(t.dl)return `<button class="cmd" data-dl="${t.dl}"><span class="tap">click to download</span><code data-p="⤓">${esc(t.how)}</code></button>`;
   if(t.t==='cmd')return `<button class="cmd" data-load="${t.id}"><span class="tap">click to load into the terminal</span><code data-p="$">${esc(t.cmd)}</code></button>`;
   if(t.t==='edit')return `<button class="cmd" data-load="${t.id}"><span class="tap">click to load into the editor</span>${Object.entries(t.set).map(([k,v])=>`<code data-p="${esc(short(k))} =">${esc(v)}</code>`).join('')}</button>`;
@@ -2262,7 +2490,7 @@ function taskHTML(t,i,now){const st=S.done[t.id]?'fin':t===now?'now':'todo';
   return `<li class="task ${st}" id="t-${t.id}"><div class="task-h"><span class="mark">${S.done[t.id]?'✓':i+1}</span><span class="what">${t.what}</span></div>${cmdBtn(t)}`+
    (st==='now'?`<dl class="parts">${t.parts.map(p=>`<dt><code>${esc(p[0])}</code></dt><dd>${p[1]}</dd>`).join('')}</dl>`:'')+(st==='fin'?`<p class="saw">${t.saw}</p>`:'')+'</li>'}
 function renderTasks(){const ch=CH[S.ch],now=nowTask(),el=$('#tasks');if(!el)return;
-  el.innerHTML=ch.tasks.map((t,i)=>taskHTML(t,i,now)).join('');
+  el.innerHTML=ch.tasks.map((t,i)=>(t.head?'<li class="tsec">'+t.head+'</li>':'')+taskHTML(t,i,now)).join('');
   const b=$('#done-banner');if(b)b.innerHTML=ch.tasks.length&&!now?`<div class="banner"><span>Chapter complete.</span>${S.ch<CH.length-1?`<a class="go" href="#" data-go="${S.ch+1}">next: ${CH[S.ch+1].short}</a>`:'<span>That was the last one. The cheat sheet below is yours to keep open.</span>'}</div>`:'';
   const sb=$('#stepbar');sb.innerHTML=now?`<span class="sb-h">current step</span><span class="sb-w">${now.what}</span>${cmdBtn(now)}`:ch.tasks.length?'<span class="sb-h">chapter complete</span>':'<span class="sb-h">sandbox</span><span class="sb-w">Nothing to run in this chapter. Go to the next one.</span>';
   markWanted()}
@@ -2292,10 +2520,10 @@ function changed(){const before=nowTask();
     if(t.t==='do'&&t.ok())S.done[t.id]=1}
   persist();$('#ps').textContent=ps();
   if(edFile!==curView().file)renderEd();
-  renderPv();renderTree();renderK();renderTasks();renderNav();
+  renderPv();renderTree();renderGit();renderK();renderTasks();renderNav();
   const now=nowTask();if(now&&now!==before){const el=document.getElementById('t-'+now.id);if(el&&wide.matches)el.scrollIntoView({block:'nearest',behavior:'smooth'});
     if(now.t==='cmd')showTab('term');else if(now.t==='edit')showTab('ed')}}
-function go(i){S.ch=Math.max(0,Math.min(CH.length-1,i));pvq='';pvStatus='';S.vp='fit';S.dark=false;lastBal='';ensure(CH[S.ch].need);renderLesson();renderEd();{const pw=$('#pvfit').clientWidth;if(S.ch>=3&&pw>=480&&pw<768)S.vp=768}const n=nowTask();showTab(n&&n.t==='edit'?'ed':n?'term':slotsOf(ED[curView().file]).length?'ed':'term');changed()}
+function go(i){S.ch=Math.max(0,Math.min(CH.length-1,i));pvq='';pvStatus='';S.vp='fit';S.dark=false;lastBal='';ensure(CH[S.ch].need);gitCatch();renderLesson();renderEd();{const pw=$('#pvfit').clientWidth;if(S.ch>=3&&pw>=480&&pw<768)S.vp=768}const n=nowTask();showTab(n&&n.t==='edit'?'ed':n?'term':slotsOf(ED[curView().file]).length?'ed':'term');changed()}
 
 /* ---------- the requirements, in a modal ---------- */
 function reqHtml(filter){const f=(filter||'').trim().toLowerCase();let h='';
@@ -2319,6 +2547,7 @@ document.addEventListener('click',e=>{
   const qa=e.target.closest('#pv [data-qadd]');if(qa){queueAdd(qa.dataset.qadd,e.detail===0);return}
   if(e.target.closest('#pv a,#demo a')){e.preventDefault();const a=e.target.closest('a');if(a.closest('#pv')){$('#url').textContent='localhost:5173'+a.getAttribute('href')+'  ·  that page comes later; staying on /';setTimeout(()=>{$('#url').textContent=S.w.dev?'localhost:5173':'localhost:5173  (not running)'},2600)}return}
   const dl=e.target.closest('[data-dl]');if(dl){takeZip(dl.dataset.dl);return}
+  const ak=e.target.closest('[data-ack]');if(ak){ackPR(ak.dataset.ack);return}
   const a=e.target.closest('[data-go],[data-load],[data-cat],[data-vp],[data-q]');if(!a)return;
   if(a.dataset.go!==undefined){e.preventDefault();go(+a.dataset.go);return}
   if(a.dataset.load){const t=ALL.find(x=>x.id===a.dataset.load);if(!t)return;
