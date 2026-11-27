@@ -663,13 +663,30 @@ dialog.fb-why .fb-updated { margin-top: 14px; }
 /* LinkedIn button in the Full Stack Designers menu */
 .nav a.nav-cta { color: var(--on-accent, #fff); background: var(--accent); }
 .nav a.nav-cta:hover { color: var(--on-accent, #fff); background: var(--accent); filter: brightness(1.08); }
-/* Learning Path: the proof of dates, up front */
-.fb-trust { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; padding: 16px 20px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--surface); max-width: 100%; }
+/* Learning Path: the proof of dates, up front; opens to the proofs, newest first */
+.fb-trust { margin-top: 16px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--surface); }
+.fb-trust > summary { display: flex; gap: 16px; align-items: flex-start; padding: 16px 20px; cursor: pointer; list-style: none; }
+.fb-trust > summary::-webkit-details-marker { display: none; }
+.fb-trust > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
 .fb-trust-seal { flex: none; width: 40px; height: 40px; color: var(--accent); margin-top: 2px; }
-.fb-trust p { margin: 0; font-size: .98rem; line-height: 1.55; color: var(--ink-2, var(--ink)); }
-.fb-trust strong { color: var(--ink); }
-.fb-trust a { font-weight: 600; white-space: nowrap; }
-.fb-trust a::after { content: " \2192"; }
+.fb-trust-text { font-size: .98rem; line-height: 1.55; color: var(--ink); }
+.fb-trust-more { display: block; margin-top: 8px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.fb-trust-more::after { content: " \25BE"; text-decoration: none; display: inline-block; transition: transform .2s; }
+.fb-trust[open] .fb-trust-more::after { transform: rotate(180deg); }
+.fb-trust .c, .fb-trust[open] .o { display: none; } .fb-trust[open] .c { display: inline; }
+.fb-trust-body { padding: 0 20px 20px; border-top: 1px solid var(--line); }
+.fb-trust-how { margin: 14px 0; font-size: .92rem; color: var(--muted); }
+.fb-trust-how a { font-weight: 600; } .fb-trust-how a::after { content: " \2192"; }
+.fb-pcard { padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }
+.fb-pcard .kicker { margin: 0 0 4px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fb-pcard h3 { margin: 0; font-size: 1.05rem; } .fb-pcard h3 a { color: var(--ink); }
+.fb-pcard .lg-proofbox { margin-top: 12px; }
+.fb-pcard.ok .lg-status::before { content: "✓ "; color: #2E7D32; font-weight: 700; }
+.fb-trust-earlier { margin: 18px 0 8px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fb-proofs { max-height: 440px; overflow-y: auto; display: grid; gap: 12px; padding: 2px 8px 2px 2px; overscroll-behavior: contain; }
+.fb-proofs:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.fb-pcard code, .fb-pcard .lg-fp code { overflow-wrap: anywhere; }
+@media (max-width: 560px) { .fb-trust > summary { padding: 14px 16px; gap: 12px; } .fb-trust-seal { width: 32px; height: 32px; } .fb-trust-body { padding: 0 12px 14px; } .fb-pcard { padding: 14px; } .fb-proofs { max-height: 380px; } }
 .lg-how { scroll-margin-top: 96px; }
 .lg-how:target { outline: 2px solid var(--accent); outline-offset: 4px; }
 @media (max-width: 560px) { .fb-trust { padding: 14px 16px; gap: 12px; } .fb-trust-seal { width: 32px; height: 32px; } }
