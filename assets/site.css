@@ -663,3 +663,13 @@ dialog.fb-why .fb-updated { margin-top: 14px; }
 /* LinkedIn button in the Full Stack Designers menu */
 .nav a.nav-cta { color: var(--on-accent, #fff); background: var(--accent); }
 .nav a.nav-cta:hover { color: var(--on-accent, #fff); background: var(--accent); filter: brightness(1.08); }
+/* Learning Path: the proof of dates, up front */
+.fb-trust { display: flex; gap: 16px; align-items: flex-start; margin-top: 16px; padding: 16px 20px; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 12px; background: var(--surface); max-width: 100%; }
+.fb-trust-seal { flex: none; width: 40px; height: 40px; color: var(--accent); margin-top: 2px; }
+.fb-trust p { margin: 0; font-size: .98rem; line-height: 1.55; color: var(--ink-2, var(--ink)); }
+.fb-trust strong { color: var(--ink); }
+.fb-trust a { font-weight: 600; white-space: nowrap; }
+.fb-trust a::after { content: " \2192"; }
+.lg-how { scroll-margin-top: 96px; }
+.lg-how:target { outline: 2px solid var(--accent); outline-offset: 4px; }
+@media (max-width: 560px) { .fb-trust { padding: 14px 16px; gap: 12px; } .fb-trust-seal { width: 32px; height: 32px; } }
